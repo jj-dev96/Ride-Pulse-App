@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RidePulse - Rider Stats</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link rel="stylesheet" href="../CSS/theme.css" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFD700",
+                        secondary: "#FF0000",
+                        darkbg: "#121212",
+                        "card-dark": "#1E1E1E",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#121212",
+                        "accent-red": "#FF3B30",
+                    },
+                    fontFamily: {
+                        display: ["Teko", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .map-gradient-overlay {
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.8) 100%);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 font-body h-screen flex flex-col overflow-hidden antialiased">
+    <div
+        class="notch-safe-area bg-white dark:bg-darkbg z-50 sticky top-0 px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 rounded-full overflow-hidden border border-primary/30">
+                <img alt="RidePulse Logo" class="h-full w-full object-cover" src="../Images/RidePulse-Logo.jpg" />
+            </div>
+            <h1 class="text-3xl font-display font-bold text-gray-900 dark:text-primary tracking-wide uppercase">
+                RidePulse</h1>
+        </div>
+        <div class="relative">
+            <span
+                class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white dark:border-darkbg"></span>
+            <i class="material-icons text-gray-600 dark:text-gray-300">notifications</i>
+        </div>
+    </div>
+    <main class="flex-1 overflow-y-auto pb-24 px-4 pt-4 scroll-smooth">
+        <div class="mb-6 grid grid-cols-2 gap-4">
+            <div
+                class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col animate-fade-in">
+                <span class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Total
+                    Distance</span>
+                <div class="flex items-baseline mt-1">
+                    <span class="text-2xl font-bold font-display tracking-tight dark:text-white">1,248</span>
+                    <span class="ml-1 text-sm text-primary font-medium">km</span>
+                </div>
+            </div>
+            <div
+                class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col animate-fade-in">
+                <span class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Total
+                    Rides</span>
+                <div class="flex items-baseline mt-1">
+                    <span class="text-2xl font-bold font-display tracking-tight dark:text-white">42</span>
+                    <span class="ml-1 text-sm text-green-500 font-medium">rides</span>
+                </div>
+            </div>
+        </div>
+        <h2 class="text-lg font-bold mb-4 dark:text-white flex items-center">
+            <i class="material-icons mr-2 text-primary text-sm">history</i>
+            Ride History
+        </h2>
+        <div class="group bg-white dark:bg-card-dark rounded-2xl overflow-hidden shadow-md mb-6 border border-gray-100 dark:border-gray-700 transition-transform active:scale-[0.99] duration-200 cursor-pointer"
+            onclick="window.location.href='rideProgress.html'">
+            <div class="relative h-48 bg-gray-800">
+                <img alt="Mountain Pass Route Map" class="w-full h-full object-cover opacity-80"
+                    src="https://via.placeholder.com/400x200" />
+                <div class="absolute inset-0 map-gradient-overlay"></div>
+                <div
+                    class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                    <span class="text-xs font-medium text-white">Oct 24, 2023</span>
+                </div>
+                <div class="absolute bottom-4 left-4">
+                    <h3 class="text-xl font-bold text-white font-display tracking-wide">Pacific Coast Highway Run</h3>
+                    <p class="text-xs text-gray-300 flex items-center mt-1">
+                        <i class="material-icons text-[14px] mr-1 text-primary">location_on</i>
+                        Malibu to Ventura
+                    </p>
+                </div>
+            </div>
+            <div
+                class="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-700 border-b border-gray-100 dark:border-gray-700">
+                <div class="p-3 text-center">
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Distance</p>
+                    <p class="font-bold text-gray-900 dark:text-gray-100">85 km</p>
+                </div>
+                <div class="p-3 text-center">
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Duration</p>
+                    <p class="font-bold text-gray-900 dark:text-gray-100">1h 12m</p>
+                </div>
+                <div class="p-3 text-center">
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Avg Speed</p>
+                    <p class="font-bold text-gray-900 dark:text-gray-100">68 km/h</p>
+                </div>
+            </div>
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex -space-x-2">
+                        <img alt="Rider 1" class="w-8 h-8 rounded-full border-2 border-white dark:border-card-dark"
+                            src="https://via.placeholder.com/32" />
+                        <img alt="Rider 2" class="w-8 h-8 rounded-full border-2 border-white dark:border-card-dark"
+                            src="https://via.placeholder.com/32" />
+                        <div
+                            class="w-8 h-8 rounded-full border-2 border-white dark:border-card-dark bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
+                            +3</div>
+                    </div>
+                    <button
+                        class="text-xs font-semibold text-primary border border-primary/30 px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
+                        View Analytics
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div
+                        class="bg-gray-50 dark:bg-black/30 p-3 rounded-lg border border-transparent dark:border-gray-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] text-gray-500 uppercase">Max Lean</span>
+                            <i class="material-icons text-[14px] text-primary">two_wheeler</i>
+                        </div>
+                        <div class="relative pt-1">
+                            <div class="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-yellow-400 to-red-500 w-3/4"></div>
+                            </div>
+                            <span class="absolute right-0 top-0 text-xs font-bold dark:text-white">42°</span>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-gray-50 dark:bg-black/30 p-3 rounded-lg border border-transparent dark:border-gray-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] text-gray-500 uppercase">Top Speed</span>
+                            <i class="material-icons text-[14px] text-accent-red">speed</i>
+                        </div>
+                        <div class="relative pt-1">
+                            <div class="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-accent-red w-[85%]"></div>
+                            </div>
+                            <span class="absolute right-0 top-0 text-xs font-bold dark:text-white">142 km/h</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div
+            class="group bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm mb-4 border border-gray-100 dark:border-gray-800 flex gap-3 items-center active:bg-gray-50 dark:active:bg-gray-800 transition-colors">
+            <div class="h-20 w-20 flex-shrink-0 rounded-lg overflow-hidden relative">
+                <img alt="City Night Ride Map" class="w-full h-full object-cover"
+                    src="https://via.placeholder.com/80" />
+                <div class="absolute inset-0 bg-black/20"></div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start">
+                    <h4 class="font-bold text-gray-900 dark:text-white truncate pr-2">Downtown Night Loop</h4>
+                    <span class="text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">Oct
+                        20</span>
+                </div>
+                <div class="flex items-center text-xs text-gray-500 mt-1 space-x-3">
+                    <span class="flex items-center"><i class="material-icons text-[12px] mr-1">place</i> 24 km</span>
+                    <span class="flex items-center"><i class="material-icons text-[12px] mr-1">schedule</i> 45m</span>
+                </div>
+            </div>
+            <i class="material-icons text-gray-300 dark:text-gray-600">chevron_right</i>
+        </div>
+        <div
+            class="group bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm mb-4 border border-gray-100 dark:border-gray-800 flex gap-3 items-center active:bg-gray-50 dark:active:bg-gray-800 transition-colors">
+            <div class="h-20 w-20 flex-shrink-0 rounded-lg overflow-hidden relative">
+                <img alt="Canyon Curve Map" class="w-full h-full object-cover grayscale opacity-70"
+                    src="https://via.placeholder.com/80" />
+                <div class="absolute inset-0 bg-secondary/10"></div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start">
+                    <h4 class="font-bold text-gray-900 dark:text-white truncate pr-2">Red Rock Canyon</h4>
+                    <span class="text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">Oct
+                        15</span>
+                </div>
+                <div class="flex items-center text-xs text-gray-500 mt-1 space-x-3">
+                    <span class="flex items-center"><i class="material-icons text-[12px] mr-1">place</i> 112 km</span>
+                    <span class="flex items-center"><i class="material-icons text-[12px] mr-1">schedule</i> 2h
+                        05m</span>
+                </div>
+                <div class="flex items-center mt-2 space-x-2">
+                    <span
+                        class="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">Solo
+                        Ride</span>
+                </div>
+            </div>
+            <i class="material-icons text-gray-300 dark:text-gray-600">chevron_right</i>
+        </div>
+        <!-- Ride DNA Section -->
+        <div class="mt-6 mb-24 px-1 animate-slide-in" style="animation-delay: 0.2s;">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-display text-xl font-bold dark:text-white uppercase tracking-wider">Ride DNA <span
+                        class="bg-primary text-black text-[10px] px-1.5 py-0.5 rounded ml-2 align-middle">PRO</span>
+                </h3>
+                <button class="text-xs text-primary font-bold hover:underline"
+                    onclick="generateDNA()">REGENERATE</button>
+            </div>
+            <div class="ride-dna-container rounded-2xl p-6 flex flex-col items-center">
+                <canvas id="dnaCanvas" width="300" height="300" class="dna-canvas mb-4 max-w-full"></canvas>
+                <div class="w-full grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <div class="text-[10px] text-gray-400 uppercase tracking-widest">Flow</div>
+                        <div class="text-lg font-bold text-accent-neon">92%</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 uppercase tracking-widest">Intensity</div>
+                        <div class="text-lg font-bold text-secondary">88%</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 uppercase tracking-widest">Harmony</div>
+                        <div class="text-lg font-bold text-primary">95%</div>
+                    </div>
+                </div>
+                <button
+                    class="mt-4 w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                    <span class="material-icons text-sm">share</span> Share Fingerprint
+                </button>
+            </div>
+        </div>
+    </main>
+    <nav
+        class="bottom-safe-area bg-white dark:bg-card-dark border-t border-gray-200 dark:border-gray-800 sticky bottom-0 z-50">
+        <div class="flex justify-around items-center pt-2 pb-1">
+            <a href="maps.html" class="flex flex-col items-center group p-2 w-16">
+                <i class="material-icons text-gray-400 group-hover:text-primary transition-colors text-2xl">map</i>
+                <span class="text-[10px] mt-1 text-gray-500 group-hover:text-primary font-medium">Map</span>
+            </a>
+            <a href="stats.html" class="flex flex-col items-center group p-2 w-16">
+                <i class="material-icons text-primary transition-colors text-2xl">bar_chart</i>
+                <span class="text-[10px] mt-1 text-primary font-medium">Stats</span>
+            </a>
+            <div class="relative -top-5">
+                <a href="createJoin.html">
+                    <button
+                        class="bg-primary shadow-lg shadow-primary/30 rounded-full w-14 h-14 flex items-center justify-center transform active:scale-95 transition-transform border-4 border-white dark:border-card-dark">
+                        <i class="material-icons text-black text-3xl">sports_motorsports</i>
+                    </button>
+                </a>
+            </div>
+            <a href="dashbroard.html" class="flex flex-col items-center group p-2 w-16">
+                <i
+                    class="material-icons text-gray-400 group-hover:text-primary transition-colors text-2xl">workspace_premium</i>
+                <span class="text-[10px] mt-1 text-gray-500 group-hover:text-primary font-medium">Performance</span>
+            </a>
+            <a href="settings.html" class="flex flex-col items-center group p-2 w-16">
+                <i class="material-icons text-gray-400 group-hover:text-primary transition-colors text-2xl">settings</i>
+                <span class="text-[10px] mt-1 text-gray-500 group-hover:text-primary font-medium">Settings</span>
+            </a>
+        </div>
+    </nav>
+
+    <script src="../JS/shared.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', generateDNA);
+
+        function generateDNA() {
+            const canvas = document.getElementById('dnaCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            // Clear
+            ctx.clearRect(0, 0, width, height);
+
+            // Generate Random "Seed" for this ride
+            const seed = Math.random();
+            const intensity = 0.6 + (Math.random() * 0.4); // 0.6 - 1.0
+
+            // Draw Glowing Orb Core
+            const gradient = ctx.createRadialGradient(cx, cy, 10, cx, cy, 80);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 0, 0, 0.2)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw "Flow" Lines (Spirals)
+            ctx.strokeStyle = '#00E5FF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 100; i++) {
+                const angle = 0.1 * i;
+                const x = cx + (1 + angle) * Math.cos(angle * seed * 10) * (i / 2);
+                const y = cy + (1 + angle) * Math.sin(angle * seed * 10) * (i / 2);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw "Intensity" Spikes
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 360; i += 15) {
+                const rad = i * (Math.PI / 180);
+                const len = 50 + (Math.random() * 60 * intensity);
+                const x = cx + Math.cos(rad) * len;
+                const y = cy + Math.sin(rad) * len;
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw Outer Ring
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    </script>
+</body>
+
+</html>

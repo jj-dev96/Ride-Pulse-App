@@ -407,15 +407,25 @@ function handleLogin() {
         const user = storedUsers.find(u => u.userId === userId || u.email === userId);
         
         // Default test credentials
+        // Admin credentials
+        if (userId === 'admin' && password === '12345') {
+            showNotification('Login successful!', 'success');
+            setTimeout(() => {
+                window.location.href = 'maps.html';
+            }, 1000);
+            return;
+        }
+
+        // Default test credentials
         if ((userId === 'test' || userId === 'test@gmail.com') && password === '123456') {
             showNotification('Login successful!', 'success');
             setTimeout(() => {
-                window.location.href = 'map.html';
+                window.location.href = 'maps.html';
             }, 1000);
         } else if (user && atob(user.password) === password) {
             showNotification('Login successful!', 'success');
             setTimeout(() => {
-                window.location.href = 'map.html';
+                window.location.href = 'maps.html';
             }, 1000);
         } else {
             showNotification('Invalid User ID or password', 'error');
