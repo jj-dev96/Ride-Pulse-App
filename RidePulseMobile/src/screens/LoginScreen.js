@@ -1,173 +1,323 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Image, ImageBackground } from 'react-native';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 const LoginScreen = () => {
     const { login } = useContext(AuthContext);
-    const { colorScheme } = useContext(ThemeContext);
+    const { colorScheme, toggleTheme } = useContext(ThemeContext);
     const [isLogin, setIsLogin] = useState(true);
-    const [email, setEmail] = useState('');
+    const [userId, setUserId] = useState('');
     const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
-
-    const toggleMode = () => setIsLogin(!isLogin);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async () => {
-        if (isLogin) {
-            // Mock login
-            await login('user123', email.split('@')[0] || 'Rider', 'rider');
-        } else {
-            // Mock signup
-            if (name && email && password) {
-                await login('user123', name, 'rider');
-            }
+        if (userId && password) {
+            await login('user123', userId, 'rider');
         }
     };
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="flex-1"
-        >
-            <View className="flex-1 bg-background-light dark:bg-background-dark">
-                {/* Background Pattern */}
-                <View className="absolute inset-0 opacity-20 dark:opacity-40">
-                    <LinearGradient
-                        colors={colorScheme === 'dark' ? ['#FFD700', '#000000'] : ['#FFD700', '#FFFFFF']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        className="w-full h-full"
-                    />
-                </View>
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="light-content" backgroundColor="#0F111A" />
 
-                <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
-                    {/* Logo */}
-                    <View className="items-center mb-10">
-                        {/* <Image 
-                            source={require('../../assets/logo-main.png')} 
-                            className="w-24 h-24 mb-4" 
-                            resizeMode="contain"
-                        /> */}
-                        {/* Fallback Icon if image missing or for testing */}
-                        <MaterialIcons name="two-wheeler" size={64} color="#FFD700" />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.keyboardView}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
 
-                        <Text className="text-4xl font-bold text-gray-800 dark:text-white mt-2">
-                            Ride<Text className="text-primary">Pulse</Text>
-                        </Text>
-                        <Text className="text-gray-500 dark:text-gray-400 mt-1 tracking-widest text-xs uppercase">
-                            Join the pack. Ride together.
-                        </Text>
+                    {/* Theme Toggle */}
+                    <View style={styles.themeToggle}>
+                        <TouchableOpacity
+                            onPress={toggleTheme}
+                            style={styles.iconButton}
+                        >
+                            <MaterialIcons name={colorScheme === 'dark' ? "light-mode" : "dark-mode"} size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
                     </View>
 
-                    {/* Form Container */}
-                    <View className="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-xl dark:shadow-neon border border-gray-100 dark:border-gray-800">
-                        {/* Toggle */}
-                        <View className="flex-row bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-6 relative overflow-hidden">
-                            {/* Animated Background for toggle could go here with Reanimated */}
+                    {/* Header Section */}
+                    <View style={styles.header}>
+                        {/* Static Shield Logo using Map Background */}
+                        <ImageBackground
+                            source={require('../../assets/dark-map-bg.png')}
+                            style={styles.mapBackground}
+                            imageStyle={{ opacity: 0.6, borderRadius: 20 }}
+                        >
+                            <View style={styles.animationGroup}>
+                                <Image
+                                    source={require('../../assets/ride-pulse-logo-shield.png')}
+                                    style={styles.leader}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                        </ImageBackground>
+
+                        <Text style={styles.title}>RIDEPULSE</Text>
+                        <Text style={styles.subtitle}>Join the pack. Ride together.</Text>
+                    </View>
+
+                    {/* Card Container */}
+                    <View style={styles.card}>
+
+                        {/* Tabs */}
+                        <View style={styles.tabContainer}>
                             <TouchableOpacity
                                 onPress={() => setIsLogin(true)}
-                                className={`flex-1 py-2 items-center rounded-md ${isLogin ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
+                                style={[styles.tab, isLogin && styles.activeTab]}
                             >
-                                <Text className={`font-semibold ${isLogin ? 'text-primary' : 'text-gray-500'}`}>Log In</Text>
+                                <Text style={[styles.tabText, isLogin && styles.activeTabText]}>Log In</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => setIsLogin(false)}
-                                className={`flex-1 py-2 items-center rounded-md ${!isLogin ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
+                                style={[styles.tab, !isLogin && styles.activeTab]}
                             >
-                                <Text className={`font-semibold ${!isLogin ? 'text-primary' : 'text-gray-500'}`}>Sign Up</Text>
+                                <Text style={[styles.tabText, !isLogin && styles.activeTabText]}>Sign Up</Text>
                             </TouchableOpacity>
                         </View>
 
-                        {/* Inputs */}
-                        <View className="space-y-4">
-                            {!isLogin && (
-                                <View className="flex-row items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
-                                    <MaterialIcons name="person" size={20} color="#9CA3AF" />
-                                    <TextInput
-                                        placeholder="Full Name"
-                                        placeholderTextColor="#9CA3AF"
-                                        className="flex-1 ml-3 text-gray-800 dark:text-white"
-                                        value={name}
-                                        onChangeText={setName}
-                                    />
-                                </View>
-                            )}
+                        {/* Form Fields */}
+                        <View style={styles.form}>
 
-                            <View className="flex-row items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
-                                <MaterialIcons name="email" size={20} color="#9CA3AF" />
+                            {/* User ID Input */}
+                            <View style={styles.inputContainer}>
+                                <MaterialIcons name="person" size={24} color="#9CA3AF" />
                                 <TextInput
-                                    placeholder="Email"
-                                    placeholderTextColor="#9CA3AF"
-                                    className="flex-1 ml-3 text-gray-800 dark:text-white"
-                                    keyboardType="email-address"
+                                    placeholder="User ID"
+                                    placeholderTextColor="#6B7280"
+                                    style={styles.input}
+                                    value={userId}
+                                    onChangeText={setUserId}
                                     autoCapitalize="none"
-                                    value={email}
-                                    onChangeText={setEmail}
                                 />
                             </View>
 
-                            {!isLogin && (
-                                <View className="flex-row items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
-                                    <MaterialIcons name="phone" size={20} color="#9CA3AF" />
-                                    <TextInput
-                                        placeholder="Phone Number"
-                                        placeholderTextColor="#9CA3AF"
-                                        className="flex-1 ml-3 text-gray-800 dark:text-white"
-                                        keyboardType="phone-pad"
-                                        value={phone}
-                                        onChangeText={setPhone}
-                                    />
-                                </View>
-                            )}
-
-                            <View className="flex-row items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
-                                <MaterialIcons name="lock" size={20} color="#9CA3AF" />
+                            {/* Password Input */}
+                            <View style={styles.inputContainer}>
+                                <MaterialIcons name="lock" size={24} color="#9CA3AF" />
                                 <TextInput
                                     placeholder="Password"
-                                    placeholderTextColor="#9CA3AF"
-                                    className="flex-1 ml-3 text-gray-800 dark:text-white"
-                                    secureTextEntry
+                                    placeholderTextColor="#6B7280"
+                                    style={styles.input}
+                                    secureTextEntry={!showPassword}
                                     value={password}
                                     onChangeText={setPassword}
                                 />
+                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                    <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#9CA3AF" />
+                                </TouchableOpacity>
                             </View>
 
-                            <TouchableOpacity className="items-end">
-                                <Text className="text-xs font-semibold text-primary">Forgot Password?</Text>
+                            {/* Forgot Password */}
+                            <TouchableOpacity style={styles.forgotPassword}>
+                                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                             </TouchableOpacity>
 
+                            {/* Action Button */}
                             <TouchableOpacity
                                 onPress={handleSubmit}
-                                className="bg-primary rounded-xl py-4 flex-row justify-center items-center shadow-lg shadow-primary/30 mt-4 active:opacity-90"
+                                style={styles.actionButton}
                             >
-                                <Text className="text-black font-bold tracking-wide mr-2">
+                                <Text style={styles.actionButtonText}>
                                     {isLogin ? 'LOG IN' : 'SIGN UP'}
                                 </Text>
-                                <MaterialIcons name="arrow-forward" size={18} color="black" />
+                                <MaterialIcons name="arrow-forward" size={20} color="black" />
                             </TouchableOpacity>
                         </View>
-
-                        {/* Social Login */}
-                        <View className="mt-8 items-center">
-                            <Text className="text-gray-400 text-xs mb-4">Or continue with</Text>
-                            <View className="flex-row gap-4">
-                                <TouchableOpacity className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full items-center justify-center border border-gray-200 dark:border-gray-700">
-                                    <Image source={require('../../assets/googleLogo.png')} className="w-6 h-6" resizeMode="contain" />
-                                </TouchableOpacity>
-                                <TouchableOpacity className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full items-center justify-center border border-gray-200 dark:border-gray-700">
-                                    <Image source={require('../../assets/appleLogo.png')} className="w-6 h-6" resizeMode="contain" />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
                     </View>
+
+                    {/* Footer */}
+                    <View style={styles.footer}>
+                        <Text style={styles.footerText}>
+                            By continuing, you agree to RidePulse's <Text style={styles.linkText}>Terms</Text> & <Text style={styles.linkText}>Privacy Policy</Text>.
+                        </Text>
+                    </View>
+
                 </ScrollView>
-            </View>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 };
+
+const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#0F111A',
+    },
+    keyboardView: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        padding: 24,
+        paddingTop: 40,
+    },
+    themeToggle: {
+        position: 'absolute',
+        top: 20,
+        right: 0,
+        zIndex: 10,
+    },
+    iconButton: {
+        backgroundColor: '#1F2433',
+        padding: 8,
+        borderRadius: 50,
+    },
+    header: {
+        alignItems: 'center',
+        marginBottom: 32,
+        width: '100%',
+    },
+    // Login Screen Animation Styles
+    mapBackground: {
+        width: '100%',
+        height: 280, // Taller to show path
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 10,
+        overflow: 'hidden',
+    },
+    routeLine: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        opacity: 0.7,
+        zIndex: 1, // Behind bikes
+        transform: [{ scale: 1.5 }] // Make route distinctive
+    },
+    animationGroup: {
+        marginTop: 10,
+        width: 300,
+        height: 250,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2,
+    },
+    leader: {
+        width: 250, // Larger size for single bike
+        height: 250,
+    },
+    title: {
+        fontSize: 30,
+        fontWeight: '800',
+        color: '#FFD700',
+        letterSpacing: 2,
+    },
+    subtitle: {
+        color: '#9CA3AF',
+        marginTop: 8,
+        fontSize: 14,
+    },
+    card: {
+        backgroundColor: '#161925',
+        borderRadius: 24,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: '#1F2937',
+        // Shadow
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#1F2433',
+        borderRadius: 8,
+        padding: 4,
+        marginBottom: 24,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 6,
+    },
+    activeTab: {
+        backgroundColor: '#374151',
+    },
+    tabText: {
+        fontWeight: '600',
+        color: '#9CA3AF',
+    },
+    activeTabText: {
+        color: '#FFFFFF',
+    },
+    form: {
+        gap: 16,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1F2433',
+        borderWidth: 1,
+        borderColor: '#374151',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+    },
+    input: {
+        flex: 1,
+        marginLeft: 12,
+        color: '#FFFFFF',
+        fontSize: 16,
+    },
+    forgotPassword: {
+        alignItems: 'flex-end',
+        marginTop: 4,
+    },
+    forgotPasswordText: {
+        color: '#FFD700',
+        fontWeight: '600',
+        fontSize: 12,
+    },
+    actionButton: {
+        backgroundColor: '#FFD700',
+        borderRadius: 12,
+        paddingVertical: 16,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 8,
+        // Shadow
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 6,
+    },
+    actionButtonText: {
+        color: '#000000',
+        fontWeight: 'bold',
+        fontSize: 18,
+        letterSpacing: 1,
+        marginRight: 8,
+    },
+    footer: {
+        marginTop: 32,
+        alignItems: 'center',
+        paddingHorizontal: 16,
+    },
+    footerText: {
+        color: '#6B7280',
+        fontSize: 12,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    linkText: {
+        textDecorationLine: 'underline',
+        color: '#9CA3AF',
+    },
+});
 
 export default LoginScreen;
