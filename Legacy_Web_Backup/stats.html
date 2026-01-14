@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RidePulse - Rider Stats</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                colors: {
+                    primary: "#FFD700", // Yellow from logo background
+                    secondary: "#D32F2F", // Red from logo text
+                    darkbg: "#121212",
+                    "card-dark": "#1E1E1E",
+                    "background-light": "#F3F4F6",
+                    "background-dark": "#121212",
+                    "accent-red": "#FF3B30",
+                },
+                fontFamily: {
+                    display: ["Teko", "sans-serif"],
+                    body: ["Inter", "sans-serif"],
+                },
+                borderRadius: {
+                    DEFAULT: "12px",
+                },
+            },
+        },
+      };
+    </script>
+<style>
+        .map-gradient-overlay {
+            background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%);
+        }::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121212; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        .notch-safe-area {
+            padding-top: env(safe-area-inset-top);
+        }
+        .bottom-safe-area {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 font-body h-screen flex flex-col overflow-hidden antialiased">
+<div class="notch-safe-area bg-white dark:bg-darkbg z-50 sticky top-0 px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 shadow-sm">
+<div class="flex items-center space-x-3">
+<div class="h-8 w-8 rounded-full overflow-hidden border border-primary/30">
+<img alt="RidePulse Logo" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQ4NKg302roFDKlU9hnihuJXUdQPu2FHT6G_w7xNzduBwT-dYRlN2aHlcnrZViDAb1wb6XsqqPGeXZOTCupDMC8K2_D8yxj4yGEE_f04Qr3Pt3paVuCZMlatFq-Us0MmkAwWlSUpmmjYZYV5ud6NJfDRX4Mkrc34WfkA3whTEVL1JZKCkXqKghZJKzDVBDk37XbS7mTkHxnup49-XTkgIeq1zfJb9kkk8z9zXfL1gXQysU8dATKu6voNrLHM2Pvn7TsbpwSYWowQUv"/>
+</div>
+<h1 class="text-3xl font-display font-bold text-gray-900 dark:text-primary tracking-wide uppercase">RidePulse</h1>
+</div>
+<div class="relative">
+<span class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white dark:border-darkbg"></span>
+<i class="material-icons text-gray-600 dark:text-gray-300">notifications</i>
+</div>
+</div>
+<main class="flex-1 overflow-y-auto pb-24 px-4 pt-4 scroll-smooth">
+<div class="mb-6 grid grid-cols-2 gap-4">
+<div class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col">
+<span class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Total Distance</span>
+<div class="flex items-baseline mt-1">
+<span class="text-2xl font-bold font-display tracking-tight dark:text-white">1,248</span>
+<span class="ml-1 text-sm text-primary font-medium">km</span>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col">
+<span class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Total Rides</span>
+<div class="flex items-baseline mt-1">
+<span class="text-2xl font-bold font-display tracking-tight dark:text-white">42</span>
+<span class="ml-1 text-sm text-green-500 font-medium">rides</span>
+</div>
+</div>
+</div>
+<h2 class="text-lg font-bold mb-4 dark:text-white flex items-center">
+<i class="material-icons mr-2 text-primary text-sm">history</i>
+            Ride History
+        </h2>
+<div class="group bg-white dark:bg-card-dark rounded-2xl overflow-hidden shadow-md mb-6 border border-gray-100 dark:border-gray-700 transition-transform active:scale-[0.99] duration-200">
+<div class="relative h-48 bg-gray-800">
+<img alt="Mountain Pass Route Map" class="w-full h-full object-cover opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiMNJN8ETb-k7Uzr12ARwpiFEKjeSmBOFN6dnudTlJ1JoShKilngAMRBtpDZJciQPJ7tMBB-oB3xOFHH_KWBJ2XuprxCRxJN1t7jikF0gK3eaE9un6rvCeWSa5R53Boxq1SBVzKjS_lxD6woq8rjSIueNcmTy0wJOnrnBkSx9dzuXqThzSHMkcKkSLFqUwxdsj8mlmK1PTa_WxGwG_zy4d2_9tXJtChzFBPE4ml3fGR8Blg1CbxTKjTcx4gdPkILKpolWQfsuvGEgy"/>
+<div class="absolute inset-0 map-gradient-overlay"></div>
+<div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+<span class="text-xs font-medium text-white">Oct 24, 2023</span>
+</div>
+<div class="absolute bottom-4 left-4">
+<h3 class="text-xl font-bold text-white font-display tracking-wide">Pacific Coast Highway Run</h3>
+<p class="text-xs text-gray-300 flex items-center mt-1">
+<i class="material-icons text-[14px] mr-1 text-primary">location_on</i>
+                        Malibu to Ventura
+                    </p>
+</div>
+</div>
+<div class="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-700 border-b border-gray-100 dark:border-gray-700">
+<div class="p-3 text-center">
+<p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Distance</p>
+<p class="font-bold text-gray-900 dark:text-gray-100">85 km</p>
+</div>
+<div class="p-3 text-center">
+<p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Duration</p>
+<p class="font-bold text-gray-900 dark:text-gray-100">1h 12m</p>
+</div>
+<div class="p-3 text-center">
+<p class="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Avg Speed</p>
+<p class="font-bold text-gray-900 dark:text-gray-100">68 km/h</p>
+</div>
+</div>
+<div class="p-4">
+<div class="flex items-center justify-between mb-4">
+<div class="flex -space-x-2">
+<img alt="Rider 1" class="w-8 h-8 rounded-full border-2 border-white dark:border-card-dark" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3phcfM8MRR2roZBOnKBXjJpgrU87PA1QPcV-ALZ8d_6brGFwVT5nzGBE1roz2x9idWMHX_RNCW-Z20s-Beq-oMqXyfhFuBUTSEfYjVPQGvfJoMYu5xcaDFsu6wddOGRrla5LffmlmswBwlIImXChMjRicoAVrQY6rUvAhfH3wH0aeLp7OrtkEGlo61f33crkYZ9YvMb8iL99uLDn1-nvT5mPVDNVU8CW19KA2Ukq___ONOnhBbOmHaI2joDANBnGSE0AcTRT2MtAY"/>
+<img alt="Rider 2" class="w-8 h-8 rounded-full border-2 border-white dark:border-card-dark" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGtzV4RzdOGQ9YH9aGNpWW9nAVhASq3X3uvlix0LLSBnuTUIBVLSwiWMydGvmjeUwQekG4uirUsC-2msGr3ouhf7SoqPVx2TvU6eo_L_AZ876GlT7gQ873xok6Ckr2cTq7e7iW1PokPNZ6AW2PDSrBlejJ7xxdwqXpLuyNV1f7PNVpQPcPq_8iYkEwrcu8jxGqU4nQEXKwGx0jrK_M4Ii5ZNm1dSfT_8FSwuRqoFgMAvRqucVgeMqBvuizHXwvYBkM40Njf4xZgKWq"/>
+<div class="w-8 h-8 rounded-full border-2 border-white dark:border-card-dark bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">+3</div>
+</div>
+<button class="text-xs font-semibold text-primary border border-primary/30 px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
+                        View Analytics
+                    </button>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-gray-50 dark:bg-black/30 p-3 rounded-lg border border-transparent dark:border-gray-800">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] text-gray-500 uppercase">Max Lean</span>
+<i class="material-icons text-[14px] text-primary">two_wheeler</i>
+</div>
+<div class="relative pt-1">
+<div class="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-yellow-400 to-red-500 w-3/4"></div>
+</div>
+<span class="absolute right-0 top-0 text-xs font-bold dark:text-white">42°</span>
+</div>
+</div>
+<div class="bg-gray-50 dark:bg-black/30 p-3 rounded-lg border border-transparent dark:border-gray-800">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] text-gray-500 uppercase">Top Speed</span>
+<i class="material-icons text-[14px] text-accent-red">speed</i>
+</div>
+<div class="relative pt-1">
+<div class="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+<div class="h-full bg-accent-red w-[85%]"></div>
+</div>
+<span class="absolute right-0 top-0 text-xs font-bold dark:text-white">142 km/h</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="group bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm mb-4 border border-gray-100 dark:border-gray-800 flex gap-3 items-center active:bg-gray-50 dark:active:bg-gray-800 transition-colors">
+<div class="h-20 w-20 flex-shrink-0 rounded-lg overflow-hidden relative">
+<img alt="City Night Ride Map" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdEc4UzPp47EP4zwPBxVYWfW7ITCxmvUsfR5VDVgWWUc8k1SbDsndvikyiT_6ffRHO9zp4CzHY85LI-omxYHykxMzRNx_mgrUBawS7hltoO_Hh-8ptwXeTADTgZoCIznIzrQaSwY16eqbbrRgQX6PVn4z6Kx7Gv1Lq6U4XHhjvfqU2nsj633TbcNGajzdEedFTFBfujaMwcl3VxH56WOHehIyXons6kHZsuTLA8YugRm1VNHGwaXK8EbnZvoHX23KJao1slaB0IfCh"/>
+<div class="absolute inset-0 bg-black/20"></div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-gray-900 dark:text-white truncate pr-2">Downtown Night Loop</h4>
+<span class="text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">Oct 20</span>
+</div>
+<div class="flex items-center text-xs text-gray-500 mt-1 space-x-3">
+<span class="flex items-center"><i class="material-icons text-[12px] mr-1">place</i> 24 km</span>
+<span class="flex items-center"><i class="material-icons text-[12px] mr-1">schedule</i> 45m</span>
+</div>
+<div class="flex items-center mt-2 space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="Rider" class="w-5 h-5 rounded-full border border-white dark:border-card-dark" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLmt41f_kLsv2CxOZ3QkLGp3UnJx3bMOb_3iKe96h-_04MIwcfNyk3g-WhjxzQIsuNaHfR_nlBybjmKZBbt2Ad8IdnEROH0Ye-YR9Ouq1S3faaHV4Rn7YZQ6O5FwwsnffkDTUrLv6gL_WyqxhveTjI87u239fT-zrw_19NV8pfiaAwslODf53MMqiB1sPlJJWUpkaip-fgyO0CbEp-41je7Rk1iLM6J9cpJgTG9O71ZuFGi78brFJzn8r_Gb1NjMxdgg9Mb4IvGRl_"/>
+<img alt="Rider" class="w-5 h-5 rounded-full border border-white dark:border-card-dark" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0nUyvI-HaGnz2eElza6EbxLbaJnAtAmGowAcXkbnTJYPUEVt1_NT68lfdzJi27jyC7N_Ydd2YEvGBUWSQm1F0ZaHPOoXpBM8s-48jldCjBKGkD14DTsbDyRP-N1KqNNAvXXuVJS4vZkT_2aQHPQqax55g56RQvjWFbGQUgEVk5_G-iAj_yUuCdeyP5KZCLKhXKoO-8ro97gbzMiKjmfs1Mzxxx9sLmKzcDz5Ib1ebyLa71_yYwnm7Qwy3BLrwXw6mLQFuYyO33XWs"/>
+</div>
+<span class="text-[10px] text-gray-400">+ Hazard Reported</span>
+</div>
+</div>
+<i class="material-icons text-gray-300 dark:text-gray-600">chevron_right</i>
+</div>
+<div class="group bg-white dark:bg-card-dark rounded-xl p-3 shadow-sm mb-4 border border-gray-100 dark:border-gray-800 flex gap-3 items-center active:bg-gray-50 dark:active:bg-gray-800 transition-colors">
+<div class="h-20 w-20 flex-shrink-0 rounded-lg overflow-hidden relative">
+<img alt="Canyon Curve Map" class="w-full h-full object-cover grayscale opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCoAnAd0NvW9GW5_tq_LdRRnG9gqrPL9Xlqs5vXZeoz4yluoyH5wHk_gmGZ6_42dylVUPn3e2CoIb4m0c0v9gaIrG2FjwFA_EkWwQTr5qim8tcWa0yUWAySCnq9JHvrM5Cnm4Bfxgc9GO7sx7o07L2xSa_dynYaoDZF_HI-jNpVuchcRyCvYR_xCulQwHVa8lv9otrZpUHYNITH6gmzEyN5pdKo1NCK4ZHbnL7T9jDR9EUdJv9Pj2NiH1JmesaegKAMW8kPy5spIw-u"/>
+<div class="absolute inset-0 bg-secondary/10"></div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-gray-900 dark:text-white truncate pr-2">Red Rock Canyon</h4>
+<span class="text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">Oct 15</span>
+</div>
+<div class="flex items-center text-xs text-gray-500 mt-1 space-x-3">
+<span class="flex items-center"><i class="material-icons text-[12px] mr-1">place</i> 112 km</span>
+<span class="flex items-center"><i class="material-icons text-[12px] mr-1">schedule</i> 2h 05m</span>
+</div>
+<div class="flex items-center mt-2 space-x-2">
+<span class="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">Solo Ride</span>
+</div>
+</div>
+<i class="material-icons text-gray-300 dark:text-gray-600">chevron_right</i>
+</div>
+</main>
+<nav class="bottom-safe-area bg-white dark:bg-card-dark border-t border-gray-200 dark:border-gray-800 sticky bottom-0 z-50">
+<div class="flex justify-around items-center pt-2 pb-1">
+<a class="flex flex-col items-center group p-2 w-16" href="#">
+<i class="material-icons text-gray-400 group-hover:text-primary transition-colors text-2xl">map</i>
+<span class="text-[10px] mt-1 text-gray-500 group-hover:text-primary font-medium">Map</span>
+</a>
+<a class="flex flex-col items-center group p-2 w-16" href="#">
+<i class="material-icons text-primary transition-colors text-2xl">bar_chart</i>
+<span class="text-[10px] mt-1 text-primary font-medium">Stats</span>
+</a>
+<div class="relative -top-5">
+<button class="bg-primary shadow-lg shadow-primary/30 rounded-full w-14 h-14 flex items-center justify-center transform active:scale-95 transition-transform border-4 border-white dark:border-card-dark">
+<i class="material-icons text-black text-3xl">sports_motorsports</i>
+</button>
+</div>
+<a class="flex flex-col items-center group p-2 w-16" href="#">
+<i class="material-icons text-gray-400 group-hover:text-primary transition-colors text-2xl">workspace_premium</i>
+<span class="text-[10px] mt-1 text-gray-500 group-hover:text-primary font-medium">Premium</span>
+</a>
+<a class="flex flex-col items-center group p-2 w-16" href="#">
+<i class="material-icons text-gray-400 group-hover:text-primary transition-colors text-2xl">settings</i>
+<span class="text-[10px] mt-1 text-gray-500 group-hover:text-primary font-medium">Settings</span>
+</a>
+</div>
+</nav>
+
+</body></html>

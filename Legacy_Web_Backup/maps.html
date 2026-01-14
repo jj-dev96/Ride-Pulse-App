@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RidePulse - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFD700", // Gold/Yellow from logo
+                        secondary: "#FF0000", // Red from logo text
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#111827",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1F2937",
+                        "accent-blue": "#3B82F6",
+                        "accent-green": "#10B981",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        logo: ["Impact", "Charcoal", "sans-serif"], // Rough approximation for the logo font
+                    },
+                    borderRadius: {
+                        DEFAULT: "12px",
+                        'xl': "1rem",
+                        '2xl': "1.5rem",
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' },
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<style>.map-bg {
+            background-color: #e5e7eb;background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.6) 2px, transparent 2px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.6) 2px, transparent 2px);
+            background-size: 40px 40px;
+        }
+        .dark .map-bg {
+            background-color: #1f2937;background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }.road {
+            position: absolute;
+            background: #9ca3af;
+            border-radius: 99px;
+        }
+        .dark .road {
+            background: #374151;
+        }::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 font-display h-screen w-full overflow-hidden flex flex-col relative">
+<div class="absolute top-0 left-0 right-0 z-20 p-4 pt-12 bg-gradient-to-b from-surface-light/90 dark:from-background-dark/95 to-transparent pb-8 pointer-events-none">
+<div class="pointer-events-auto">
+<div class="relative shadow-lg rounded-2xl mb-4 group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-icons-round text-gray-400">search</span>
+</div>
+<input class="block w-full pl-10 pr-12 py-3.5 border-none rounded-2xl bg-surface-light dark:bg-surface-dark text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-primary shadow-sm text-sm font-medium transition-all" placeholder="Enter Destination" type="text"/>
+<div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+<button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-primary">
+<span class="material-icons-round">mic</span>
+</button>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex-1 bg-surface-light dark:bg-surface-dark py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform border border-gray-100 dark:border-gray-700">
+<span class="material-icons-round text-primary">add_circle</span>
+<span class="font-bold text-sm text-gray-800 dark:text-white">Create Ride</span>
+</button>
+<button class="flex-1 bg-primary py-3 px-4 rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 active:scale-95 transition-transform text-black">
+<span class="material-icons-round">group_add</span>
+<span class="font-bold text-sm">Join Ride</span>
+</button>
+</div>
+</div>
+</div>
+<main class="flex-grow relative w-full h-full overflow-hidden z-0 map-bg">
+<div class="road w-[120%] h-16 top-1/3 -left-10 rotate-12 opacity-50"></div>
+<div class="road w-[120%] h-12 top-2/3 -left-10 -rotate-6 opacity-50"></div>
+<div class="road w-24 h-[120%] top-0 left-1/3 rotate-0 opacity-30"></div>
+<div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
+<div class="absolute w-24 h-24 bg-primary/20 rounded-full animate-pulse-slow"></div>
+<div class="absolute w-12 h-12 bg-primary/40 rounded-full animate-ping"></div>
+<div class="relative bg-surface-dark dark:bg-black border-2 border-primary p-2 rounded-full shadow-xl z-20">
+<span class="material-icons-round text-primary text-2xl">two_wheeler</span>
+</div>
+<div class="mt-2 bg-surface-dark/90 dark:bg-black/90 backdrop-blur px-3 py-1 rounded-lg border border-gray-700 shadow-lg text-center">
+<p class="text-[10px] text-gray-400 uppercase tracking-wider font-bold">You</p>
+<p class="text-xs font-bold text-white">0 km/h</p>
+</div>
+</div>
+<div class="absolute top-[35%] right-[20%] flex flex-col items-center animate-float duration-1000">
+<div class="relative bg-surface-light dark:bg-surface-dark border-2 border-accent-blue p-1.5 rounded-full shadow-lg">
+<img alt="Avatar" class="w-8 h-8 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7o5K-iG2Tt6R4v_nzsinBtywG7EE8MOFw-XeHlzBSsoL6z6CsVrHOkTWydHpI2kE-RN8HX3hsgNK0tZWmrbq2m6i0WIBP9Y3ZB5_74H0qFOUtMyD35rI2xaDzaKoxioAMFg0q-1Mas1Fy6P0cgC6HP6_BjA9b36qFcMXhvRixLHs3B8f4PuvOQR2l_z51ApmTKBjVrnY71dZetNf4EPnR26V8NxHoiPfiak4IYfLBr8m-bpTpBw2C-88TEO_Qi9ovvB6ZLW37gzSY"/>
+<div class="absolute -bottom-1 -right-1 bg-accent-blue w-4 h-4 rounded-full border-2 border-white dark:border-surface-dark flex items-center justify-center">
+<span class="material-icons-round text-[8px] text-white">navigation</span>
+</div>
+</div>
+<div class="mt-1 bg-white/90 dark:bg-surface-dark/90 px-2 py-0.5 rounded shadow text-center">
+<p class="text-xs font-bold text-gray-800 dark:text-white">Alex</p>
+<p class="text-[10px] text-accent-blue font-mono">65 mph</p>
+</div>
+</div>
+<div class="absolute bottom-[40%] left-[15%] flex flex-col items-center animate-float">
+<div class="relative bg-surface-light dark:bg-surface-dark border-2 border-accent-green p-1.5 rounded-full shadow-lg">
+<img alt="Avatar" class="w-8 h-8 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWvSfBhU3Fq9hHeDgy5O-rlRI5Z9V-hUFIdvvYObTA98U5VNBcdZ7DWKk1E7rAufd4DV3oWCJ9XbQza7tXIkGx6Si04vJHkmaDyom1achMt388BuxZu_nwgZ3tx8TuLbchqDYoQcLPWe-sKJ2A4G2-RVuioLodtq1q2YhmX32uc_UR0aZRaT2RbHVYplI8BUSK_xgqa-kDG17jtXD_c1WERIgRsVGWupS3vAkYWTTO4Q5MEQ9PdFWVHYlQM4tRAoCMvZAVypPPOWGS"/>
+</div>
+<div class="mt-1 bg-white/90 dark:bg-surface-dark/90 px-2 py-0.5 rounded shadow text-center">
+<p class="text-xs font-bold text-gray-800 dark:text-white">Sarah</p>
+<p class="text-[10px] text-accent-green font-mono">58 mph</p>
+</div>
+</div>
+<div class="absolute top-[20%] left-[40%] flex flex-col items-center opacity-80">
+<div class="relative bg-surface-light dark:bg-surface-dark border-2 border-secondary p-1.5 rounded-full shadow-lg scale-75">
+<img alt="Avatar" class="w-8 h-8 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbHRJEiPI1oK2wvplqT57u42_4UHIn4JKFB7-RPXvJGBdu-DA-1KA5opPsgl49eplXC2IYXIL28-1aLuNYYOSQ_BfIPUimRPok6KtirVwMtULtdX1bhe4nM1GPAbb4skiggncz3sMjm7TXw5_cvC-7VCPaAvLlMJyr1vacT-dcucPtazJVhP6LWqSb1zyeZ0D4gfmbBv4JRVShmV4aFsJJCmVxWdq-sR_SVL0-E2eYVAjSQh3S02GRC8GVq8n7SbLS9uYLVnp5GQsk"/>
+</div>
+<div class="mt-1 bg-white/80 dark:bg-surface-dark/80 px-2 py-0.5 rounded shadow text-center scale-75">
+<p class="text-xs font-bold text-gray-800 dark:text-white">Mike</p>
+</div>
+</div>
+<div class="absolute right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-3 z-10">
+<button class="w-10 h-10 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-700">
+<span class="material-icons-round text-xl">layers</span>
+</button>
+<button class="w-10 h-10 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-700">
+<span class="material-icons-round text-xl">compass_calibration</span>
+</button>
+<button class="w-10 h-10 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-primary active:bg-gray-200 dark:active:bg-gray-700">
+<span class="material-icons-round text-xl">my_location</span>
+</button>
+</div>
+<div class="absolute bottom-6 right-4 z-20">
+<button class="group flex items-center justify-center w-14 h-14 bg-red-600 rounded-full shadow-xl shadow-red-600/40 hover:bg-red-700 hover:scale-105 transition-all active:scale-95 animate-pulse">
+<span class="material-icons-round text-white text-3xl">warning</span>
+<span class="absolute right-full mr-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Send Alert
+                </span>
+</button>
+</div>
+<div class="absolute bottom-6 left-4 z-10 max-w-[160px]">
+<div class="bg-surface-light/90 dark:bg-surface-dark/90 backdrop-blur-md p-3 rounded-xl border border-white/20 shadow-lg">
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+<span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Live Group</span>
+</div>
+<h3 class="text-sm font-bold text-gray-800 dark:text-white leading-tight">Sunday Canyon Run</h3>
+<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">4 Riders • 12mi left</p>
+</div>
+</div>
+</main>
+<nav class="bg-surface-light dark:bg-surface-dark border-t border-gray-200 dark:border-gray-800 pb-6 pt-3 px-6 z-20">
+<ul class="flex justify-between items-center">
+<li class="flex flex-col items-center gap-1 cursor-pointer group">
+<div class="relative p-1">
+<span class="material-icons-round text-primary text-2xl transition-transform group-active:scale-90">map</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+</div>
+<span class="text-[10px] font-bold text-primary">Map</span>
+</li>
+<li class="flex flex-col items-center gap-1 cursor-pointer group">
+<div class="p-1">
+<span class="material-icons-round text-gray-400 dark:text-gray-500 text-2xl group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors group-active:scale-90">bar_chart</span>
+</div>
+<span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">Stats</span>
+</li>
+<li class="relative -top-5">
+<div class="w-14 h-14 bg-gradient-to-br from-gray-800 to-black rounded-full border-4 border-surface-light dark:border-surface-dark flex items-center justify-center shadow-lg transform active:scale-95 transition-transform cursor-pointer">
+<img alt="Logo" class="w-8 h-8 opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzUpeAj6xD96HvFHx56ESrn3aGVD0r4s5dpAZ1XSnvFA2px9Gsvzv8LfWrIu2qKivTHNPcJCf44qXBuWnwbLdhMd9fBkNm7uIwvnwjw3qNTaCwe3JR6OcEmn9h-nZsDu7byOjNKBo1Ju4_9Sy-8WW6mGTfOOcdJb5gN0izxz12b_-cnXnvquxk1LBVNOiaOzc-7q9kC6fZ8h44o4ThiEYv9n5rjCqxLGe5ikSSxa95St25ZOhoz4KOn_OOOt4Hx4bvjb0MLIZmP3qp"/>
+</div>
+</li>
+<li class="flex flex-col items-center gap-1 cursor-pointer group">
+<div class="p-1">
+<span class="material-icons-round text-gray-400 dark:text-gray-500 text-2xl group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors group-active:scale-90">workspace_premium</span>
+</div>
+<span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">Premium</span>
+</li>
+<li class="flex flex-col items-center gap-1 cursor-pointer group">
+<div class="p-1">
+<span class="material-icons-round text-gray-400 dark:text-gray-500 text-2xl group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors group-active:scale-90">settings</span>
+</div>
+<span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">Settings</span>
+</li>
+</ul>
+</nav>
+
+</body></html>

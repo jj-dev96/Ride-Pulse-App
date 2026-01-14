@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RidePulse - Smart Garage</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&amp;family=Roboto:wght@300;400;500;700;900&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Round" rel="stylesheet" />
+    <link rel="stylesheet" href="../CSS/theme.css" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFD700",
+                        secondary: "#FF0000",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#111827",
+                        "card-dark": "#1A1A1D",
+                        "card-light": "#FFFFFF",
+                        "accent-neon": "#00E5FF",
+                    },
+                    fontFamily: {
+                        display: ["Teko", "sans-serif"],
+                        body: ["Roboto", "sans-serif"],
+                    },
+                    boxShadow: {
+                        'neon': '0 0 10px rgba(255, 215, 0, 0.3)',
+                        'neon-blue': '0 0 10px rgba(0, 229, 255, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-100 font-body antialiased transition-colors duration-200">
+    <div
+        class="w-full min-h-screen relative flex flex-col pb-6 overflow-x-hidden bg-background-light dark:bg-background-dark">
+        <!-- Header -->
+        <header
+            class="px-4 py-4 md:px-6 md:py-6 flex justify-between items-center bg-card-light dark:bg-card-dark shadow-sm z-20 sticky top-0">
+            <div class="flex items-center gap-3">
+                <button onclick="history.back()"
+                    class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-primary transition-colors active:scale-95">
+                    <span class="material-icons text-base">arrow_back</span>
+                </button>
+                <h1 class="font-display font-bold text-xl md:text-2xl tracking-wide uppercase">Smart Garage</h1>
+            </div>
+            <div
+                class="w-10 h-10 rounded-full border-2 border-accent-neon shadow-neon-blue flex items-center justify-center animate-pulse-glow">
+                <span class="material-icons text-accent-neon text-base">stars</span>
+            </div>
+        </header>
+
+        <main class="flex-1 w-full max-w-lg mx-auto p-4 space-y-6">
+            <!-- Owner Details Section -->
+            <section class="animate-fade-in" style="animation-delay: 0.1s">
+                <div class="flex items-center gap-2 mb-3 px-1">
+                    <span class="material-icons text-primary text-lg">badge</span>
+                    <h2 class="font-display text-lg font-bold tracking-wide uppercase">Rider Identity</h2>
+                </div>
+                <div
+                    class="bg-card-light dark:bg-card-dark rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-800 relative overflow-hidden group">
+                    <div
+                        class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-[3rem] -mr-4 -mt-4 transition-transform group-hover:scale-110">
+                    </div>
+
+                    <div class="space-y-6 relative z-10">
+                        <!-- Profile Pic Upload -->
+                        <div class="flex justify-center">
+                            <div class="relative group/upload cursor-pointer">
+                                <div
+                                    class="w-28 h-28 rounded-full overflow-hidden border-4 border-primary shadow-neon bg-gray-200 dark:bg-gray-800 transition-all group-hover/upload:shadow-lg group-hover/upload:shadow-primary/40">
+                                    <img id="profilePreview" src="https://via.placeholder.com/150"
+                                        class="w-full h-full object-cover opacity-60 group-hover/upload:opacity-40 transition-opacity" />
+                                    <div
+                                        class="absolute inset-0 flex items-center justify-center flex-col text-xs font-bold text-gray-500 uppercase group-hover/upload:text-gray-800 dark:group-hover/upload:text-white transition-colors">
+                                        <span class="material-icons mb-1 text-2xl">add_a_photo</span>
+                                        Upload Photo
+                                    </div>
+                                </div>
+                                <input type="file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    accept="image/*" id="profileUpload" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Blood
+                                    Type</label>
+                                <div class="relative">
+                                    <select
+                                        class="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary h-12 pl-4 pr-8 appearance-none cursor-pointer">
+                                        <option>A+</option>
+                                        <option>A-</option>
+                                        <option>B+</option>
+                                        <option>B-</option>
+                                        <option>O+</option>
+                                        <option>O-</option>
+                                        <option>AB+</option>
+                                        <option>AB-</option>
+                                    </select>
+                                    <span
+                                        class="material-icons absolute right-3 top-3.5 text-gray-400 pointer-events-none text-sm">expand_more</span>
+                                </div>
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">License
+                                    No.</label>
+                                <input type="text"
+                                    class="w-full bg-gray-100 dark:bg-gray-900 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary h-12 px-4 placeholder-gray-400 dark:placeholder-gray-600 uppercase"
+                                    placeholder="XX-00-XX-0000" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Machine Setup Section -->
+            <section class="animate-fade-in" style="animation-delay: 0.2s">
+                <div class="flex items-center gap-2 mb-3 px-1">
+                    <span class="material-icons text-accent-neon text-lg">two_wheeler</span>
+                    <h2 class="font-display text-lg font-bold tracking-wide uppercase">Machine Configuration</h2>
+                </div>
+
+                <div
+                    class="bg-card-light dark:bg-card-dark rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-800 space-y-6">
+
+                    <!-- Brand Selection -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-gray-500 uppercase flex justify-between items-end ml-1">
+                            Manufacturer
+                            <span
+                                class="text-accent-neon text-[10px] bg-accent-neon/10 px-2 py-0.5 rounded border border-accent-neon/20">AUTO
+                                DETECT</span>
+                        </label>
+                        <div class="relative group/select">
+                            <select id="brandSelect"
+                                class="w-full bg-gray-100 dark:bg-gray-900 border border-transparent dark:border-gray-800 rounded-xl py-4 pl-12 pr-10 text-base font-bold focus:ring-2 focus:ring-accent-neon focus:border-transparent appearance-none transition-all hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                                <option value="">Select Brand</option>
+                                <!-- Populated by JS -->
+                            </select>
+                            <span
+                                class="material-icons absolute left-4 top-4 text-gray-400 group-hover/select:text-accent-neon transition-colors">branding_watermark</span>
+                            <span
+                                class="material-icons absolute right-4 top-4 text-gray-400 pointer-events-none">expand_more</span>
+                        </div>
+                    </div>
+
+                    <!-- Model Selection -->
+                    <div class="space-y-2 opacity-50 pointer-events-none transition-all duration-300 transform translate-y-2"
+                        id="modelContainer">
+                        <label class="text-xs font-bold text-gray-500 uppercase ml-1">Model</label>
+                        <div class="relative group/select">
+                            <select id="modelSelect"
+                                class="w-full bg-gray-100 dark:bg-gray-900 border border-transparent dark:border-gray-800 rounded-xl py-4 pl-12 pr-10 text-base font-bold focus:ring-2 focus:ring-accent-neon focus:border-transparent appearance-none transition-all hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                                <option value="">Select Model</option>
+                                <!-- Populated by JS -->
+                            </select>
+                            <span
+                                class="material-icons absolute left-4 top-4 text-gray-400 group-hover/select:text-accent-neon transition-colors">sports_motorsports</span>
+                            <span
+                                class="material-icons absolute right-4 top-4 text-gray-400 pointer-events-none">expand_more</span>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Populated Specs Grid -->
+                    <div class="grid grid-cols-3 gap-3 pt-2" id="specsContainer">
+                        <div
+                            class="bg-gray-100 dark:bg-gray-900/50 rounded-xl p-3 text-center border border-transparent transition-all duration-300 hover:border-accent-neon/30 hover:bg-gray-50 dark:hover:bg-gray-800/80">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Power</div>
+                            <div class="font-display text-2xl text-gray-800 dark:text-white leading-none"><span
+                                    id="specHP">--</span> <span
+                                    class="text-xs font-body text-gray-400 font-medium">HP</span></div>
+                        </div>
+                        <div
+                            class="bg-gray-100 dark:bg-gray-900/50 rounded-xl p-3 text-center border border-transparent transition-all duration-300 hover:border-accent-neon/30 hover:bg-gray-50 dark:hover:bg-gray-800/80">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Torque</div>
+                            <div class="font-display text-2xl text-gray-800 dark:text-white leading-none"><span
+                                    id="specTorque">--</span> <span
+                                    class="text-xs font-body text-gray-400 font-medium">NM</span></div>
+                        </div>
+                        <div
+                            class="bg-gray-100 dark:bg-gray-900/50 rounded-xl p-3 text-center border border-transparent transition-all duration-300 hover:border-accent-neon/30 hover:bg-gray-50 dark:hover:bg-gray-800/80">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Weight</div>
+                            <div class="font-display text-2xl text-gray-800 dark:text-white leading-none"><span
+                                    id="specWeight">--</span> <span
+                                    class="text-xs font-body text-gray-400 font-medium">KG</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Tech Spec Graph (Decorative) -->
+                    <div
+                        class="relative h-32 w-full bg-gray-900 rounded-xl overflow-hidden border border-gray-800 shadow-inner">
+                        <div class="absolute inset-0 opacity-20"
+                            style="background-image: linear-gradient(0deg, transparent 24%, rgba(0, 229, 255, .3) 25%, rgba(0, 229, 255, .3) 26%, transparent 27%, transparent 74%, rgba(0, 229, 255, .3) 75%, rgba(0, 229, 255, .3) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(0, 229, 255, .3) 25%, rgba(0, 229, 255, .3) 26%, transparent 27%, transparent 74%, rgba(0, 229, 255, .3) 75%, rgba(0, 229, 255, .3) 76%, transparent 77%, transparent); background-size: 30px 30px;">
+                        </div>
+
+                        <!-- Graph Grid Lines -->
+                        <div class="absolute inset-0 flex flex-col justify-between py-4 px-6 opacity-30">
+                            <div class="w-full h-px bg-white/20"></div>
+                            <div class="w-full h-px bg-white/20"></div>
+                            <div class="w-full h-px bg-white/20"></div>
+                        </div>
+
+                        <div class="h-full w-full flex items-end justify-between px-6 pb-0 gap-1.5 relative z-10"
+                            id="powerBandGraph">
+                            <!-- Bars populated by JS -->
+                            <div
+                                class="w-full h-full flex items-center justify-center text-gray-600 text-xs font-mono uppercase tracking-widest">
+                                Select Model to Analyze</div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <button id="saveProfileBtn"
+                class="w-full bg-gradient-to-r from-primary to-primary-hover text-black font-bold py-4 rounded-xl shadow-lg shadow-primary/20 transform active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 group animate-slide-in mt-6 mb-8 hover:shadow-xl hover:shadow-primary/30">
+                <span>INITIALIZE NEURO-LINK</span>
+                <span class="material-icons-round text-sm group-hover:translate-x-1 transition-transform">bolt</span>
+            </button>
+        </main>
+    </div>
+
+    <script src="../JS/shared.js"></script>
+    <script src="../JS/bikeData.js"></script>
+    <script src="../JS/profileSetup.js"></script>
+</body>
+
+</html>

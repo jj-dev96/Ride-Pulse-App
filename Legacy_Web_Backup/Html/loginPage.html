@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RidePulse - Login</title>
+
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Oswald:wght@500;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link rel="stylesheet" href="../CSS/theme.css" />
+    <link rel="stylesheet" href="../CSS/login.css" />
+</head>
+
+<body class="bg-background-light dark:bg-background-dark font-body antialiased transition-colors duration-300">
+    <div class="login-container">
+        <div class="login-background"></div>
+        <div class="login-content">
+            <div class="logo-container flex flex-col items-center mb-8">
+                <div
+                    class="w-28 h-28 rounded-full shadow-2xl overflow-hidden border-4 border-primary mb-4 bg-primary flex items-center justify-center relative group logo-image">
+                    <div
+                        class="absolute inset-0 bg-primary blur-md opacity-40 group-hover:opacity-60 transition-opacity">
+                    </div>
+                    <img alt="RidePulse-Logo" class="w-full h-full object-cover relative z-10"
+                        src="../Images/RidePulse-Logo.jpg"
+                        onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23FFD700%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2220%22 fill=%22%23000%22%3ERP%3C/text%3E%3C/svg%3E'" />
+                </div>
+                <h1 class="font-display text-4xl text-white tracking-wider uppercase drop-shadow-md">Ride<span
+                        class="text-primary">Pulse</span></h1>
+                <p class="text-gray-300 text-sm mt-1 font-medium tracking-wide">Join the pack. Ride together.</p>
+            </div>
+            <div class="login-form-container">
+                <div class="toggle-container">
+                    <div class="toggle-bg" id="toggle-bg"></div>
+                    <button id="loginBtn" type="button"
+                        class="flex-1 py-2 text-sm font-semibold text-gray-800 dark:text-white z-10 text-center relative transition-colors">
+                        Log In
+                    </button>
+                    <button id="signupBtn" type="button"
+                        class="flex-1 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 z-10 text-center relative transition-colors hover:text-gray-700 dark:hover:text-gray-200">
+                        Sign Up
+                    </button>
+                </div>
+                <form id="authForm" action="#" class="space-y-5">
+                    <!-- User ID Field (Login only) -->
+                    <div id="userIdField" class="form-input-group relative">
+                        <div class="form-icon">
+                            <span class="material-icons-round">person</span>
+                        </div>
+                        <input id="userId" name="userId"
+                            class="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 transition-all text-sm font-medium"
+                            placeholder="User ID" type="text" />
+                    </div>
+
+                    <!-- Name Field (Signup only) -->
+                    <div id="nameField" class="form-input-group relative hidden-field">
+                        <div class="form-icon">
+                            <span class="material-icons-round">person</span>
+                        </div>
+                        <input id="name" name="name"
+                            class="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 transition-all text-sm font-medium"
+                            placeholder="Full Name" type="text" />
+                    </div>
+
+                    <!-- Email Field (Signup only) -->
+                    <div id="emailField" class="form-input-group relative hidden-field">
+                        <div class="form-icon">
+                            <span class="material-icons-round">email</span>
+                        </div>
+                        <input id="email" name="email"
+                            class="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 transition-all text-sm font-medium"
+                            placeholder="Email" type="email" />
+                    </div>
+
+                    <!-- Phone Field (Signup only) -->
+                    <div id="phoneField" class="form-input-group relative hidden-field">
+                        <div class="form-icon">
+                            <span class="material-icons-round">phone</span>
+                        </div>
+                        <input id="phone" name="phone"
+                            class="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 transition-all text-sm font-medium"
+                            placeholder="Phone Number" type="tel" />
+                    </div>
+
+                    <!-- Password Field -->
+                    <div class="form-input-group relative">
+                        <div class="form-icon">
+                            <span class="material-icons-round">lock</span>
+                        </div>
+                        <input id="password" name="password"
+                            class="w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 transition-all text-sm font-medium"
+                            placeholder="Password" type="password" />
+                        <button class="password-toggle password-toggle-btn" type="button">
+                            <span class="material-icons-round text-lg">visibility_off</span>
+                        </button>
+                    </div>
+
+                    <!-- Confirm Password Field (Signup only) -->
+                    <div id="confirmPasswordField" class="form-input-group relative hidden-field">
+                        <div class="form-icon">
+                            <span class="material-icons-round">lock</span>
+                        </div>
+                        <input id="confirmPassword" name="confirmPassword"
+                            class="w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-gray-800 dark:text-white placeholder-gray-400 transition-all text-sm font-medium"
+                            placeholder="Confirm Password" type="password" />
+                        <button class="password-toggle password-toggle-btn" type="button">
+                            <span class="material-icons-round text-lg">visibility_off</span>
+                        </button>
+                    </div>
+
+                    <!-- Forgot Password Link (Login only) -->
+                    <div id="forgotPasswordContainer" class="flex justify-end">
+                        <a id="forgotPassword"
+                            class="text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+                            href="#">Forgot Password?</a>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button id="submitBtn" class="submit-btn" type="submit">
+                        <span>LOG IN</span>
+                        <span
+                            class="material-icons-round text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    </button>
+                </form>
+                <div id="socialLoginContainer" class="social-login-container hidden-field">
+                    <div class="social-divider">
+                        <span>Or continue with</span>
+                    </div>
+                    <div class="social-buttons">
+                        <button id="googleLogin" class="social-btn" type="button">
+                            <img alt="Google" src="../Images/googleLogo.png" onerror="this.style.display='none'" />
+                            <span class="text-sm font-medium text-gray-700 dark:text-white">Google</span>
+                        </button>
+                        <button id="appleLogin" class="social-btn" type="button">
+                            <img alt="Apple" class="dark:invert" src="../Images/appleLogo.png"
+                                onerror="this.style.display='none'" />
+                            <span class="text-sm font-medium text-gray-700 dark:text-white">Apple</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 text-center">
+                <p class="text-xs text-gray-400 dark:text-gray-500">By continuing, you agree to RidePulse's <a
+                        class="underline hover:text-primary" href="#">Terms</a> &amp; <a
+                        class="underline hover:text-primary" href="#">Privacy Policy</a>.</p>
+            </div>
+        </div>
+    </div>
+    <div class="theme-toggle-btn">
+        <button
+            class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white shadow-lg focus:outline-none"
+            id="theme-toggle" type="button">
+            <span class="material-icons-round dark:hidden">dark_mode</span>
+            <span class="material-icons-round hidden dark:block">light_mode</span>
+        </button>
+    </div>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFD700",
+                        "primary-hover": "#E6C200",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#111827",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1F2937",
+                        "accent-red": "#FF0000",
+                    },
+                    fontFamily: {
+                        display: ["'Oswald'", "sans-serif"],
+                        body: ["'Inter'", "sans-serif"],
+                    },
+                    backgroundImage: {
+                        'hero-pattern': "url('https://images.unsplash.com/photo-1558981806-ec527fa84c3d?q=80&w=2070&auto=format&fit=crop')",
+                    }
+                },
+            },
+        };
+    </script>
+    <script src="../JS/shared.js"></script>
+    <script src="../JS/login.js"></script>
+    <script>
+        // Fallback theme toggle and initialization - MUST WORK
+        (function () {
+            'use strict';
+
+            console.log('Initializing login page...');
+
+            // Initialize theme on load
+            function initTheme() {
+                const html = document.documentElement;
+                try {
+                    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                        html.classList.add('dark');
+                    } else {
+                        html.classList.remove('dark');
+                    }
+                    console.log('Theme initialized:', html.classList.contains('dark') ? 'dark' : 'light');
+                } catch (e) {
+                    console.error('Theme init error:', e);
+                }
+            }
+
+            // Theme toggle handler
+            function setupThemeToggle() {
+                const themeToggle = document.getElementById('theme-toggle');
+                if (themeToggle) {
+                    themeToggle.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const html = document.documentElement;
+                        if (html.classList.contains('dark')) {
+                            html.classList.remove('dark');
+                            try { localStorage.theme = 'light'; } catch (e) { }
+                        } else {
+                            html.classList.add('dark');
+                            try { localStorage.theme = 'dark'; } catch (e) { }
+                        }
+                        console.log('Theme toggled to:', html.classList.contains('dark') ? 'dark' : 'light');
+                    });
+                    console.log('Theme toggle setup complete');
+                } else {
+                    console.error('Theme toggle button not found');
+                }
+            }
+
+            // Initialize when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    initTheme();
+                    setupThemeToggle();
+                });
+            } else {
+                initTheme();
+                setupThemeToggle();
+            }
+
+            // Check if scripts loaded
+            window.addEventListener('load', function () {
+                console.log('Page loaded. Checking scripts...');
+                if (typeof showNotification === 'function') {
+                    console.log('✓ showNotification function available');
+                } else {
+                    console.error('✗ showNotification function NOT available');
+                }
+                if (window.RidePulse) {
+                    console.log('✓ RidePulse shared utilities loaded');
+                } else {
+                    console.warn('⚠ RidePulse shared utilities not loaded (will use fallbacks)');
+                }
+            });
+            // Intro Animation Logic
+            (function () {
+                const overlay = document.getElementById('introOverlay');
+                const logo = document.getElementById('introLogo');
+
+                // Only play if not already played in this session (optional, but good for UX)
+                if (!sessionStorage.getItem('introPlayed')) {
+                    setTimeout(() => {
+                        logo.classList.remove('opacity-0', 'scale-90');
+                        logo.classList.add('opacity-100', 'scale-100');
+                    }, 500); // Fade in logo after bike starts
+
+                    setTimeout(() => {
+                        overlay.classList.add('opacity-0', 'pointer-events-none');
+                        setTimeout(() => overlay.remove(), 1000);
+                        sessionStorage.setItem('introPlayed', 'true');
+                    }, 3500); // 3.5s intro duration
+                } else {
+                    overlay.style.display = 'none';
+                }
+            })();
+
+        })();
+    </script>
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    <!-- Intro Overlay -->
+    <div id="introOverlay"
+        class="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center transition-opacity duration-1000 ease-out">
+        <div class="relative w-full max-w-lg h-64 sm:h-96">
+            <!-- Lottie Bike Animation -->
+            <lottie-player src="https://assets5.lottiefiles.com/packages/lf20_w51pcehl.json" background="transparent"
+                speed="1" style="width: 100%; height: 100%;" autoplay></lottie-player>
+        </div>
+        <div id="introLogo"
+            class="mt-8 flex flex-col items-center opacity-0 scale-90 transition-all duration-1000 delay-300">
+            <div
+                class="w-32 h-32 rounded-full border-4 border-primary shadow-[0_0_30px_rgba(255,215,0,0.5)] overflow-hidden bg-black mb-4">
+                <img src="../Images/logo-main.png" alt="RidePulse" class="w-full h-full object-cover">
+            </div>
+            <h1 class="font-display text-5xl text-white tracking-widest uppercase"><span
+                    class="text-primary">Ride</span>Pulse</h1>
+        </div>
+    </div>
+</body>
+
+</html>

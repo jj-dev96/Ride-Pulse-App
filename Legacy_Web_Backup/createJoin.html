@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RidePulse - Create/Join Ride</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFD600", // Yellow from logo vibe
+                        secondary: "#D32F2F", // Red from logo vibe
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#0f0f10", // Deep black/gray
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1C1C1E",
+                        "surface-dark-2": "#2C2C2E",
+                    },
+                    fontFamily: {
+                        display: ["Oswald", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style>.map-bg {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBiar2xoGIaEa7dLidTuWzzbTyU4bI69wNgrczXB7MrWb4XZC_xbzkKmEugCseL9EgOHlcc2ADpAMJkwN3GizNJb6Ay2vNjvCMZN6B5lChHJBJNIAYSc_swybnT6fqBw6GVN16odvVa1cDZoZRLJzXlA5uRzPJsNGcyd25QbLQvATEdQCqBrntFJ5xoXMu4qnPTSyqoub0TyTBZ3Ozp737N6pPsB9ByztyFJi8BrZy-qsMYZmaix7OZa09drNgDF67wperUrSoe5tC5);
+    background-size: cover;
+    background-position: center
+    }
+.glass-panel {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px)
+    }::-webkit-scrollbar {
+    width: 6px
+    }
+::-webkit-scrollbar-track {
+    background: transparent
+    }
+::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px
+    }</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-body text-gray-800 dark:text-gray-100 min-h-screen relative overflow-hidden transition-colors duration-300">
+<div class="fixed inset-0 map-bg opacity-10 dark:opacity-20 pointer-events-none z-0"></div>
+<div class="fixed inset-0 bg-gradient-to-b from-background-light/80 via-background-light/95 to-background-light dark:from-background-dark/80 dark:via-background-dark/95 dark:to-background-dark pointer-events-none z-0"></div>
+<main class="relative z-10 flex flex-col h-full max-w-md mx-auto min-h-screen pb-24">
+<header class="pt-8 pb-4 px-6 flex flex-col items-center justify-center space-y-2">
+<div class="w-32 h-32 relative drop-shadow-2xl filter hover:brightness-110 transition-all">
+<img alt="RidePulse Logo - Shield with motorcycle and road" class="w-full h-full object-contain drop-shadow-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwrE9Hlqpch4P_hMlJjfDk8o139ImvXfe7KG-GAgCLc-e3iU4RUD1gHYBL-giy39H2XWWuiFRN1cI_FFYSRjnkQs8p7EZbgUu8KD1G0a6_DcE1i0uDEqelaxnlqG-A2UFVDrRUdnPhDvn0kThvj-59n-YlAFgI2ozfrz-0UBqQSKDnAp0gzM3o6LDZ6lbjE7k-7NetK_Rxfs1EYyRAQ15U3qIWhdjIoSsI4ZibL0ls0uqzoycmHJxoFdi4NrDbdvZLWD5jxjBuyWGy"/>
+</div>
+<h1 class="font-display text-2xl tracking-wider uppercase font-bold text-gray-900 dark:text-white">Ride<span class="text-secondary">Pulse</span></h1>
+</header>
+<div class="px-6 mb-6">
+<div class="bg-gray-200 dark:bg-surface-dark p-1 rounded-xl flex items-center shadow-inner">
+<button class="flex-1 py-3 px-4 rounded-lg text-sm font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors">
+                    Join Ride
+                </button>
+<button class="flex-1 py-3 px-4 rounded-lg bg-primary text-black shadow-lg text-sm font-bold uppercase tracking-wide transform transition-transform">
+                    Hosting
+                </button>
+</div>
+</div>
+<div class="flex-1 px-6 space-y-6 overflow-y-auto">
+<div class="bg-white dark:bg-surface-dark rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-800 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:bg-primary/20"></div>
+<div class="relative z-10">
+<p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">Ride Access Code</p>
+<div class="flex items-center justify-between mb-4">
+<span class="font-display text-5xl font-bold text-gray-900 dark:text-white tracking-tighter">RP-9X2</span>
+<div class="flex space-x-2">
+<button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-dark-2 hover:bg-primary/20 hover:text-primary dark:hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-gray-300">
+<span class="material-icons-round text-xl">content_copy</span>
+</button>
+<button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-dark-2 hover:bg-primary/20 hover:text-primary dark:hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-gray-300">
+<span class="material-icons-round text-xl">share</span>
+</button>
+</div>
+</div>
+<div class="flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-2">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+<span>Lobby is active • Waiting for riders</span>
+</div>
+</div>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between px-1">
+<h3 class="font-display text-lg text-gray-800 dark:text-white uppercase tracking-wide">Riders <span class="text-primary text-sm ml-1">(3)</span></h3>
+<span class="text-xs font-semibold text-primary cursor-pointer hover:underline">Manage</span>
+</div>
+<div class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-md border-l-4 border-primary flex items-center justify-between">
+<div class="flex items-center space-x-4">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-800 border-2 border-primary overflow-hidden">
+<img alt="My Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCt8q8VZ8HRAm7JKoLZ3Es7XCFcP9zjSVcMLaJsm5FcyHXZ0BNb9pSA09cIUEpY6_ViD5MVuRN0cGER38gno5clwOGbLmRpKr7JuP1Xqx4KZ0ZxNq-rJUsKfuBGvnAvHGHG8QMstZEQZKsSDsJvYkH31feyAjRaIYy8eT--xKort8a5_AY2jkiPGXn6t7c50grAk1AG1CfE2tveGm0zPs4DpNn8HTgw2puZuRLI7FR_6vPG9i_SmjF3f7DQvF-szB-zCqU15kl4HubO"/>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-primary text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-surface-dark shadow-sm">HOST</div>
+</div>
+<div>
+<h4 class="font-bold text-gray-900 dark:text-white">Alex Rider</h4>
+<p class="text-xs text-gray-500 dark:text-gray-400">Ducati Monster 821</p>
+</div>
+</div>
+<span class="material-icons-round text-primary text-2xl" title="Host">military_tech</span>
+</div>
+<div class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-md border-l-4 border-blue-500 flex items-center justify-between group">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden relative">
+<img alt="Sarah" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzE9kfcD2_nhuDSOa8-m_fterXVflgpr2InaWdVGhgm8NNeUfiOvGDJYV52Gf-xGJk_0NAlwzt7KB2-9i241fLo5skULWWFVT7aVbN_3gvBcE5i8jkrfJVM6eeH9wjjMtuuGoya8ldTAbDOOqMua36JT9elyomY5mmrqTSmP4w8IIH6f0BjKCDU-PV9D6QDRCNnY3TERS5BR8fT5z_GNi_yhdpaKpTbYCsOt0psffewNx-jDb44gcTnAkDybPPej9tox9JtKyCx9be"/>
+</div>
+<div>
+<h4 class="font-bold text-gray-900 dark:text-white">SarahV</h4>
+<div class="flex items-center space-x-2">
+<p class="text-xs text-gray-500 dark:text-gray-400">Ninja 650</p>
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+</div>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white">
+<span class="material-icons-round text-lg">close</span>
+</button>
+</div>
+<div class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-md border-l-4 border-purple-500 flex items-center justify-between group">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden relative">
+<img alt="Mike" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxiXHq0XZCPd3eG_q7jL1RF-V8L9GQW74iw2G9G_vACsvCZqFTH7-pSXWHUORXRcUWgak0NKsI0uUsutMOtkEel4ma3oGdqNveBZzAZ9f8FBEnymNy1QAXbI6C0pzJqbecrROpwJRkHRtrdmztGP2GI6GYHr27NzINijgxwDMSu4PVpBqd23RmQ64cNkZJboWNCr0_Z-zeRsxH3lbmD7wjkF3z6HE27rXkCd3x7GdXgXAvU9OWQZ5VmSiGT7rcleyko4PgAY21cyST"/>
+</div>
+<div>
+<h4 class="font-bold text-gray-900 dark:text-white">MikeBoxer</h4>
+<div class="flex items-center space-x-2">
+<p class="text-xs text-gray-500 dark:text-gray-400">BMW R1250</p>
+<span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+</div>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white">
+<span class="material-icons-round text-lg">close</span>
+</button>
+</div>
+</div>
+<div class="pt-4">
+<p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">Host Controls</p>
+<div class="grid grid-cols-2 gap-4">
+<button class="bg-primary/90 hover:bg-primary text-black font-bold py-4 px-4 rounded-xl shadow-lg flex flex-col items-center justify-center space-y-1 transition-transform transform active:scale-95">
+<span class="material-icons-round text-2xl">pause</span>
+<span class="uppercase tracking-wider text-sm">Pause Ride</span>
+</button>
+<button class="bg-secondary/90 hover:bg-secondary text-white font-bold py-4 px-4 rounded-xl shadow-lg flex flex-col items-center justify-center space-y-1 transition-transform transform active:scale-95">
+<span class="material-icons-round text-2xl">stop</span>
+<span class="uppercase tracking-wider text-sm">End Ride</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-surface-dark/90 glass-panel border-t border-gray-200 dark:border-gray-800 pb-safe pt-2 z-50">
+<div class="max-w-md mx-auto flex justify-around items-center px-2 pb-4">
+<a class="flex flex-col items-center justify-center w-16 h-14 space-y-1 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors" href="#">
+<span class="material-icons-round text-2xl">map</span>
+<span class="text-[10px] font-medium tracking-wide">Map</span>
+</a>
+<div class="relative">
+<a class="flex flex-col items-center justify-center w-16 h-14 space-y-1 text-primary" href="#">
+<span class="material-icons-round text-2xl">bar_chart</span>
+<span class="text-[10px] font-medium tracking-wide">Stats</span>
+</a>
+<div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-primary rounded-t-full shadow-[0_0_10px_rgba(255,214,0,0.5)]"></div>
+</div>
+<a class="flex flex-col items-center justify-center w-16 h-14 space-y-1 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors" href="#">
+<span class="material-icons-round text-2xl">diamond</span>
+<span class="text-[10px] font-medium tracking-wide">Premium</span>
+</a>
+<a class="flex flex-col items-center justify-center w-16 h-14 space-y-1 text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-primary transition-colors" href="#">
+<span class="material-icons-round text-2xl">settings</span>
+<span class="text-[10px] font-medium tracking-wide">Settings</span>
+</a>
+</div>
+</nav>
+
+</body></html>

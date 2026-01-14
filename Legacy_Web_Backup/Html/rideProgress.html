@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RidePulse - Driving Mode</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Oswald:wght@400;500;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link rel="stylesheet" href="../CSS/theme.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFD700",
+                        secondary: "#FF0000",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#0F0F0F",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1A1A1A",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: ["Oswald", "sans-serif"],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        .custom-div-icon {
+            background: transparent;
+            border: none;
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark text-white font-sans h-screen w-screen overflow-hidden">
+
+    <!-- Map Background -->
+    <div id="map" class="absolute inset-0 z-0 bg-black"></div>
+    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90 z-0 pointer-events-none">
+    </div>
+
+    <!-- HUD Overlay -->
+    <div class="relative z-10 h-full flex flex-col justify-between pointer-events-none pb-safe">
+
+        <!-- Top Info -->
+        <div class="pt-4 px-4 flex justify-between items-start pointer-events-auto">
+            <!-- Leaderboard -->
+            <div
+                class="bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-3 shadow-lg w-40 animate-fade-in">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-display font-bold uppercase text-xs tracking-wide text-white">Leaderboard</h3>
+                    <span class="bg-primary text-black text-[10px] font-bold px-1.5 py-0.5 rounded">PRO</span>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <div class="flex justify-between font-bold text-primary"><span>1. Mike</span><span>124 km/h</span>
+                    </div>
+                    <div class="flex justify-between text-gray-300"><span>2. You</span><span>118 km/h</span></div>
+                </div>
+            </div>
+
+            <!-- Music -->
+            <div
+                class="bg-black/60 backdrop-blur-md border border-white/10 rounded-full pl-2 pr-4 py-2 shadow-lg flex items-center gap-3">
+                <div
+                    class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center animate-spin-slow">
+                    <span class="material-icons-round text-white text-xs">music_note</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold leading-tight">Born to be Wild</span>
+                    <span class="text-[10px] text-gray-400">Steppenwolf</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Speedometer (Floating) -->
+        <div
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+            <h1 class="text-[120px] font-display font-black leading-none text-white drop-shadow-2xl mix-blend-overlay opacity-80"
+                id="speedDisplay">118</h1>
+            <p class="text-xl font-bold uppercase tracking-[0.4em] text-primary mt-[-20px]">km/h</p>
+        </div>
+
+        <!-- Right Side Buttons -->
+        <div class="absolute right-4 bottom-32 flex flex-col gap-4 pointer-events-auto items-end">
+            <!-- SOS -->
+            <button onclick="toggleSOS()"
+                class="w-14 h-14 bg-red-600 rounded-full shadow-lg shadow-red-600/40 flex items-center justify-center animate-pulse group relative hover:scale-105 transition-transform">
+                <span class="material-icons-round text-white text-3xl">warning</span>
+                <span
+                    class="absolute right-full mr-2 bg-red-600 px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">SOS</span>
+            </button>
+            <!-- Recenter -->
+            <button onclick="recenterMap()"
+                class="w-12 h-12 bg-surface-dark border border-gray-700 rounded-full shadow-lg flex items-center justify-center text-primary active:bg-gray-800">
+                <span class="material-icons-round text-xl">my_location</span>
+            </button>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="px-6 pb-6 flex items-end justify-between pointer-events-auto gap-4">
+
+            <!-- Pulse AI -->
+            <button onclick="togglePulseAI()"
+                class="w-14 h-14 rounded-full bg-black border border-primary/50 shadow-[0_0_15px_rgba(255,215,0,0.3)] flex items-center justify-center relative overflow-hidden group active:scale-95 transition-transform shrink-0">
+                <div class="absolute inset-0 bg-primary/10 animate-pulse"></div>
+                <img src="../Images/RidePulse-Logo.jpg"
+                    class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="AI">
+                <span
+                    class="absolute material-icons-round text-primary text-2xl drop-shadow-[0_0_2px_rgba(0,0,0,1)]">smart_toy</span>
+            </button>
+
+            <!-- End Ride Slider -->
+            <div id="slider-container"
+                class="flex-grow h-14 bg-white/10 backdrop-blur-md rounded-full border border-white/20 relative overflow-hidden group">
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span class="text-xs font-bold uppercase tracking-[0.2em] text-white/60 animate-pulse">Slide to
+                        Finish</span>
+                </div>
+                <div id="slider-handle"
+                    class="absolute left-1 top-1 bottom-1 w-12 bg-red-600 rounded-full shadow-lg flex items-center justify-center cursor-pointer hover:bg-red-500 transition-colors">
+                    <span class="material-icons-round text-white">stop</span>
+                </div>
+            </div>
+
+            <!-- Squad Chat -->
+            <div class="relative shrink-0">
+                <div id="quickMessageList"
+                    class="hidden absolute bottom-full right-0 mb-4 flex flex-col gap-2 items-end min-w-[140px]">
+                    <button onclick="sendQuickMessage('Stopping!')"
+                        class="bg-surface-dark border border-gray-700 px-3 py-2 rounded-full text-xs font-bold hover:bg-primary hover:text-black transition-colors shadow-lg whitespace-nowrap">🛑
+                        Stopping</button>
+                    <button onclick="sendQuickMessage('Police Ahead!')"
+                        class="bg-surface-dark border border-gray-700 px-3 py-2 rounded-full text-xs font-bold hover:bg-primary hover:text-black transition-colors shadow-lg whitespace-nowrap">👮
+                        Police</button>
+                </div>
+                <button onclick="toggleQuickMessages()"
+                    class="w-14 h-14 bg-surface-dark border border-gray-700 rounded-full shadow-lg flex items-center justify-center text-primary active:scale-95 transition-transform">
+                    <span class="material-icons-round text-2xl">chat</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="../JS/shared.js"></script>
+    <script>
+        // Map Init
+        const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([34.0522, -118.2437], 18);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 20 }).addTo(map);
+
+        const bikeIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: "<div class='w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center animate-pulse-slow border-2 border-primary shadow-[0_0_15px_rgba(255,215,0,0.6)]'><span class='material-icons-round text-primary text-2xl transform rotate-0 block'>two_wheeler</span></div>",
+            iconSize: [48, 48],
+            iconAnchor: [24, 24]
+        });
+        const marker = L.marker([34.0522, -118.2437], { icon: bikeIcon }).addTo(map);
+
+        function recenterMap() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const { latitude, longitude } = pos.coords;
+                    map.setView([latitude, longitude], 18);
+                    marker.setLatLng([latitude, longitude]);
+                });
+            }
+        }
+        recenterMap();
+
+        // Speed Sim
+        setInterval(() => {
+            const el = document.getElementById('speedDisplay');
+            let s = parseInt(el.innerText);
+            el.innerText = s + (Math.random() > 0.5 ? 1 : -1);
+        }, 500);
+
+        // Slider Logic
+        const container = document.getElementById('slider-container');
+        const handle = document.getElementById('slider-handle');
+        let isDragging = false;
+
+        handle.addEventListener('mousedown', startDrag);
+        handle.addEventListener('touchstart', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+
+        function startDrag(e) { isDragging = true; }
+
+        function drag(e) {
+            if (!isDragging) return;
+            const rect = container.getBoundingClientRect();
+            const clientX = e.clientX || e.touches[0].clientX;
+            let x = clientX - rect.left - (handle.offsetWidth / 2);
+            const maxX = rect.width - handle.offsetWidth - 8;
+
+            x = Math.max(4, Math.min(x, maxX));
+            handle.style.transform = `translateX(${x}px)`;
+
+            if (x >= maxX - 5) {
+                window.location.href = 'stats.html';
+                isDragging = false;
+            }
+        }
+
+        function endDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+            handle.style.transform = 'translateX(0)';
+        }
+
+        // Quick Messages
+        window.toggleQuickMessages = function () {
+            const list = document.getElementById('quickMessageList');
+            list.classList.toggle('hidden');
+        }
+        window.sendQuickMessage = function (msg) {
+            if (window.RidePulse) window.RidePulse.NotificationManager.success("Squad: " + msg);
+            toggleQuickMessages();
+        }
+    </script>
+</body>
+
+</html>

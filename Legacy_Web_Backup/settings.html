@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RidePulse Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&amp;family=Roboto:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFC107", // Matching the yellow from the logo provided
+                        secondary: "#FF3D00", // Red accent from the logo
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#0F0F11",
+                        "card-dark": "#1A1A1D",
+                        "card-light": "#FFFFFF",
+                        "accent-neon": "#00E5FF", // Cyan for premium tech feel
+                    },
+                    fontFamily: {
+                        display: ["Teko", "sans-serif"],
+                        body: ["Roboto", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "1rem",
+                        xl: "1.5rem",
+                    },
+                    boxShadow: {
+                        'neon': '0 0 10px rgba(255, 193, 7, 0.3)',
+                        'neon-blue': '0 0 10px rgba(0, 229, 255, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>
+        .gradient-text {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .scroller::-webkit-scrollbar {
+            display: none;
+        }
+        .scroller {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }.toggle-checkbox:checked {
+            right: 0;
+            border-color: #FFC107;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #FFC107;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-100 font-body antialiased transition-colors duration-200">
+<div class="max-w-md mx-auto min-h-screen relative flex flex-col pb-24 overflow-hidden shadow-2xl bg-background-light dark:bg-background-dark">
+<header class="px-6 pt-12 pb-4 flex justify-between items-center bg-card-light dark:bg-card-dark shadow-sm z-20">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary shadow-neon">
+<img alt="RidePulse Logo" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA69hoik6nR2J4krU2GySAdz_rCgCpsj8cOzR9_6Tp_sVt5QbqeK6lfPIUjaZHVnfUxdmWx9GeP1vlM3RK0yJnv5naPxOE9X4jPpXYVtdkTwnbRHoLgNlAbc862TffHL6dRTTNiKCzLBeaiYGwtb9z_Jqy4mzzo-ljQvzpamNH-xgelAoYak_9OcRtPzMcOKI3_7yRKHYVpTR_XfejedXNedN2zUH85ERr1nqQMMvOaAcufs83uZLM2naTZXYAjZeMgVylMubtY40yc"/>
+</div>
+<div>
+<h1 class="font-display font-bold text-3xl tracking-wide bg-gradient-to-r from-primary to-secondary gradient-text uppercase">RidePulse</h1>
+<span class="text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wider">SETTINGS</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-primary transition-colors">
+<span class="material-icons">notifications_none</span>
+</button>
+</header>
+<main class="flex-1 overflow-y-auto scroller px-4 pt-4 space-y-6">
+<section>
+<h3 class="px-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">Account</h3>
+<div class="bg-card-light dark:bg-card-dark rounded-xl shadow-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+<div class="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-full border-2 border-accent-neon p-0.5">
+<img alt="User Profile" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAULwckFFoEA19XbYV1gAgNvj-o3ZXCoC3tX2CrP8GIp8PVMugN8xgy5sO4sosmt3l7GR0ib69vXda-0RJEUg3j5M2WnD9OTvtQTPPathiglbGPVUQiijb3uUy32TlAcRZUIb36dG1T9XSqZnuSG3FX2sX93jRz39tKpoa1vrtayfJJSZ8hlXYQjZFQU5TolpdioqGw3EQyPquyJyucPzTe5SOivqK6gMvpXOcFuq69QAuXToYIl7S76h16xKO3oIy6ErhTaAHds5au"/>
+</div>
+<div>
+<h4 class="font-display text-lg font-medium dark:text-white leading-tight">Alex Rider</h4>
+<p class="text-xs text-gray-500">alex.rider@ridepulse.com</p>
+</div>
+</div>
+<span class="material-icons text-gray-400">chevron_right</span>
+</div>
+<div class="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+<span class="material-icons text-gray-500 text-sm">lock</span>
+</div>
+<span class="font-medium text-sm">Password &amp; Security</span>
+</div>
+<span class="material-icons text-gray-400">chevron_right</span>
+</div>
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+<span class="material-icons text-gray-500 text-sm">notifications</span>
+</div>
+<span class="font-medium text-sm">Push Notifications</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</section>
+<section>
+<h3 class="px-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">App Preferences</h3>
+<div class="bg-card-light dark:bg-card-dark rounded-xl shadow-md border border-gray-200 dark:border-gray-800 overflow-hidden space-y-px bg-gray-200 dark:bg-gray-800">
+<div class="p-4 bg-card-light dark:bg-card-dark flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-icons text-gray-400">straighten</span>
+<span class="font-medium text-sm">Units</span>
+</div>
+<div class="flex bg-gray-100 dark:bg-gray-900 rounded-lg p-1">
+<button class="px-3 py-1 text-xs font-bold rounded bg-white dark:bg-gray-700 shadow-sm text-gray-800 dark:text-white">KM</button>
+<button class="px-3 py-1 text-xs font-bold rounded text-gray-500 hover:text-gray-800 dark:hover:text-white">MI</button>
+</div>
+</div>
+<div class="p-4 bg-card-light dark:bg-card-dark flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-icons text-gray-400">map</span>
+<span class="font-medium text-sm">Map Style</span>
+</div>
+<div class="flex items-center text-gray-500 text-sm">
+                        Dark Satellite
+                        <span class="material-icons text-gray-400 ml-1 text-base">expand_more</span>
+</div>
+</div>
+<div class="p-4 bg-card-light dark:bg-card-dark flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-icons text-gray-400">visibility</span>
+<span class="font-medium text-sm">Share Live Location</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</section>
+<section>
+<h3 class="px-2 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">Support</h3>
+<div class="bg-card-light dark:bg-card-dark rounded-xl shadow-md border border-gray-200 dark:border-gray-800 overflow-hidden space-y-px bg-gray-200 dark:bg-gray-800">
+<a class="p-4 bg-card-light dark:bg-card-dark flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" href="#">
+<span class="font-medium text-sm">Help Center &amp; FAQ</span>
+<span class="material-icons text-gray-400 text-sm">open_in_new</span>
+</a>
+<a class="p-4 bg-card-light dark:bg-card-dark flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" href="#">
+<span class="font-medium text-sm">Contact Support</span>
+<span class="material-icons text-gray-400">chevron_right</span>
+</a>
+<a class="p-4 bg-card-light dark:bg-card-dark flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" href="#">
+<span class="font-medium text-sm">Report a Bug</span>
+<span class="material-icons text-gray-400">bug_report</span>
+</a>
+</div>
+</section>
+<section class="pb-6 pt-2">
+<button class="w-full py-3 rounded-xl border border-red-500/30 text-red-500 font-medium hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2">
+<span class="material-icons text-sm">logout</span>
+                    Log Out
+                </button>
+<div class="text-center mt-6">
+<p class="text-xs text-gray-500">RidePulse v2.4.0 (Build 302)</p>
+<div class="flex justify-center gap-4 mt-2">
+<a class="text-[10px] text-gray-600 hover:text-primary underline" href="#">Privacy Policy</a>
+<a class="text-[10px] text-gray-600 hover:text-primary underline" href="#">Terms of Service</a>
+</div>
+</div>
+</section>
+</main>
+<nav class="absolute bottom-0 w-full bg-card-light dark:bg-card-dark border-t border-gray-200 dark:border-gray-800 pb-6 pt-3 px-6 flex justify-between items-center z-40">
+<a class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-colors" href="#">
+<span class="material-icons">map</span>
+<span class="text-[10px] font-medium tracking-wide">MAP</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-colors" href="#">
+<span class="material-icons">equalizer</span>
+<span class="text-[10px] font-medium tracking-wide">STATS</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-gray-400 hover:text-accent-neon relative group" href="#">
+<span class="material-icons text-2xl group-hover:drop-shadow-[0_0_5px_rgba(0,229,255,0.8)] transition-all">stars</span>
+<span class="text-[10px] font-medium tracking-wide">PREMIUM</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary relative" href="#">
+<div class="absolute -top-10 w-12 h-1 bg-primary rounded-full blur-md opacity-50"></div>
+<span class="material-icons drop-shadow-[0_0_5px_rgba(255,193,7,0.4)]">settings</span>
+<span class="text-[10px] font-bold tracking-wide">SETTINGS</span>
+</a>
+</nav>
+</div>
+</body></html>

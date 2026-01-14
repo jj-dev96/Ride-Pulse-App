@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RidePulse - THE ZONE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        .font-tech {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .zone-red {
+            color: #FF0000;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+        }
+
+        .zone-border {
+            border: 2px solid #FF0000;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+        }
+
+        .tach-bar {
+            background: linear-gradient(to right, #333, #FF0000);
+            box-shadow: 0 0 10px #FF0000;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100vh;
+            background: linear-gradient(to bottom, transparent, rgba(255, 0, 0, 0.1), transparent);
+            animation: scan 2s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(100%);
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen justify-between relative">
+    <div class="scan-line"></div>
+
+    <!-- Top Info -->
+    <div class="p-6 flex justify-between items-start z-10">
+        <div class="flex flex-col">
+            <span class="text-xs font-mono text-gray-500 uppercase tracking-[0.2em] mb-1">Mode</span>
+            <span class="text-xl font-bold italic zone-red uppercase animate-pulse">HYPER-FOCUS</span>
+        </div>
+        <div class="flex flex-col items-end">
+            <span class="text-xs font-mono text-gray-500 uppercase tracking-[0.2em] mb-1">Time</span>
+            <span class="text-xl font-mono">09:42</span>
+        </div>
+    </div>
+
+    <!-- Center Speed -->
+    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-10 w-full">
+        <h1 class="text-[25vw] leading-none font-tech font-black tracking-tighter">142</h1>
+        <div class="text-[4vw] font-bold uppercase tracking-[0.5em] text-gray-500 mt-[-2vw]">km/h</div>
+    </div>
+
+    <!-- Bottom Tech -->
+    <div class="p-8 w-full z-10">
+        <!-- RPM Bar -->
+        <div
+            class="w-full h-8 bg-gray-900 border border-gray-800 rounded-none relative overflow-visible transform skew-x-[-20deg]">
+            <div class="h-full tach-bar w-[85%] absolute top-0 left-0"></div>
+            <div class="absolute right-0 top-0 h-full w-2 bg-white/50 animate-ping"></div>
+        </div>
+        <div class="flex justify-between mt-2 font-mono text-xs text-red-500">
+            <span>0</span>
+            <span>5</span>
+            <span>10</span>
+            <span class="font-bold text-white">15</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="mt-8 flex justify-center">
+            <a href="dashbroard.html"
+                class="px-12 py-4 border border-gray-800 hover:border-red-500 hover:bg-red-500/10 transition-colors uppercase tracking-[0.2em] text-xs font-bold text-gray-500 hover:text-white">
+                Exit Zone
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Simulate changing numbers
+        setInterval(() => {
+            const speed = document.querySelector('h1');
+            let current = parseInt(speed.innerText);
+            speed.innerText = current + (Math.random() > 0.5 ? 1 : -1);
+        }, 100);
+    </script>
+</body>
+
+</html>

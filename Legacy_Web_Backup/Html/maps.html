@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RidePulse - Home</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link rel="stylesheet" href="../CSS/theme.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <style>
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+
+        .leaflet-container {
+            background: #111827 !important;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#FFD700",
+                        secondary: "#FF0000",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#111827",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1F2937",
+                        "accent-blue": "#3B82F6",
+                        "accent-green": "#10B981",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 font-display h-screen w-full overflow-hidden flex flex-col relative">
+    <div
+        class="absolute top-0 left-0 right-0 z-20 p-4 pt-12 bg-gradient-to-b from-surface-light/90 dark:from-background-dark/95 to-transparent pb-8 pointer-events-none">
+        <div class="pointer-events-auto">
+            <div class="relative shadow-lg rounded-2xl mb-4 group">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span class="material-icons-round text-gray-400">search</span>
+                </div>
+                <input
+                    class="block w-full pl-10 pr-12 py-3.5 border-none rounded-2xl bg-surface-light dark:bg-surface-dark text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-primary shadow-sm text-sm font-medium transition-all"
+                    placeholder="Enter Destination" type="text" />
+                <div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+                    <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-primary">
+                        <span class="material-icons-round">mic</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <main class="flex-grow relative w-full h-full overflow-hidden z-0 bg-background-dark">
+        <!-- Leaflet Map Container (Background) -->
+        <div id="map" class="absolute inset-0 z-0 text-left"></div>
+
+        <!-- Floating UI Layer (Overlay - High Z-Index) -->
+        <div class="absolute inset-0 z-[1000] pointer-events-none">
+
+            <!-- Radar (Top Right) - Pointer events auto for interactivity -->
+            <div class="absolute top-24 right-4 pointer-events-auto">
+                <div class="radar-container w-20 h-20 sm:w-24 sm:h-24 rounded-full backdrop-blur-md">
+                    <div class="radar-scanner"></div>
+                    <div class="radar-blip" style="top: 30%; left: 40%;"></div>
+                    <div class="radar-blip pl-2" style="top: 60%; left: 70%; animation-delay: 0.5s"></div>
+                    <div
+                        class="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-white rounded-full transform -translate-x-1/2 -translate-y-1/2 shadow-lg z-20">
+                    </div>
+                </div>
+                <div class="text-center mt-1">
+                    <span
+                        class="text-[8px] sm:text-[10px] font-bold text-green-500 bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm tracking-wider uppercase">Radar
+                        Active</span>
+                </div>
+            </div>
+
+            <!-- Live Group Info (Top Left) -->
+            <div class="absolute top-28 left-4 max-w-[140px] sm:max-w-[160px] pointer-events-auto">
+                <div
+                    class="bg-surface-light/90 dark:bg-surface-dark/90 backdrop-blur-md p-2 sm:p-3 rounded-xl border border-white/20 shadow-lg cursor-pointer hover:bg-surface-light dark:hover:bg-surface-dark transition-colors">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span class="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Live
+                            Group</span>
+                    </div>
+                    <h3 class="text-xs sm:text-sm font-bold text-gray-800 dark:text-white leading-tight">Sunday Canyon
+                        Run</h3>
+                    <p class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">4 Riders • 12mi left</p>
+                </div>
+            </div>
+
+            <!-- SOS & Action Buttons (Bottom Right) -->
+            <div class="absolute bottom-40 right-4 flex flex-col gap-3 pointer-events-auto items-end">
+                <button onclick="toggleSOS()"
+                    class="group flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-red-600 rounded-full shadow-xl shadow-red-600/40 hover:bg-red-700 hover:scale-105 transition-all active:scale-95 animate-pulse relative">
+                    <span class="material-icons-round text-white text-2xl sm:text-3xl">warning</span>
+                    <span
+                        class="absolute right-full mr-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Send
+                        Alert</span>
+                </button>
+                <div class="flex flex-col gap-2">
+                    <button
+                        class="w-10 h-10 sm:w-12 sm:h-12 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-700 hover:text-primary transition-colors border border-gray-100 dark:border-gray-700">
+                        <span class="material-icons-round text-lg sm:text-xl">layers</span>
+                    </button>
+                    <button
+                        class="w-10 h-10 sm:w-12 sm:h-12 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-primary active:bg-gray-200 dark:active:bg-gray-700 border border-gray-100 dark:border-gray-700">
+                        <span class="material-icons-round text-lg sm:text-xl">my_location</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Messages (Bottom Right FAB) -->
+            <div class="absolute bottom-24 right-4 flex flex-col items-end gap-2 pointer-events-auto">
+                <div id="quickMessageList"
+                    class="hidden flex-col gap-2 mb-2 translate-y-4 opacity-0 transition-all duration-300 origin-bottom-right">
+                    <button
+                        class="bg-surface-light dark:bg-surface-dark px-3 py-1.5 rounded-full shadow-lg text-[10px] font-bold whitespace-nowrap hover:bg-primary hover:text-black transition-colors transform hover:scale-105 border border-gray-200 dark:border-gray-700"
+                        onclick="sendQuickMessage('On my way!')">On my way!</button>
+                    <button
+                        class="bg-surface-light dark:bg-surface-dark px-3 py-1.5 rounded-full shadow-lg text-[10px] font-bold whitespace-nowrap hover:bg-primary hover:text-black transition-colors transform hover:scale-105 border border-gray-200 dark:border-gray-700"
+                        onclick="sendQuickMessage('Stopping for gas')">Stopping for gas</button>
+                    <button
+                        class="bg-surface-light dark:bg-surface-dark px-3 py-1.5 rounded-full shadow-lg text-[10px] font-bold whitespace-nowrap hover:bg-primary hover:text-black transition-colors transform hover:scale-105 border border-gray-200 dark:border-gray-700"
+                        onclick="sendQuickMessage('Cop Ahead!')">👮 Cop Ahead!</button>
+                </div>
+                <button onclick="toggleQuickMessages()"
+                    class="w-10 h-10 sm:w-12 sm:h-12 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-primary border border-gray-200 dark:border-gray-700 active:scale-95 transition-transform group">
+                    <span
+                        class="material-icons-round group-hover:rotate-12 transition-transform text-lg sm:text-2xl">chat</span>
+                </button>
+            </div>
+
+            <!-- Pulse AI (Bottom Left) -->
+            <div class="absolute bottom-24 left-4 pointer-events-auto">
+                <button onclick="togglePulseAI()"
+                    class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-gray-900 to-black border border-primary/50 shadow-[0_0_15px_rgba(255,215,0,0.3)] flex items-center justify-center active:scale-95 transition-transform group relative overflow-hidden">
+                    <div class="absolute inset-0 bg-primary/10 animate-pulse"></div>
+                    <img src="../Images/RidePulse-Logo.jpg" alt="AI"
+                        class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity mixed-blend-overlay">
+                    <span
+                        class="absolute material-icons-round text-primary text-xl sm:text-2xl drop-shadow-[0_0_5px_rgba(255,215,0,0.8)]">smart_toy</span>
+                </button>
+            </div>
+
+            <!-- Slide to Start (Bottom Center) -->
+            <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-xs pointer-events-auto">
+                <div id="startRideSlider"
+                    class="relative group cursor-pointer w-full h-12 sm:h-14 bg-surface-light/90 dark:bg-surface-dark/90 rounded-full border border-primary/30 shadow-lg flex items-center p-1 overflow-hidden backdrop-blur-md">
+                    <div
+                        class="absolute inset-0 flex items-center justify-center pl-8 transition-opacity duration-300 pointer-events-none">
+                        <span
+                            class="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 mr-2 select-none font-display">Slide
+                            to Start</span>
+                        <div class="flex space-x-[-2px] opacity-60 animate-pulse">
+                            <span class="material-icons-round text-xs text-primary">chevron_right</span>
+                            <span class="material-icons-round text-xs text-primary">chevron_right</span>
+                            <span class="material-icons-round text-xs text-primary">chevron_right</span>
+                        </div>
+                    </div>
+                    <div id="sliderHandle"
+                        class="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-primary shadow-lg shadow-primary/40 flex items-center justify-center transform transition-transform z-10 border border-white/20 select-none">
+                        <span class="material-icons-round text-black text-lg sm:text-xl">sports_motorsports</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <nav
+        class="bg-surface-light dark:bg-surface-dark border-t border-gray-200 dark:border-gray-800 pb-6 pt-3 px-6 z-20">
+        <ul class="flex justify-between items-center">
+            <li class="flex flex-col items-center gap-1 cursor-pointer group">
+                <div class="relative p-1">
+                    <span
+                        class="material-icons-round text-primary text-2xl transition-transform group-active:scale-90">map</span>
+                    <span class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                </div>
+                <span class="text-[10px] font-bold text-primary">Map</span>
+            </li>
+            <li class="flex flex-col items-center gap-1 cursor-pointer group">
+                <a href="stats.html" class="p-1">
+                    <span
+                        class="material-icons-round text-gray-400 dark:text-gray-500 text-2xl group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors group-active:scale-90">bar_chart</span>
+                </a>
+                <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">Stats</span>
+            </li>
+            <li class="relative -top-5">
+                <a href="createJoin.html">
+                    <div
+                        class="w-14 h-14 bg-gradient-to-br from-gray-800 to-black rounded-full border-4 border-surface-light dark:border-surface-dark flex items-center justify-center shadow-lg transform active:scale-95 transition-transform cursor-pointer overflow-hidden">
+                        <img alt="Logo"
+                            class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity"
+                            src="../Images/RidePulse-Logo.jpg" />
+                    </div>
+                </a>
+            </li>
+            <li class="flex flex-col items-center gap-1 cursor-pointer group">
+                <a href="dashbroard.html" class="p-1">
+                    <span
+                        class="material-icons-round text-gray-400 dark:text-gray-500 text-2xl group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors group-active:scale-90">workspace_premium</span>
+                </a>
+                <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">Performance</span>
+            </li>
+            <li class="flex flex-col items-center gap-1 cursor-pointer group">
+                <a href="settings.html" class="p-1">
+                    <span
+                        class="material-icons-round text-gray-400 dark:text-gray-500 text-2xl group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors group-active:scale-90">settings</span>
+                </a>
+                <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">Settings</span>
+            </li>
+        </ul>
+    </nav>
+    <script src="../JS/shared.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize Leaflet Map
+            const map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([34.0522, -118.2437], 15); // Default to LA if geo fails
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+
+            // Custom Bike Icon
+            const bikeIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: "<div class='w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center animate-pulse-slow border-2 border-primary shadow-[0_0_15px_rgba(255,215,0,0.6)]'><span class='material-icons-round text-primary text-2xl transform rotate-0 block'>two_wheeler</span></div>",
+                iconSize: [48, 48],
+                iconAnchor: [24, 24]
+            });
+
+            let userMarker = L.marker([34.0522, -118.2437], { icon: bikeIcon }).addTo(map);
+
+            // Get Real Location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        const newPos = [latitude, longitude];
+                        map.setView(newPos, 16);
+                        userMarker.setLatLng(newPos);
+                    },
+                    (error) => {
+                        console.warn("Geolocation denied or failed, using default.");
+                    }
+                );
+            }
+
+            // Pulse AI Logic (Ported)
+            window.togglePulseAI = function () {
+                if (window.RidePulse) {
+                    window.RidePulse.NotificationManager.info("Pulse AI listening...");
+                    setTimeout(() => {
+                        window.RidePulse.NotificationManager.success("Pulse AI: 'Systems nominal. Ready to ride.'");
+                    }, 1500);
+                } else {
+                    alert("Pulse AI: 'Systems nominal. Ready to ride.'");
+                }
+            }
+
+            // Add some "Squad" members around user (Static for now, but relative to user if we had logic)
+            const squadIcon = L.divIcon({
+                className: 'squad-icon',
+                html: "<div class='w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500 shadow-[0_0_10px_#00ff00]'><span class='material-icons-round text-green-500 text-sm'>navigation</span></div>",
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+
+            L.marker([34.0542, -118.2417], { icon: squadIcon }).addTo(map);
+            L.marker([34.0502, -118.2457], { icon: squadIcon }).addTo(map);
+
+            const slider = document.getElementById('startRideSlider');
+            const handle = document.getElementById('sliderHandle');
+            let isDragging = false;
+
+            if (slider && handle) {
+                slider.addEventListener('mousedown', startDrag);
+                slider.addEventListener('touchstart', startDrag);
+
+                function startDrag(e) {
+                    isDragging = true;
+                    document.addEventListener('mousemove', drag);
+                    document.addEventListener('touchmove', drag);
+                    document.addEventListener('mouseup', endDrag);
+                    document.addEventListener('touchend', endDrag);
+                }
+
+                function drag(e) {
+                    if (!isDragging) return;
+                    const rect = slider.getBoundingClientRect();
+                    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                    const maxX = rect.width - handle.offsetWidth;
+                    const newX = Math.max(0, Math.min(maxX, x - handle.offsetWidth / 2));
+                    handle.style.transform = `translateX(${newX}px)`;
+
+                    // Activate at 90%
+                    if (newX > maxX * 0.9) {
+                        isDragging = false;
+                        document.removeEventListener('mousemove', drag);
+                        document.removeEventListener('touchmove', drag);
+                        startRide();
+                    }
+                }
+
+                function endDrag() {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    handle.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                    handle.style.transform = 'translateX(0)';
+
+                    // Remove transition after reset
+                    setTimeout(() => {
+                        handle.style.transition = '';
+                    }, 300);
+
+                    document.removeEventListener('mousemove', drag);
+                    document.removeEventListener('touchmove', drag);
+                }
+
+                function startRide() {
+                    handle.style.transform = `translateX(${slider.offsetWidth - handle.offsetWidth - 12}px)`; // Snap to end
+                    handle.classList.add('bg-green-500');
+                    handle.innerHTML = '<span class="material-icons-round text-white">check</span>';
+
+                    if (window.RidePulse) {
+                        window.RidePulse.NotificationManager.success('RIDE STARTED - RECORDING TELEMETRY');
+                    }
+
+                    setTimeout(() => {
+                        window.location.href = 'rideProgress.html';
+                    }, 800);
+                }
+            }
+        });
+
+        // Quick Messages Logic
+        function toggleQuickMessages() {
+            const list = document.getElementById('quickMessageList');
+            if (list.classList.contains('hidden')) {
+                list.classList.remove('hidden');
+                // Small delay to allow display:block to apply before opacity transition
+                setTimeout(() => {
+                    list.classList.remove('translate-y-4', 'opacity-0');
+                }, 10);
+            } else {
+                list.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => {
+                    list.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        function sendQuickMessage(msg) {
+            if (window.RidePulse) {
+                window.RidePulse.NotificationManager.success(`Sent: "${msg}" to Squad`);
+            } else {
+                alert(`Sent: "${msg}"`);
+            }
+            toggleQuickMessages();
+        }
+    </script>
+</body>
+
+</html>
