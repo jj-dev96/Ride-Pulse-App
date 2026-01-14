@@ -6,6 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 const LoginScreen = () => {
+<<<<<<< HEAD
     const { login, register } = useContext(AuthContext); // Added register
     const { colorScheme, toggleTheme } = useContext(ThemeContext);
     const [isLogin, setIsLogin] = useState(true);
@@ -37,6 +38,18 @@ const LoginScreen = () => {
             alert('An unexpected error occurred');
         } finally {
             setLoading(false);
+=======
+    const { login } = useContext(AuthContext);
+    const { colorScheme, toggleTheme } = useContext(ThemeContext);
+    const [isLogin, setIsLogin] = useState(true);
+    const [userId, setUserId] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const handleSubmit = async () => {
+        if (userId && password) {
+            await login('user123', userId, 'rider');
+>>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
         }
     };
 
@@ -108,6 +121,7 @@ const LoginScreen = () => {
                         {/* Form Fields */}
                         <View style={styles.form}>
 
+<<<<<<< HEAD
                             {/* Email Input */}
                             <View style={styles.inputContainer}>
                                 <MaterialIcons name="email" size={24} color="#9CA3AF" />
@@ -119,6 +133,18 @@ const LoginScreen = () => {
                                     onChangeText={setEmail}
                                     autoCapitalize="none"
                                     keyboardType="email-address"
+=======
+                            {/* User ID Input */}
+                            <View style={styles.inputContainer}>
+                                <MaterialIcons name="person" size={24} color="#9CA3AF" />
+                                <TextInput
+                                    placeholder="User ID"
+                                    placeholderTextColor="#6B7280"
+                                    style={styles.input}
+                                    value={userId}
+                                    onChangeText={setUserId}
+                                    autoCapitalize="none"
+>>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
                                 />
                             </View>
 
@@ -146,6 +172,7 @@ const LoginScreen = () => {
                             {/* Action Button */}
                             <TouchableOpacity
                                 onPress={handleSubmit}
+<<<<<<< HEAD
                                 style={[styles.actionButton, loading && { opacity: 0.7 }]}
                                 disabled={loading}
                             >
@@ -153,6 +180,14 @@ const LoginScreen = () => {
                                     {loading ? 'Please wait...' : (isLogin ? 'LOG IN' : 'SIGN UP')}
                                 </Text>
                                 {!loading && <MaterialIcons name="arrow-forward" size={20} color="black" />}
+=======
+                                style={styles.actionButton}
+                            >
+                                <Text style={styles.actionButtonText}>
+                                    {isLogin ? 'LOG IN' : 'SIGN UP'}
+                                </Text>
+                                <MaterialIcons name="arrow-forward" size={20} color="black" />
+>>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
                             </TouchableOpacity>
                         </View>
                     </View>
