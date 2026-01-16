@@ -12,7 +12,6 @@ if (Platform.OS !== 'web') {
     PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
 }
 
-<<<<<<< HEAD
 import * as Location from 'expo-location';
 
 const RideProgressScreen = ({ navigation }) => {
@@ -33,22 +32,13 @@ const RideProgressScreen = ({ navigation }) => {
             setLocation(currentLocation);
         })();
     }, []);
-=======
-const RideProgressScreen = ({ navigation }) => {
-    const [speed, setSpeed] = useState(118);
-    const [isSOSActive, setIsSOSActive] = useState(false);
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
 
     // Mock speed fluctuation
     useEffect(() => {
         const interval = setInterval(() => {
             setSpeed(prev => {
                 const change = Math.random() > 0.5 ? 1 : -1;
-<<<<<<< HEAD
                 return Math.max(0, prev + change); // Prevent negative speed
-=======
-                return prev + change;
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
             });
         }, 1000);
         return () => clearInterval(interval);
@@ -65,7 +55,6 @@ const RideProgressScreen = ({ navigation }) => {
                     provider={PROVIDER_GOOGLE}
                     style={StyleSheet.absoluteFill}
                     customMapStyle={mapDarkStyle}
-<<<<<<< HEAD
                     showsUserLocation={true}
                     followsUserLocation={true}
                     region={location ? {
@@ -81,30 +70,13 @@ const RideProgressScreen = ({ navigation }) => {
                     }}
                 >
                     {/* Additional Markers can be added here */}
-=======
-                    initialRegion={{
-                        latitude: 34.0522,
-                        longitude: -118.2437,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                    }}
-                >
-                    <Marker coordinate={{ latitude: 34.0522, longitude: -118.2437 }}>
-                        <View className="bg-primary/50 p-2 rounded-full border border-primary">
-                            <MaterialIcons name="two-wheeler" size={24} color="#FFD700" />
-                        </View>
-                    </Marker>
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
                 </MapView>
             ) : (
                 <View className="absolute inset-0 bg-gray-900 justify-center items-center">
                     <MaterialIcons name="map" size={80} color="#333" />
                     <Text className="text-gray-500 mt-4 font-bold">MAP VIEW UNAVAILABLE ON WEB</Text>
                     <Text className="text-gray-600 text-xs mt-1">Please use the mobile app for full experience</Text>
-<<<<<<< HEAD
                     {errorMsg && <Text className="text-red-500 mt-2">{errorMsg}</Text>}
-=======
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
                 </View>
             )}
 

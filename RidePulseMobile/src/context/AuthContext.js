@@ -1,10 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-<<<<<<< HEAD
 import { auth } from '../config/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-=======
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
 
 export const AuthContext = createContext();
 
@@ -13,25 +10,60 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-<<<<<<< HEAD
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        console.log("AuthContext: Initializing...");
+        let isCancelled = false;
+
+        // Safety timeout: Reduced to 4s.
+        const timeoutId = setTimeout(async () => {
+            if (!isCancelled && loading) {
+                console.warn("AuthContext: Firebase init slow. Force unlocking UI.");
+                try {
+                    // Try to read generic user from a non-awaited source if possible, or just default to null
+                    // For now, let's just assume no user if we timed out to let them login
+                    setLoading(false);
+                } catch (e) {
+                    console.error("AuthContext: Timeout handling error", e);
+                }
+            }
+        }, 4000);
+
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+            console.log("AuthContext: onAuthStateChanged triggered");
+            clearTimeout(timeoutId);
+
+            if (isCancelled) return;
+
             if (firebaseUser) {
                 const userData = {
                     id: firebaseUser.uid,
                     email: firebaseUser.email,
                     name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-                    type: 'rider' // Default type
+                    type: 'rider'
                 };
+
+                // 1. Update State IMMEDIATELY to unblock UI
                 setUser(userData);
-                await AsyncStorage.setItem('user', JSON.stringify(userData));
+
+                // 2. Persist in background (don't await)
+                AsyncStorage.setItem('user', JSON.stringify(userData)).catch(e =>
+                    console.error("AuthContext: Failed to save user to storage", e)
+                );
             } else {
                 setUser(null);
-                await AsyncStorage.removeItem('user');
+                AsyncStorage.removeItem('user').catch(e =>
+                    console.error("AuthContext: Failed to remove user", e)
+                );
             }
+
+            // 3. Unlock loading screen IMMEDIATELY
             setLoading(false);
         });
 
-        return unsubscribe;
+        return () => {
+            isCancelled = true;
+            clearTimeout(timeoutId);
+            unsubscribe();
+        };
     }, []);
 
     const login = async (email, password) => {
@@ -51,54 +83,19 @@ export const AuthProvider = ({ children }) => {
         } catch (e) {
             console.error("Registration Error:", e.code, e.message);
             return { success: false, error: e.message };
-=======
-        loadUser();
-    }, []);
-
-    const loadUser = async () => {
-        try {
-            const storedUser = await AsyncStorage.getItem('user');
-            if (storedUser) {
-                setUser(JSON.parse(storedUser));
-            }
-        } catch (e) {
-            console.log(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const login = async (id, name, type) => {
-        try {
-            const userData = { id, name, type: type || 'rider' };
-            await AsyncStorage.setItem('user', JSON.stringify(userData));
-            setUser(userData);
-            return true;
-        } catch (e) {
-            return false;
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
         }
     };
 
     const logout = async () => {
         try {
-<<<<<<< HEAD
             await signOut(auth);
-=======
-            await AsyncStorage.removeItem('user');
-            setUser(null);
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
         } catch (e) {
             console.log(e);
         }
     };
 
     return (
-<<<<<<< HEAD
         <AuthContext.Provider value={{ user, loading, login, register, logout }}>
-=======
-        <AuthContext.Provider value={{ user, loading, login, logout }}>
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
             {children}
         </AuthContext.Provider>
     );
