@@ -18,19 +18,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-<<<<<<< HEAD
-      "package": "com.ridepulse"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.ridepulse"
-=======
       "package": "com.ridepulse.mobile"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ridepulse.mobile"
->>>>>>> 9a7a064b82aa983a9411bc3e80e0cf7ea74d8f05
     },
     "web": {
       "favicon": "./assets/favicon.png"
