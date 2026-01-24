@@ -75,5 +75,37 @@ export const BIKE_DATABASE = {
             { id: "dominar400", name: "Dominar 400", hp: 39.5, torque: 35, weight: 193, image: "dominar.jpg" },
             { id: "chetak", name: "Chetak EV", hp: 5.5, torque: 16.2, weight: 133, image: "chetak.jpg" }
         ]
+    },
+    "Hero": {
+        models: [
+            { id: "splendor", name: "Splendor+", hp: 8, torque: 8.05, weight: 112, image: "splendor.jpg" },
+            { id: "xpulse200", name: "Xpulse 200 4V", hp: 18.9, torque: 17.35, weight: 158, image: "xpulse.jpg" },
+            { id: "karizma", name: "Karizma XMR", hp: 25.15, torque: 20.4, weight: 163.5, image: "karizma.jpg" },
+            { id: "mavrick", name: "Mavrick 440", hp: 27, torque: 36, weight: 187, image: "mavrick.jpg" }
+        ]
+    },
+    "Ola Electric": {
+        models: [
+            { id: "s1pro", name: "S1 Pro Gen 2", hp: 14.7, torque: 58, weight: 116, image: "s1pro.jpg" },
+            { id: "s1air", name: "S1 Air", hp: 6, torque: 150, weight: 108, image: "s1air.jpg" }
+        ]
+    },
+    "Ather Energy": {
+        models: [
+            { id: "450x", name: "450X Gen 3", hp: 8.5, torque: 26, weight: 111.6, image: "450x.jpg" },
+            { id: "rizta", name: "Rizta Z", hp: 5.7, torque: 22, weight: 119, image: "rizta.jpg" }
+        ]
+    },
+    "Ultraviolette": {
+        models: [
+            { id: "f77", name: "F77 Mach 2", hp: 40.2, torque: 100, weight: 207, image: "f77.jpg" }
+        ]
+    },
+    "Jawa / Yezdi": {
+        models: [
+            { id: "perak", name: "Jawa Perak", hp: 30.2, torque: 32.74, weight: 175, image: "perak.jpg" },
+            { id: "roadster", name: "Yezdi Roadster", hp: 29.3, torque: 29, weight: 184, image: "roadster.jpg" },
+            { id: "bobber42", name: "Jawa 42 Bobber", hp: 30, torque: 32.7, weight: 175, image: "bobber42.jpg" }
+        ]
     }
 };

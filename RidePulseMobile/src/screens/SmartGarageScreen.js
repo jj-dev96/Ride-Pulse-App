@@ -553,6 +553,101 @@ const styles = StyleSheet.create({
     closeBtnText: {
         color: '#9CA3AF',
         fontWeight: 'bold',
+    },
+    // Health Monitor Styles
+    healthRow: {
+        marginBottom: 10,
+    },
+    healthLabelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    healthLabel: {
+        color: '#6B7280',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    healthValue: {
+        color: '#10B981',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    healthSub: {
+        color: '#4B5563',
+        fontSize: 10,
+        marginTop: 4,
+        alignSelf: 'flex-end',
+    },
+    progressBarBg: {
+        height: 6,
+        backgroundColor: '#111827',
+        borderRadius: 3,
+        width: '100%',
+    },
+    progressBarFill: {
+        height: '100%',
+        borderRadius: 3,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#1F2937',
+        marginVertical: 15,
+    },
+    tyreRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    tyreBadge: {
+        flex: 1,
+        backgroundColor: '#111827',
+        borderRadius: 8,
+        padding: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#374151',
+    },
+    tyrePos: {
+        color: '#6B7280',
+        fontWeight: 'bold',
+        fontSize: 12,
+    },
+    tyreVal: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    statusRowSimple: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#111827',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+    },
+    statusTextSimple: {
+        color: '#9CA3AF',
+        fontSize: 12,
+    },
+    serviceLogBtn: {
+        marginTop: 15,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#FFD700',
+        borderRadius: 8,
+        gap: 8,
+    },
+    serviceLogText: {
+        color: '#FFD700',
+        fontSize: 12,
+        fontWeight: 'bold',
     }
 });
 

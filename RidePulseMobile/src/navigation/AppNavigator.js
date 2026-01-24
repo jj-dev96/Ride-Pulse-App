@@ -11,7 +11,8 @@ import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import StatsScreen from '../screens/StatsScreen';
 import LobbyScreen from '../screens/LobbyScreen';
-import PerformanceScreen from '../screens/PerformanceScreen';
+
+import ShopScreen from '../screens/ShopScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SmartGarageScreen from '../screens/SmartGarageScreen';
 import RideProgressScreen from '../screens/RideProgressScreen';
@@ -45,7 +46,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                     switch (name) {
                         case 'Map': return <Ionicons name="map" size={24} color={color} />;
                         case 'Stats': return <Ionicons name="stats-chart" size={24} color={color} />;
-                        case 'Performance': return <FontAwesome5 name="medal" size={20} color={color} />;
+                        case 'Shop': return <FontAwesome5 name="shopping-bag" size={20} color={color} />;
                         case 'Settings': return <Ionicons name="settings" size={24} color={color} />;
                         default: return <MaterialIcons name="help" size={24} color={color} />;
                     }
@@ -93,7 +94,7 @@ function MainTabs() {
             <Tab.Screen name="Map" component={DashboardScreen} />
             <Tab.Screen name="Stats" component={StatsScreen} />
             <Tab.Screen name="CenterLogo" component={LobbyScreen} />
-            <Tab.Screen name="Performance" component={PerformanceScreen} />
+            <Tab.Screen name="Shop" component={ShopScreen} />
             <Tab.Screen name="Settings" component={SettingsScreen} />
         </Tab.Navigator>
     );

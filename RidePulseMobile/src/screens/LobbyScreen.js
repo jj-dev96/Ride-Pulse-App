@@ -10,6 +10,7 @@ const { width } = Dimensions.get('window');
 const LobbyScreen = ({ navigation }) => {
     const [activeTab, setActiveTab] = useState('HOSTING'); // 'JOIN' or 'HOSTING'
     const [joinCode, setJoinCode] = useState(['', '', '', '', '', '']);
+    const [showHostModal, setShowHostModal] = useState(false); // New Modal State
     const inputRefs = useRef([]);
 
     const riders = [
@@ -212,6 +213,55 @@ const LobbyScreen = ({ navigation }) => {
                 )}
 
             </SafeAreaView>
+
+            {/* Host Ride Modal */}
+            <Modal visible={showHostModal} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>CREATE RIDE EVENT</Text>
+                            <TouchableOpacity onPress={() => setShowHostModal(false)}>
+                                <MaterialIcons name="close" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.label}>EVENT NAME</Text>
+                        <TextInput style={styles.input} placeholder="e.g. Sunday Morning Run" placeholderTextColor="#4B5563" />
+
+                        <Text style={styles.label}>ROUTE / DESTINATION</Text>
+                        <TextInput style={styles.input} placeholder="Select on Map..." placeholderTextColor="#4B5563" />
+
+                        <View style={styles.row}>
+                            <View style={{ flex: 1, marginRight: 10 }}>
+                                <Text style={styles.label}>DATE</Text>
+                                <View style={styles.dateBox}><Text style={{ color: 'white' }}>Today</Text></View>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>TIME</Text>
+                                <View style={styles.dateBox}><Text style={{ color: 'white' }}>Now</Text></View>
+                            </View>
+                        </View>
+
+                        <Text style={styles.label}>DIFFICULTY</Text>
+                        <View style={styles.diffRow}>
+                            <TouchableOpacity style={[styles.diffChip, { backgroundColor: '#10B981' }]}><Text style={styles.diffText}>Chill</Text></TouchableOpacity>
+                            <TouchableOpacity style={[styles.diffChip, { borderColor: '#F59E0B', borderWidth: 1 }]}><Text style={[styles.diffText, { color: '#F59E0B' }]}>Sport</Text></TouchableOpacity>
+                            <TouchableOpacity style={[styles.diffChip, { borderColor: '#EF4444', borderWidth: 1 }]}><Text style={[styles.diffText, { color: '#EF4444' }]}>Race</Text></TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity style={styles.createBtn} onPress={() => setShowHostModal(false)}>
+                            <Text style={styles.createBtnText}>PUBLISH EVENT</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Floating Action Button for Events */}
+            {activeTab === 'HOSTING' && (
+                <TouchableOpacity style={styles.fab} onPress={() => setShowHostModal(true)}>
+                    <MaterialIcons name="add" size={30} color="black" />
+                </TouchableOpacity>
+            )}
         </View>
     );
 };
@@ -558,6 +608,99 @@ const styles = StyleSheet.create({
         color: '#06B6D4',
         fontWeight: 'bold',
     },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#161925',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 20,
+        minHeight: 500,
+        borderTopWidth: 1,
+        borderColor: '#FFD700',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+    },
+    label: {
+        color: '#6B7280',
+        fontSize: 10,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        marginTop: 10,
+    },
+    input: {
+        backgroundColor: '#111827',
+        borderRadius: 8,
+        padding: 12,
+        color: 'white',
+        borderWidth: 1,
+        borderColor: '#374151',
+    },
+    row: {
+        flexDirection: 'row',
+    },
+    dateBox: {
+        backgroundColor: '#1F2937',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    diffRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    diffChip: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+    },
+    diffText: {
+        color: 'black',
+        fontWeight: 'bold',
+        fontSize: 12,
+    },
+    createBtn: {
+        backgroundColor: '#FFD700',
+        marginTop: 40,
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    createBtnText: {
+        color: 'black',
+        fontWeight: 'bold',
+        fontSize: 16,
+        letterSpacing: 1,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 100, // Above tab bar
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#FFD700',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#FFD700',
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 10,
+    }
 });
 
 export default LobbyScreen;

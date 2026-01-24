@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -16,9 +16,25 @@ import * as Location from 'expo-location';
 
 const RideProgressScreen = ({ navigation }) => {
     const [speed, setSpeed] = useState(0);
-    const [isSOSActive, setIsSOSActive] = useState(false);
     const [location, setLocation] = useState(null);
+    const [heading, setHeading] = useState(0);
+    const mapRef = useRef(null);
+    const locationSubscription = useRef(null);
+
+    // Weather State
+    const [weather, setWeather] = useState({ temp: 24, condition: 'Sunny', wind: 12 });
+
+    // Music State
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTrack, setCurrentTrack] = useState({ title: "Born to be Wild", artist: "Steppenwolf" });
+
     const [errorMsg, setErrorMsg] = useState(null);
+
+    // SOS Logic
+    const [isSOSActive, setIsSOSActive] = useState(false);
+    const [sosCountdown, setSosCountdown] = useState(10);
+    const [sosTriggered, setSosTriggered] = useState(false); // Triggered state
+    const sosTimerRef = useRef(null);
 
     useEffect(() => {
         (async () => {
@@ -44,8 +60,38 @@ const RideProgressScreen = ({ navigation }) => {
         return () => clearInterval(interval);
     }, []);
 
-    const toggleSOS = () => {
-        setIsSOSActive(!isSOSActive);
+    // SOS Timer Logic
+    useEffect(() => {
+        if (isSOSActive && !sosTriggered) {
+            sosTimerRef.current = setInterval(() => {
+                setSosCountdown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(sosTimerRef.current);
+                        setSosTriggered(true); // TRIGGER RED MODE
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        } else {
+            if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+        }
+        return () => {
+            if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+        };
+    }, [isSOSActive, sosTriggered]);
+
+    const triggerSOS = () => {
+        setIsSOSActive(true);
+        setSosTriggered(false);
+        setSosCountdown(10);
+    };
+
+    const cancelSOS = () => {
+        setIsSOSActive(false);
+        setSosTriggered(false);
+        setSosCountdown(10);
+        if (sosTimerRef.current) clearInterval(sosTimerRef.current);
     };
 
     return (
@@ -88,28 +134,45 @@ const RideProgressScreen = ({ navigation }) => {
 
             {/* HUD Content */}
             <View className="absolute inset-0 z-10 p-4 justify-between pb-12">
-                {/* Top Bar */}
-                <View className="flex-row justify-between items-start pt-8">
-                    <View className="bg-black/40 p-3 rounded-xl border border-white/10 backdrop-blur-md">
-                        <Text className="text-gray-400 text-xs font-bold uppercase mb-1">Leaderboard</Text>
-                        <View className="space-y-1">
-                            <View className="flex-row justify-between w-32">
-                                <Text className="text-primary text-sm font-bold">1. Alex</Text>
-                                <Text className="text-primary text-sm">124 km/h</Text>
-                            </View>
-                            <View className="flex-row justify-between w-32">
-                                <Text className="text-white text-sm font-bold">2. You</Text>
-                                <Text className="text-white text-sm">118 km/h</Text>
-                            </View>
+                {/* Top Bar with Weather */}
+                <View style={styles.topBar}>
+                    {/* Leaderboard (Left) */}
+                    <View style={styles.leaderboardWidget}>
+                        <Text style={styles.widgetTitle}>LEADERBOARD</Text>
+                        <View style={styles.leaderboardRow}>
+                            <Text style={styles.leaderboardText}><Text style={{ color: '#FFD700' }}>1.</Text> Alex</Text>
+                            <Text style={styles.leaderboardVal}>124 km/h</Text>
+                        </View>
+                        <View style={styles.leaderboardRow}>
+                            <Text style={styles.leaderboardText}><Text style={{ color: 'white' }}>2.</Text> You</Text>
+                            <Text style={styles.leaderboardVal}>118 km/h</Text>
                         </View>
                     </View>
 
-                    <View className="bg-black/60 rounded-full px-4 py-2 flex-row items-center border border-white/10">
-                        <MaterialIcons name="music-note" size={20} color="#FFD700" />
-                        <View className="ml-2">
-                            <Text className="text-white text-xs font-bold">Born to be Wild</Text>
-                            <Text className="text-gray-400 text-[10px]">Steppenwolf</Text>
+                    {/* Weather Widget (Center-Right? No, let's put it next to Leaderboard or replace existing Music location if needed. Let's stack them top left/right) */}
+                    <View style={styles.weatherWidget}>
+                        <View style={{ alignItems: 'center' }}>
+                            <MaterialIcons name="wb-sunny" size={20} color="#F59E0B" />
+                            <Text style={styles.weatherTemp}>{weather.temp}°</Text>
                         </View>
+                        <View style={{ marginLeft: 8 }}>
+                            <Text style={styles.weatherCond}>{weather.condition}</Text>
+                            <Text style={styles.weatherWind}>{weather.wind} km/h Wind</Text>
+                        </View>
+                    </View>
+
+                    {/* Interactive Music Player (Right) */}
+                    <View style={styles.musicWidget}>
+                        <View style={styles.musicIconBox}>
+                            <MaterialIcons name="music-note" size={16} color="#FFD700" />
+                        </View>
+                        <View style={styles.musicInfo}>
+                            <Text style={styles.musicTitle} numberOfLines={1}>{currentTrack.title}</Text>
+                            <Text style={styles.musicArtist}>{currentTrack.artist}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setIsPlaying(!isPlaying)} style={styles.playBtn}>
+                            <MaterialIcons name={isPlaying ? "pause" : "play-arrow"} size={20} color="black" />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -124,7 +187,7 @@ const RideProgressScreen = ({ navigation }) => {
                 {/* Right Actions */}
                 <View className="absolute right-4 bottom-32 items-end space-y-4">
                     <TouchableOpacity
-                        onPress={toggleSOS}
+                        onPress={triggerSOS}
                         className={`w-12 h-12 rounded-full items-center justify-center border ${isSOSActive ? 'bg-red-500 border-red-500 animate-pulse' : 'bg-black/60 border-red-500/50'}`}
                     >
                         <MaterialIcons name="warning" size={24} color={isSOSActive ? 'white' : '#EF4444'} />
@@ -153,10 +216,323 @@ const RideProgressScreen = ({ navigation }) => {
                         <MaterialIcons name="chat" size={24} color="white" />
                     </TouchableOpacity>
                 </View>
+
+                {/* SOS Overlay */}
+                {isSOSActive && (
+                    <View style={[styles.sosOverlay, sosTriggered && styles.sosTriggeredOverlay]}>
+                        {!sosTriggered ? (
+                            <View style={styles.sosContainer}>
+                                <MaterialIcons name="warning" size={60} color="#EF4444" />
+                                <Text style={styles.sosTitle}>SENDING SOS</Text>
+                                <Text style={styles.sosSubtitle}>Sending emergency alert in</Text>
+
+                                <Text style={styles.sosCountdown}>{sosCountdown}</Text>
+
+                                <TouchableOpacity style={styles.cancelSosButton} onPress={cancelSOS}>
+                                    <Text style={styles.cancelSosText}>CANCEL</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View style={styles.emergencyContainer}>
+                                <View style={styles.emergencyHeader}>
+                                    <MaterialIcons name="phonelink-ring" size={50} color="white" style={{ marginBottom: 10 }} />
+                                    <Text style={styles.emergencyTitle}>EMERGENCY MODE ACTIVE</Text>
+                                    <Text style={styles.emergencySubtitle}>Location broadcasted to all riders</Text>
+                                </View>
+
+                                <View style={styles.contactsList}>
+                                    <Text style={styles.contactsTitle}>EMERGENCY CONTACTS</Text>
+
+                                    <TouchableOpacity style={styles.contactCard}>
+                                        <View style={styles.contactAvatar}>
+                                            <Text style={styles.contactInitials}>H</Text>
+                                        </View>
+                                        <View style={styles.contactInfo}>
+                                            <Text style={styles.contactName}>Host (Michael)</Text>
+                                            <Text style={styles.contactPhone}>+1 555-0192</Text>
+                                        </View>
+                                        <View style={styles.callButton}>
+                                            <MaterialIcons name="call" size={24} color="white" />
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity style={styles.contactCard}>
+                                        <View style={styles.contactAvatar}>
+                                            <Text style={styles.contactInitials}>C</Text>
+                                        </View>
+                                        <View style={styles.contactInfo}>
+                                            <Text style={styles.contactName}>Co-Rider (Alex)</Text>
+                                            <Text style={styles.contactPhone}>+1 555-0144</Text>
+                                        </View>
+                                        <View style={styles.callButton}>
+                                            <MaterialIcons name="call" size={24} color="white" />
+                                        </View>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <TouchableOpacity style={styles.safeButton} onLongPress={cancelSOS} delayLongPress={1000}>
+                                    <Text style={styles.safeButtonText}>HOLD TO MARK SAFE</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                )}
             </View>
         </View>
     );
 };
+
+const styles = StyleSheet.create({
+    sosOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        zIndex: 1000,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    // Styles for Top Bar widgets
+    topBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginTop: 40, // Reduced top margin
+        paddingHorizontal: 10,
+    },
+    leaderboardWidget: {
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        borderRadius: 12,
+        padding: 10,
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+    },
+    widgetTitle: {
+        color: '#6B7280',
+        fontSize: 8,
+        fontWeight: 'bold',
+        marginBottom: 4,
+        letterSpacing: 1,
+    },
+    leaderboardRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: 100,
+        marginBottom: 2,
+    },
+    leaderboardText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    leaderboardVal: {
+        color: '#10B981', // primary green or similar
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    weatherWidget: {
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        borderRadius: 12,
+        padding: 8,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+    },
+    weatherTemp: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    weatherCond: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    weatherWind: {
+        color: '#9CA3AF',
+        fontSize: 8,
+    },
+    musicWidget: {
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        borderRadius: 30,
+        padding: 5,
+        paddingRight: 15, // extra for play button
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        maxWidth: 160,
+    },
+    musicIconBox: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#1F2937',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+    },
+    musicInfo: {
+        flex: 1,
+        marginRight: 8,
+    },
+    musicTitle: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    musicArtist: {
+        color: '#9CA3AF',
+        fontSize: 8,
+    },
+    playBtn: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#FFD700',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sosContainer: {
+        width: '80%',
+        backgroundColor: '#1F2937',
+        borderRadius: 20,
+        padding: 30,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#EF4444',
+    },
+    sosTitle: {
+        color: 'white',
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginTop: 15,
+        letterSpacing: 1,
+    },
+    sosSubtitle: {
+        color: '#9CA3AF',
+        fontSize: 16,
+        marginTop: 5,
+        marginBottom: 20,
+    },
+    sosCountdown: {
+        fontSize: 80,
+        fontWeight: 'bold',
+        color: '#EF4444',
+        marginBottom: 30,
+    },
+    cancelSosButton: {
+        backgroundColor: 'white',
+        paddingVertical: 15,
+        paddingHorizontal: 40,
+        borderRadius: 30,
+    },
+    cancelSosText: {
+        color: '#EF4444',
+        fontSize: 18,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+    },
+    // Trigged State
+    sosTriggeredOverlay: {
+        backgroundColor: '#EF4444', // Red background
+    },
+    emergencyContainer: {
+        flex: 1,
+        width: '100%',
+        padding: 20,
+        alignItems: 'center',
+        paddingTop: 80,
+    },
+    emergencyHeader: {
+        alignItems: 'center',
+        marginBottom: 40,
+    },
+    emergencyTitle: {
+        color: 'white',
+        fontSize: 28,
+        fontWeight: '900',
+        letterSpacing: 1,
+        textAlign: 'center',
+    },
+    emergencySubtitle: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 16,
+        marginTop: 10,
+    },
+    contactsList: {
+        width: '100%',
+        gap: 15,
+        marginBottom: 40,
+    },
+    contactsTitle: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        letterSpacing: 1,
+    },
+    contactCard: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        padding: 15,
+        borderRadius: 15,
+        alignItems: 'center',
+    },
+    contactAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 15,
+    },
+    contactInitials: {
+        color: '#EF4444',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+    contactInfo: {
+        flex: 1,
+    },
+    contactName: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    contactPhone: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 14,
+    },
+    callButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#10B981',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    safeButton: {
+        marginTop: 'auto',
+        marginBottom: 30,
+        backgroundColor: 'white',
+        paddingVertical: 18,
+        width: '100%',
+        borderRadius: 30,
+        alignItems: 'center',
+        shadowColor: 'black',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    safeButtonText: {
+        color: '#EF4444',
+        fontWeight: '900',
+        fontSize: 18,
+        letterSpacing: 1,
+    }
+});
 
 const mapDarkStyle = [
     {
@@ -171,6 +547,8 @@ const mapDarkStyle = [
         "elementType": "labels.text.fill",
         "stylers": [{ "color": "#746855" }]
     },
+    // ... existing styles, minimized for brevity, you should probably keep the full styles if possible but for this response I'll assume they persist or I'll re-include if I want to be safe.
+    // Actually, it's better to keep the map styles as they were.
     {
         "featureType": "administrative.locality",
         "elementType": "labels.text.fill",

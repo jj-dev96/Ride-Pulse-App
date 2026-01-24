@@ -21,6 +21,12 @@ const DashboardScreen = ({ navigation }) => {
     const [rideSpeed, setRideSpeed] = useState(0);
     const [rideDistance, setRideDistance] = useState(0);
 
+    // SOS Logic
+    const [sosActive, setSosActive] = useState(false);
+    const [sosCountdown, setSosCountdown] = useState(10);
+    const [sosTriggered, setSosTriggered] = useState(false); // New state for post-countdown
+    const sosTimerRef = useRef(null);
+
     // Location State
     const [location, setLocation] = useState(null);
     const [heading, setHeading] = useState(0);
@@ -145,6 +151,41 @@ const DashboardScreen = ({ navigation }) => {
             locationSubscription.current = null;
         }
     };
+
+    // SOS Functions
+    const triggerSOS = () => {
+        setSosActive(true);
+        setSosTriggered(false);
+        setSosCountdown(10);
+    };
+
+    const cancelSOS = () => {
+        setSosActive(false);
+        setSosTriggered(false);
+        setSosCountdown(10);
+        if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+    };
+
+    useEffect(() => {
+        if (sosActive && !sosTriggered) {
+            sosTimerRef.current = setInterval(() => {
+                setSosCountdown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(sosTimerRef.current);
+                        setSosTriggered(true); // Trigger Red Mode
+                        // We do NOT hide overlay here anymore
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        } else {
+            if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+        }
+        return () => {
+            if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+        };
+    }, [sosActive, sosTriggered]);
 
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
@@ -314,13 +355,19 @@ const DashboardScreen = ({ navigation }) => {
             {/* Right Side Buttons Layout */}
             <View style={[styles.rightButtons, isRideActive && { bottom: 40 }]}>
                 {isRideActive && (
-                    <TouchableOpacity style={[styles.fab, styles.emergencyFab, { marginBottom: 20 }]}>
+                    <TouchableOpacity
+                        style={[styles.fab, styles.emergencyFab, { marginBottom: 20 }]}
+                        onPress={triggerSOS}
+                    >
                         <MaterialIcons name="report-problem" size={28} color="white" />
                     </TouchableOpacity>
                 )}
                 {!isRideActive && (
                     <>
-                        <TouchableOpacity style={[styles.fab, styles.emergencyFab]}>
+                        <TouchableOpacity
+                            style={[styles.fab, styles.emergencyFab]}
+                            onPress={triggerSOS}
+                        >
                             <MaterialIcons name="report-problem" size={28} color="white" />
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.fab}>
@@ -369,6 +416,66 @@ const DashboardScreen = ({ navigation }) => {
                         </Animated.View>
                         <Text style={styles.sliderText}>SLIDE TO START {">>>"}</Text>
                     </View>
+                </View>
+            )}
+
+            {/* SOS Countdown & Emergency Overlay */}
+            {sosActive && (
+                <View style={[styles.sosOverlay, sosTriggered && styles.sosTriggeredOverlay]}>
+                    {!sosTriggered ? (
+                        <View style={styles.sosContainer}>
+                            <MaterialIcons name="warning" size={60} color="#EF4444" />
+                            <Text style={styles.sosTitle}>SENDING SOS</Text>
+                            <Text style={styles.sosSubtitle}>Sending emergency alert in</Text>
+                            <Text style={styles.sosCountdown}>{sosCountdown}</Text>
+
+                            <TouchableOpacity style={styles.cancelSosButton} onPress={cancelSOS}>
+                                <Text style={styles.cancelSosText}>CANCEL</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.emergencyContainer}>
+                            <View style={styles.emergencyHeader}>
+                                <MaterialIcons name="phonelink-ring" size={50} color="white" style={{ marginBottom: 10 }} />
+                                <Text style={styles.emergencyTitle}>EMERGENCY MODE ACTIVE</Text>
+                                <Text style={styles.emergencySubtitle}>Location broadcasted to all riders</Text>
+                            </View>
+
+                            <View style={styles.contactsList}>
+                                <Text style={styles.contactsTitle}>EMERGENCY CONTACTS</Text>
+
+                                <TouchableOpacity style={styles.contactCard}>
+                                    <View style={styles.contactAvatar}>
+                                        <Text style={styles.contactInitials}>H</Text>
+                                    </View>
+                                    <View style={styles.contactInfo}>
+                                        <Text style={styles.contactName}>Host (Michael)</Text>
+                                        <Text style={styles.contactPhone}>+1 555-0192</Text>
+                                    </View>
+                                    <View style={styles.callButton}>
+                                        <MaterialIcons name="call" size={24} color="white" />
+                                    </View>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.contactCard}>
+                                    <View style={styles.contactAvatar}>
+                                        <Text style={styles.contactInitials}>C</Text>
+                                    </View>
+                                    <View style={styles.contactInfo}>
+                                        <Text style={styles.contactName}>Co-Rider (Alex)</Text>
+                                        <Text style={styles.contactPhone}>+1 555-0144</Text>
+                                    </View>
+                                    <View style={styles.callButton}>
+                                        <MaterialIcons name="call" size={24} color="white" />
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity style={styles.safeButton} onLongPress={cancelSOS} delayLongPress={1000}>
+                                <Text style={styles.safeButtonText}>HOLD TO MARK SAFE</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
             )}
         </View>
@@ -709,6 +816,153 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 10,
         fontWeight: 'bold',
+        letterSpacing: 1,
+    },
+    // SOS Overlay Styles
+    sosOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        zIndex: 1000,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    sosContainer: {
+        width: '80%',
+        backgroundColor: '#1F2937',
+        borderRadius: 20,
+        padding: 30,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#EF4444',
+    },
+    sosTitle: {
+        color: 'white',
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginTop: 15,
+        letterSpacing: 1,
+    },
+    sosSubtitle: {
+        color: '#9CA3AF',
+        fontSize: 16,
+        marginTop: 5,
+        marginBottom: 20,
+    },
+    sosCountdown: {
+        fontSize: 80,
+        fontWeight: 'bold',
+        color: '#EF4444',
+        marginBottom: 30,
+    },
+    cancelSosButton: {
+        backgroundColor: 'white',
+        paddingVertical: 15,
+        paddingHorizontal: 40,
+        borderRadius: 30,
+    },
+    cancelSosText: {
+        color: '#EF4444',
+        fontSize: 18,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+    },
+    // Trigged State
+    sosTriggeredOverlay: {
+        backgroundColor: '#EF4444', // Red background
+    },
+    emergencyContainer: {
+        flex: 1,
+        width: '100%',
+        padding: 20,
+        alignItems: 'center',
+        paddingTop: 80,
+    },
+    emergencyHeader: {
+        alignItems: 'center',
+        marginBottom: 40,
+    },
+    emergencyTitle: {
+        color: 'white',
+        fontSize: 28,
+        fontWeight: '900',
+        letterSpacing: 1,
+        textAlign: 'center',
+    },
+    emergencySubtitle: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 16,
+        marginTop: 10,
+    },
+    contactsList: {
+        width: '100%',
+        gap: 15,
+        marginBottom: 40,
+    },
+    contactsTitle: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        letterSpacing: 1,
+    },
+    contactCard: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        padding: 15,
+        borderRadius: 15,
+        alignItems: 'center',
+    },
+    contactAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 15,
+    },
+    contactInitials: {
+        color: '#EF4444',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+    contactInfo: {
+        flex: 1,
+    },
+    contactName: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    contactPhone: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 14,
+    },
+    callButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#10B981',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    safeButton: {
+        marginTop: 'auto',
+        marginBottom: 30,
+        backgroundColor: 'white',
+        paddingVertical: 18,
+        width: '100%',
+        borderRadius: 30,
+        alignItems: 'center',
+        shadowColor: 'black',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    safeButtonText: {
+        color: '#EF4444',
+        fontWeight: '900',
+        fontSize: 18,
         letterSpacing: 1,
     }
 });
