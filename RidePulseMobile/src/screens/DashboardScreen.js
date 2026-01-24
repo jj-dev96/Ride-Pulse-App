@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef, useEffect } from 'react';
+import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, Animated, PanResponder, StatusBar, Platform, Alert } from 'react-native';
 import MapView, { Marker, UrlTile, MAP_TYPES } from 'react-native-maps';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { AuthContext } from '../context/AuthContext';
 import LottieView from 'lottie-react-native';
+import NetInfo from '@react-native-community/netinfo';
 
 const { width, height } = Dimensions.get('window');
 
@@ -13,6 +14,7 @@ const DashboardScreen = ({ navigation }) => {
     const { user } = useContext(AuthContext);
     const [searchQuery, setSearchQuery] = useState('');
     const [isRideActive, setIsRideActive] = useState(false);
+    const [isConnected, setIsConnected] = useState(true);
 
     // Real Stats
     const [rideDuration, setRideDuration] = useState(0);
@@ -25,26 +27,57 @@ const DashboardScreen = ({ navigation }) => {
     const mapRef = useRef(null);
     const locationSubscription = useRef(null);
 
+    // Connectivity Monitoring
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener(state => {
+            console.log("Network status:", state.isConnected ? "Online" : "Offline");
+            setIsConnected(state.isConnected);
+        });
+        return () => unsubscribe();
+    }, []);
+
     // Initial Location Setup
     useEffect(() => {
         (async () => {
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission to access location was denied');
-                return;
-            }
+            try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permission to access location was denied');
+                    return;
+                }
 
-            let currentLocation = await Location.getCurrentPositionAsync({});
-            setLocation(currentLocation.coords);
+                let currentLocation;
+                try {
+                    currentLocation = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced,
+                    });
+                } catch (locError) {
+                    console.warn("Dashboard: Location failed, using fallback", locError);
+                    // Fallback to San Francisco (or any default)
+                    currentLocation = {
+                        coords: {
+                            latitude: 37.78825,
+                            longitude: -122.4324,
+                            heading: 0,
+                            speed: 0
+                        }
+                    };
+                    Alert.alert("Location Services Unavailable", "Using demo location for now.");
+                }
 
-            // Center map initially
-            if (mapRef.current && currentLocation) {
-                mapRef.current.animateToRegion({
-                    latitude: currentLocation.coords.latitude,
-                    longitude: currentLocation.coords.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                }, 1000);
+                setLocation(currentLocation.coords);
+
+                // Center map initially
+                if (mapRef.current && currentLocation) {
+                    mapRef.current.animateToRegion({
+                        latitude: currentLocation.coords.latitude,
+                        longitude: currentLocation.coords.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                    }, 1000);
+                }
+            } catch (e) {
+                console.error("Dashboard: Location init fatal error", e);
             }
         })();
     }, []);
@@ -124,35 +157,33 @@ const DashboardScreen = ({ navigation }) => {
     const [trackWidth, setTrackWidth] = useState(0);
     const slideAnim = useRef(new Animated.Value(0)).current;
 
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onPanResponderMove: (evt, gestureState) => {
-                const maxSlide = trackWidth - 55; // Handle width (50) + padding (5)
-                if (!isRideActive && gestureState.dx >= 0 && gestureState.dx <= maxSlide) {
-                    slideAnim.setValue(gestureState.dx);
-                }
-            },
-            onPanResponderRelease: (evt, gestureState) => {
-                const maxSlide = trackWidth - 55;
-                if (gestureState.dx > maxSlide * 0.5) { // Threshold 50%
-                    // Successful slide
-                    Animated.spring(slideAnim, {
-                        toValue: maxSlide,
-                        useNativeDriver: true,
-                    }).start(() => {
-                        setIsRideActive(true);
-                        slideAnim.setValue(0);
-                    });
-                } else {
-                    Animated.spring(slideAnim, {
-                        toValue: 0,
-                        useNativeDriver: true,
-                    }).start();
-                }
-            },
-        })
-    ).current;
+    const panResponder = useMemo(() => PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderMove: (evt, gestureState) => {
+            const maxSlide = trackWidth - 55; // Handle width (50) + padding (5)
+            if (!isRideActive && gestureState.dx >= 0 && gestureState.dx <= maxSlide) {
+                slideAnim.setValue(gestureState.dx);
+            }
+        },
+        onPanResponderRelease: (evt, gestureState) => {
+            const maxSlide = trackWidth - 55;
+            if (gestureState.dx > maxSlide * 0.5) { // Threshold 50%
+                // Successful slide
+                Animated.spring(slideAnim, {
+                    toValue: maxSlide,
+                    useNativeDriver: true,
+                }).start(() => {
+                    setIsRideActive(true);
+                    slideAnim.setValue(0);
+                });
+            } else {
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                }).start();
+            }
+        },
+    }), [trackWidth, isRideActive]);
 
     const stopRide = () => {
         setIsRideActive(false);
@@ -200,6 +231,14 @@ const DashboardScreen = ({ navigation }) => {
                     </Marker>
                 )}
             </MapView>
+
+            {/* Offline/Low Connectivity Indicator */}
+            {!isConnected && (
+                <View style={styles.offlineBanner}>
+                    <MaterialIcons name="cloud-off" size={16} color="white" />
+                    <Text style={styles.offlineText}>OFFLINE MODE - LOCAL SPEED ONLY</Text>
+                </View>
+            )}
 
             {/* Top Overlay: Search Bar (Hidden when riding) */}
             {!isRideActive && (
@@ -651,6 +690,25 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
         fontSize: 16,
+        letterSpacing: 1,
+    },
+    offlineBanner: {
+        position: 'absolute',
+        top: 100,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(239, 68, 68, 0.9)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 15,
+        paddingVertical: 5,
+        borderRadius: 20,
+        zIndex: 100,
+        gap: 8,
+    },
+    offlineText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
         letterSpacing: 1,
     }
 });

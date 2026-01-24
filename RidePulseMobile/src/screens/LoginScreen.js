@@ -6,7 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 const LoginScreen = () => {
-    const { login, register } = useContext(AuthContext);
+    const { login, register } = useContext(AuthContext); // Added register
     const { colorScheme, toggleTheme } = useContext(ThemeContext);
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
@@ -31,10 +31,20 @@ const LoginScreen = () => {
             }
 
             if (!result.success) {
-                alert(result.error);
+                // Better error parsing
+                if (result.error.includes('auth/network-request-failed')) {
+                    alert('Connection Failed. Please check your internet or emulator network settings.');
+                } else if (result.error.includes('auth/invalid-email')) {
+                    alert('Invalid Email Address.');
+                } else if (result.error.includes('auth/weak-password')) {
+                    alert('Password should be at least 6 characters.');
+                } else {
+                    alert(result.error);
+                }
             }
         } catch (error) {
-            alert('An unexpected error occurred');
+            console.error(error);
+            alert('An unexpected error occurred. Please try again.');
         } finally {
             setLoading(false);
         }

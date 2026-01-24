@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -102,6 +102,10 @@ function MainTabs() {
 export default function AppNavigator() {
     const { user, loading } = useContext(AuthContext);
 
+    useEffect(() => {
+        console.log("AppNavigator: Loading state:", loading, "User state:", user ? "Logged In" : "Not Logged In");
+    }, [loading, user]);
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -118,6 +122,7 @@ export default function AppNavigator() {
                         <Stack.Screen name="Main" component={MainTabs} />
                         <Stack.Screen name="ZoneMode" component={ZoneModeScreen} />
                         <Stack.Screen name="SmartGarage" component={SmartGarageScreen} />
+                        <Stack.Screen name="RideProgress" component={RideProgressScreen} />
                     </>
                 ) : (
                     <Stack.Screen name="Login" component={LoginScreen} />
