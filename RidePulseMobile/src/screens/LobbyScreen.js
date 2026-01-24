@@ -1,5 +1,5 @@
 import React, { useState, useRef, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Modal, Alert, ActivityIndicator, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,7 +71,7 @@ const LobbyScreen = ({ navigation }) => {
             // but we set a temp state to switch UI immediately
             setCurrentGroup({ id, members: [user], hostId: user.id });
         } catch (error) {
-            Alert.alert("Error", "Failed to create lobby.");
+            Alert.alert("Error", "Failed to create lobby: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -90,7 +90,7 @@ const LobbyScreen = ({ navigation }) => {
             setCurrentGroup(group);
             setActiveTab('HOSTING'); // Switch view to show lobby
         } catch (error) {
-            Alert.alert("Error", "Could not join lobby. Check the code.");
+            Alert.alert("Error", "Could not join lobby: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -150,6 +150,17 @@ const LobbyScreen = ({ navigation }) => {
             console.error(e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleShare = async () => {
+        if (!currentGroup?.id) return;
+        try {
+            await Share.share({
+                message: `Join my ride on RidePulse! Use access code: ${currentGroup.id}`,
+            });
+        } catch (error) {
+            Alert.alert(error.message);
         }
     };
 
@@ -291,7 +302,9 @@ const LobbyScreen = ({ navigation }) => {
                                 >
                                     <View style={styles.accessHeader}>
                                         <Text style={styles.accessLabel}>RIDE ACCESS CODE</Text>
-                                        <View style={styles.accessRightDecor} />
+                                        <TouchableOpacity onPress={handleShare}>
+                                            <MaterialIcons name="share" size={24} color="#6B7280" />
+                                        </TouchableOpacity>
                                     </View>
 
                                     <View style={styles.codeRow}>
