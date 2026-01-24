@@ -26,6 +26,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow RidePulse to access your camera to scan QR codes for ride groups."
+        }
+      ]
+    ]
   }
 }
