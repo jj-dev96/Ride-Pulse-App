@@ -29,4 +29,4 @@ if (getApps().length === 0) {
 
 const db = getFirestore(app);
 
-export { auth, db };
+export { auth, db, firebaseConfig };

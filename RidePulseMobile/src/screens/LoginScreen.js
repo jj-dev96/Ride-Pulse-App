@@ -2,8 +2,10 @@ import React, { useState, useContext } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Image, ImageBackground } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
+import { firebaseConfig } from '../config/firebase';
 
 const LoginScreen = () => {
     const { login, register, loginWithPhone } = useContext(AuthContext); // Added register, loginWithPhone
@@ -271,7 +273,13 @@ const LoginScreen = () => {
 
                 </ScrollView>
             </KeyboardAvoidingView>
-        </SafeAreaView >
+
+            <FirebaseRecaptchaVerifierModal
+                ref={recaptchaVerifier}
+                firebaseConfig={firebaseConfig}
+                attemptInvisibleVerification={true}
+            />
+        </SafeAreaView>
     );
 };
 
