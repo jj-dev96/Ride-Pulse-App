@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPhoneNumber } from 'firebase/auth';
 
 export const AuthContext = createContext();
 
@@ -85,6 +85,16 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const loginWithPhone = async (phoneNumber, appVerifier) => {
+        try {
+            const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+            return { success: true, result: confirmationResult };
+        } catch (e) {
+            console.error("Phone Auth Error:", e.code, e.message);
+            return { success: false, error: e.message };
+        }
+    };
+
     const logout = async () => {
         try {
             await signOut(auth);
@@ -94,7 +104,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, register, loginWithPhone, logout }}>
             {children}
         </AuthContext.Provider>
     );

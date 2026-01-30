@@ -6,40 +6,83 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 const LoginScreen = () => {
-    const { login, register } = useContext(AuthContext); // Added register
+    const { login, register, loginWithPhone } = useContext(AuthContext); // Added register, loginWithPhone
     const { colorScheme, toggleTheme } = useContext(ThemeContext);
     const [isLogin, setIsLogin] = useState(true);
+    const [loginMethod, setLoginMethod] = useState('EMAIL'); // 'EMAIL' or 'PHONE'
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [verificationId, setVerificationId] = useState(null);
+    const [verificationCode, setVerificationCode] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const recaptchaVerifier = React.useRef(null); // Ref for Recaptcha functionality if needed
 
     const handleSubmit = async () => {
-        if (!email || !password) {
-            alert('Please fill in all fields');
-            return;
+        // Validation
+        if (loginMethod === 'EMAIL') {
+            if (!email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+        } else {
+            if (!phoneNumber && !verificationId) {
+                alert('Please enter a phone number');
+                return;
+            }
+            if (verificationId && !verificationCode) {
+                alert('Please enter the verification code');
+                return;
+            }
         }
 
         setLoading(true);
         let result;
 
         try {
-            if (isLogin) {
-                result = await login(email, password);
+            if (loginMethod === 'EMAIL') {
+                if (isLogin) {
+                    result = await login(email, password);
+                } else {
+                    result = await register(email, password);
+                }
             } else {
-                result = await register(email, password);
+                // PHONE LOGIC
+                if (!verificationId) {
+                    // Step 1: Send Code
+                    // NOTE: You need a RecaptchaVerifier for Web/JS SDK. 
+                    // Pass recaptchaVerifier.current here if you have set it up.
+                    // For now, we pass null, which might fail on some platforms without native integration.
+                    result = await loginWithPhone(phoneNumber, recaptchaVerifier.current);
+
+                    if (result.success) {
+                        setVerificationId(result.result); // Store the confirmationResult object
+                        alert('Verification code sent!');
+                        setLoading(false);
+                        return; // Stop here, wait for code
+                    }
+                } else {
+                    // Step 2: Verify Code
+                    try {
+                        await verificationId.confirm(verificationCode);
+                        result = { success: true };
+                    } catch (err) {
+                        result = { success: false, error: err.message };
+                    }
+                }
             }
 
             if (!result.success) {
                 // Better error parsing
-                if (result.error.includes('auth/network-request-failed')) {
+                if (result.error && result.error.includes('auth/network-request-failed')) {
                     alert('Connection Failed. Please check your internet or emulator network settings.');
-                } else if (result.error.includes('auth/invalid-email')) {
+                } else if (result.error && result.error.includes('auth/invalid-email')) {
                     alert('Invalid Email Address.');
-                } else if (result.error.includes('auth/weak-password')) {
+                } else if (result.error && result.error.includes('auth/weak-password')) {
                     alert('Password should be at least 6 characters.');
                 } else {
-                    alert(result.error);
+                    alert(result.error || "Authentication failed");
                 }
             }
         } catch (error) {
@@ -115,43 +158,91 @@ const LoginScreen = () => {
                             </TouchableOpacity>
                         </View>
 
+                        {/* Method Toggle */}
+                        <TouchableOpacity
+                            style={styles.methodToggle}
+                            onPress={() => {
+                                setLoginMethod(loginMethod === 'EMAIL' ? 'PHONE' : 'EMAIL');
+                                setVerificationId(null);
+                                setVerificationCode('');
+                            }}
+                        >
+                            <Text style={styles.methodToggleText}>
+                                {loginMethod === 'EMAIL' ? 'Use Phone Number instead' : 'Use Email & Password instead'}
+                            </Text>
+                        </TouchableOpacity>
+
                         {/* Form Fields */}
                         <View style={styles.form}>
 
-                            {/* Email Input */}
-                            <View style={styles.inputContainer}>
-                                <MaterialIcons name="email" size={24} color="#9CA3AF" />
-                                <TextInput
-                                    placeholder="Email Address"
-                                    placeholderTextColor="#6B7280"
-                                    style={styles.input}
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    autoCapitalize="none"
-                                    keyboardType="email-address"
-                                />
-                            </View>
+                            {loginMethod === 'EMAIL' ? (
+                                <>
+                                    {/* Email Input */}
+                                    <View style={styles.inputContainer}>
+                                        <MaterialIcons name="email" size={24} color="#9CA3AF" />
+                                        <TextInput
+                                            placeholder="Email Address"
+                                            placeholderTextColor="#6B7280"
+                                            style={styles.input}
+                                            value={email}
+                                            onChangeText={setEmail}
+                                            autoCapitalize="none"
+                                            keyboardType="email-address"
+                                        />
+                                    </View>
 
-                            {/* Password Input */}
-                            <View style={styles.inputContainer}>
-                                <MaterialIcons name="lock" size={24} color="#9CA3AF" />
-                                <TextInput
-                                    placeholder="Password"
-                                    placeholderTextColor="#6B7280"
-                                    style={styles.input}
-                                    secureTextEntry={!showPassword}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                />
-                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                    <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#9CA3AF" />
-                                </TouchableOpacity>
-                            </View>
+                                    {/* Password Input */}
+                                    <View style={styles.inputContainer}>
+                                        <MaterialIcons name="lock" size={24} color="#9CA3AF" />
+                                        <TextInput
+                                            placeholder="Password"
+                                            placeholderTextColor="#6B7280"
+                                            style={styles.input}
+                                            secureTextEntry={!showPassword}
+                                            value={password}
+                                            onChangeText={setPassword}
+                                        />
+                                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                            <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#9CA3AF" />
+                                        </TouchableOpacity>
+                                    </View>
+                                    {/* Forgot Password */}
+                                    <TouchableOpacity style={styles.forgotPassword}>
+                                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Phone Input */}
+                                    <View style={styles.inputContainer}>
+                                        <MaterialIcons name="phone" size={24} color="#9CA3AF" />
+                                        <TextInput
+                                            placeholder="Phone (+91 9876543210)"
+                                            placeholderTextColor="#6B7280"
+                                            style={styles.input}
+                                            value={phoneNumber}
+                                            onChangeText={setPhoneNumber}
+                                            keyboardType="phone-pad"
+                                            editable={!verificationId}
+                                        />
+                                    </View>
 
-                            {/* Forgot Password */}
-                            <TouchableOpacity style={styles.forgotPassword}>
-                                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                            </TouchableOpacity>
+                                    {verificationId && (
+                                        <View style={styles.inputContainer}>
+                                            <MaterialIcons name="lock-clock" size={24} color="#9CA3AF" />
+                                            <TextInput
+                                                placeholder="Verification Code"
+                                                placeholderTextColor="#6B7280"
+                                                style={styles.input}
+                                                value={verificationCode}
+                                                onChangeText={setVerificationCode}
+                                                keyboardType="number-pad"
+                                            />
+                                        </View>
+                                    )}
+                                </>
+                            )}
+
 
                             {/* Action Button */}
                             <TouchableOpacity
@@ -160,7 +251,11 @@ const LoginScreen = () => {
                                 disabled={loading}
                             >
                                 <Text style={styles.actionButtonText}>
-                                    {loading ? 'Please wait...' : (isLogin ? 'LOG IN' : 'SIGN UP')}
+                                    {loading ? 'Please wait...' : (
+                                        loginMethod === 'EMAIL'
+                                            ? (isLogin ? 'LOG IN' : 'SIGN UP')
+                                            : (!verificationId ? 'SEND CODE' : 'VERIFY')
+                                    )}
                                 </Text>
                                 {!loading && <MaterialIcons name="arrow-forward" size={20} color="black" />}
                             </TouchableOpacity>
@@ -176,7 +271,7 @@ const LoginScreen = () => {
 
                 </ScrollView>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 };
 
@@ -285,6 +380,15 @@ const styles = StyleSheet.create({
     },
     activeTabText: {
         color: '#FFFFFF',
+    },
+    methodToggle: {
+        marginBottom: 20,
+        alignItems: 'center',
+    },
+    methodToggleText: {
+        color: '#FFD700',
+        textDecorationLine: 'underline',
+        fontWeight: '600',
     },
     form: {
         gap: 16,
