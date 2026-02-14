@@ -3,14 +3,17 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform, Alert }
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// Lazy load MapView to prevent Web crash
-let MapView, Marker, PROVIDER_GOOGLE;
-if (Platform.OS !== 'web') {
-    const Maps = require('react-native-maps');
-    MapView = Maps.default;
-    Marker = Maps.Marker;
-    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-}
+// Lazy load MapView... Remvoing native map imports
+// let MapView, Marker, UrlTile;
+// if (Platform.OS !== 'web') {
+//     const Maps = require('react-native-maps');
+//     MapView = Maps.default;
+//     Marker = Maps.Marker;
+//     UrlTile = Maps.UrlTile;
+// }
+
+// import { MAP_TILE_URL } from '../services/MapService'; // Not needed directly, handled in component
+import OSMMapView from '../components/OSMMapView';
 
 import * as Location from 'expo-location';
 
@@ -96,35 +99,12 @@ const RideProgressScreen = ({ navigation }) => {
 
     return (
         <View className="flex-1 bg-black relative">
-            {Platform.OS !== 'web' && MapView ? (
-                <MapView
-                    provider={PROVIDER_GOOGLE}
-                    style={StyleSheet.absoluteFill}
-                    customMapStyle={mapDarkStyle}
-                    showsUserLocation={true}
-                    followsUserLocation={true}
-                    region={location ? {
-                        latitude: location.coords.latitude,
-                        longitude: location.coords.longitude,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                    } : {
-                        latitude: 37.78825,
-                        longitude: -122.4324,
-                        latitudeDelta: 0.0922,
-                        longitudeDelta: 0.0421,
-                    }}
-                >
-                    {/* Additional Markers can be added here */}
-                </MapView>
-            ) : (
-                <View className="absolute inset-0 bg-gray-900 justify-center items-center">
-                    <MaterialIcons name="map" size={80} color="#333" />
-                    <Text className="text-gray-500 mt-4 font-bold">MAP VIEW UNAVAILABLE ON WEB</Text>
-                    <Text className="text-gray-600 text-xs mt-1">Please use the mobile app for full experience</Text>
-                    {errorMsg && <Text className="text-red-500 mt-2">{errorMsg}</Text>}
-                </View>
-            )}
+            <OSMMapView
+                style={StyleSheet.absoluteFill}
+                location={location}
+                // No destination/route needed for simple ride progress unless we want to show it
+                isRideActive={true}
+            />
 
             {/* Gradient Overlay */}
             <LinearGradient

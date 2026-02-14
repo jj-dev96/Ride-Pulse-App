@@ -1,6 +1,6 @@
 import React, { useState, useRef, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Modal, Alert, ActivityIndicator, Share } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Modal, Alert, ActivityIndicator, Share, KeyboardAvoidingView, Platform, LayoutAnimation, UIManager } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
@@ -9,11 +9,19 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { AuthContext } from '../context/AuthContext';
 import { GroupService } from '../services/GroupService';
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android') {
+    if (UIManager.setLayoutAnimationEnabledExperimental) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+}
+
 const { width, height } = Dimensions.get('window');
 
 const LobbyScreen = ({ navigation }) => {
     const { user } = useContext(AuthContext);
-    const [activeTab, setActiveTab] = useState('JOIN'); // 'JOIN' or 'HOSTING'
+    const insets = useSafeAreaInsets();
+    const [activeTab, setActiveTab] = useState('JOIN');
     const [joinCode, setJoinCode] = useState(['', '', '', '', '', '']);
 
     // Local State (UI)
@@ -46,6 +54,11 @@ const LobbyScreen = ({ navigation }) => {
         return () => unsubscribe && unsubscribe();
     }, [currentGroup?.id]);
 
+    const handleSwitchTab = (tab) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setActiveTab(tab);
+    };
+
     const handleCodeChange = (text, index) => {
         const newCode = [...joinCode];
         newCode[index] = text.toUpperCase();
@@ -56,10 +69,21 @@ const LobbyScreen = ({ navigation }) => {
             inputRefs.current[index + 1].focus();
         }
 
-        // Auto-submit if full
+        // Auto-submit if full (optional, can be dangerous if user types wrong)
         if (index === 5 && text) {
-            const fullCode = newCode.join('');
-            // Optional: Auto submit disabled for safety, user clicks Connect
+            // optional auto-submit logic
+        }
+    };
+
+    const handleKeyPress = ({ nativeEvent }, index) => {
+        if (nativeEvent.key === 'Backspace') {
+            // If current is empty, move back
+            if (joinCode[index] === '' && index > 0) {
+                const newCode = [...joinCode];
+                newCode[index - 1] = '';
+                setJoinCode(newCode);
+                inputRefs.current[index - 1].focus();
+            }
         }
     };
 
@@ -88,7 +112,7 @@ const LobbyScreen = ({ navigation }) => {
         try {
             const group = await GroupService.joinGroup(code, user);
             setCurrentGroup(group);
-            setActiveTab('HOSTING'); // Switch view to show lobby
+            handleSwitchTab('HOSTING'); // Switch view to show lobby
         } catch (error) {
             Alert.alert("Error", "Could not join lobby: " + error.message);
         } finally {
@@ -119,7 +143,7 @@ const LobbyScreen = ({ navigation }) => {
         try {
             const group = await GroupService.joinGroup(id, user);
             setCurrentGroup(group);
-            setActiveTab('HOSTING');
+            handleSwitchTab('HOSTING');
         } catch (error) {
             Alert.alert("Error", "Could not join lobby.");
         } finally {
@@ -145,7 +169,7 @@ const LobbyScreen = ({ navigation }) => {
             await GroupService.leaveGroup(currentGroup.id, user.id);
             setCurrentGroup(null);
             setJoinCode(['', '', '', '', '', '']);
-            setActiveTab('JOIN');
+            handleSwitchTab('JOIN');
         } catch (e) {
             console.error(e);
         } finally {
@@ -185,267 +209,306 @@ const LobbyScreen = ({ navigation }) => {
     }
 
     return (
-        <View style={styles.container}>
-            <SafeAreaView style={styles.content}>
-                {/* Header Logo */}
-                <View style={styles.header}>
-                    <View style={styles.logoBox}>
-                        <Image
-                            source={require('../../assets/logo-main.png')}
-                            style={styles.logoImage}
-                            resizeMode="contain"
-                        />
-                    </View>
-                    <View style={styles.headerTextContainer}>
-                        <Text style={styles.headerTitle}>RIDE<Text style={{ color: '#EF4444' }}>PULSE</Text></Text>
-                    </View>
-                </View>
-
-                {/* Tabs */}
-                <View style={styles.tabsContainer}>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'JOIN' && styles.activeTab]}
-                        onPress={() => setActiveTab('JOIN')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'JOIN' && styles.activeTabText]}>JOIN RIDE</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'HOSTING' && styles.activeTab]}
-                        onPress={() => setActiveTab('HOSTING')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'HOSTING' && styles.activeTabText]}>
-                            {currentGroup ? 'CURRENT LOBBY' : 'HOST RIDE'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* JOIN RIDE UI */}
-                {activeTab === 'JOIN' && (
-                    <ScrollView>
-                        <View style={styles.joinCard}>
-                            <Text style={styles.joinTitle}>ENTER ACCESS CODE</Text>
-                            <Text style={styles.joinSubtitle}>Ask the host for the 6-character code</Text>
-
-                            <LottieView
-                                source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_jcikwtux.json' }}
-                                autoPlay
-                                loop
-                                style={{ width: 100, height: 50, alignSelf: 'center', marginBottom: 10 }}
+        <LinearGradient
+            colors={['#0F111A', '#161925', '#111827']}
+            style={styles.container}
+        >
+            <SafeAreaView style={styles.safeArea}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    style={styles.keyboardView}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+                >
+                    {/* Header Logo */}
+                    <View style={styles.header}>
+                        <View style={styles.logoBox}>
+                            <Image
+                                source={require('../../assets/logo-main.png')}
+                                style={styles.logoImage}
+                                resizeMode="contain"
                             />
+                        </View>
+                        <View style={styles.headerTextContainer}>
+                            <Text style={styles.headerTitle}>RIDE<Text style={{ color: '#EF4444' }}>PULSE</Text></Text>
+                        </View>
+                    </View>
 
-                            <View style={styles.codeInputContainer}>
-                                {joinCode.map((digit, index) => (
-                                    <TextInput
-                                        key={index}
-                                        ref={(ref) => inputRefs.current[index] = ref}
-                                        style={styles.codeInput}
-                                        maxLength={1}
-                                        value={digit}
-                                        onChangeText={(text) => handleCodeChange(text, index)}
-                                        keyboardType="ascii-capable" // Force ASCII to avoid rich text issues
-                                        autoCapitalize="characters"
-                                    />
-                                ))}
-                            </View>
+                    {/* Tabs */}
+                    <View style={styles.tabsContainer}>
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'JOIN' && styles.activeTab]}
+                            onPress={() => handleSwitchTab('JOIN')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'JOIN' && styles.activeTabText]}>JOIN RIDE</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'HOSTING' && styles.activeTab]}
+                            onPress={() => handleSwitchTab('HOSTING')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'HOSTING' && styles.activeTabText]}>
+                                {currentGroup ? 'CURRENT LOBBY' : 'HOST RIDE'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
-                            <TouchableOpacity
-                                style={styles.connectButton}
-                                onPress={handleJoinLobby}
-                                disabled={loading}
+                    {/* Content Area */}
+                    <View style={styles.contentArea}>
+                        {/* JOIN RIDE UI */}
+                        {activeTab === 'JOIN' && (
+                            <ScrollView
+                                contentContainerStyle={styles.scrollContent}
+                                keyboardShouldPersistTaps="handled"
+                                showsVerticalScrollIndicator={false}
                             >
-                                {loading ? <ActivityIndicator color="black" /> : (
-                                    <>
-                                        <Text style={styles.connectButtonText}>CONNECT TO LOBBY</Text>
-                                        <MaterialIcons name="login" size={20} color="black" />
-                                    </>
-                                )}
-                            </TouchableOpacity>
-                        </View>
+                                <View style={styles.joinCard}>
+                                    <Text style={styles.joinTitle}>ENTER ACCESS CODE</Text>
+                                    <Text style={styles.joinSubtitle}>Ask the host for the 6-character code</Text>
 
-                        <View style={styles.scannerContainer}>
-                            <Text style={styles.orText}>OR</Text>
-                            <TouchableOpacity style={styles.scanButton} onPress={startScan}>
-                                <MaterialIcons name="qr-code-scanner" size={24} color="#06B6D4" />
-                                <Text style={styles.scanText}>SCAN QR CODE</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </ScrollView>
-                )}
+                                    <LottieView
+                                        source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_jcikwtux.json' }}
+                                        autoPlay
+                                        loop
+                                        style={{ width: 100, height: 50, alignSelf: 'center', marginBottom: 10 }}
+                                    />
 
-                {/* HOSTING / LOBBY UI */}
-                {activeTab === 'HOSTING' && (
-                    <>
-                        {!currentGroup ? (
-                            <View style={styles.createContainer}>
-                                <View style={styles.createIconBg}>
-                                    <FontAwesome5 name="road" size={40} color="#FFD700" />
+                                    <View style={styles.codeInputContainer}>
+                                        {joinCode.map((digit, index) => (
+                                            <TextInput
+                                                key={index}
+                                                ref={(ref) => inputRefs.current[index] = ref}
+                                                style={[styles.codeInput, digit ? styles.codeInputFilled : null]}
+                                                maxLength={1}
+                                                value={digit}
+                                                onChangeText={(text) => handleCodeChange(text, index)}
+                                                onKeyPress={(e) => handleKeyPress(e, index)}
+                                                keyboardType="ascii-capable"
+                                                autoCapitalize="characters"
+                                                selectionColor="#FFD700"
+                                            />
+                                        ))}
+                                    </View>
+
+                                    <TouchableOpacity
+                                        style={styles.connectButton}
+                                        onPress={handleJoinLobby}
+                                        disabled={loading}
+                                    >
+                                        {loading ? <ActivityIndicator color="black" /> : (
+                                            <>
+                                                <Text style={styles.connectButtonText}>CONNECT TO LOBBY</Text>
+                                                <MaterialIcons name="login" size={20} color="black" />
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
                                 </View>
-                                <Text style={styles.createTitle}>No Active Lobby</Text>
-                                <Text style={styles.createSubtitle}>Create a new ride group and invite friends to track each other.</Text>
 
-                                <TouchableOpacity
-                                    style={styles.createBtn}
-                                    onPress={handleCreateLobby}
-                                    disabled={loading}
-                                >
-                                    {loading ? <ActivityIndicator color="black" /> : (
-                                        <Text style={styles.createBtnText}>CREATE NEW LOBBY</Text>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <>
-                                {/* Access Code Card */}
-                                <LinearGradient
-                                    colors={['#161925', '#111827']}
-                                    style={styles.accessCard}
-                                >
-                                    <View style={styles.accessHeader}>
-                                        <Text style={styles.accessLabel}>RIDE ACCESS CODE</Text>
-                                        <TouchableOpacity onPress={handleShare}>
-                                            <MaterialIcons name="share" size={24} color="#6B7280" />
+                                <View style={styles.scannerContainer}>
+                                    <Text style={styles.orText}>OR</Text>
+                                    <TouchableOpacity style={styles.scanButton} onPress={startScan}>
+                                        <MaterialIcons name="qr-code-scanner" size={24} color="#06B6D4" />
+                                        <Text style={styles.scanText}>SCAN QR CODE</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </ScrollView>
+                        )}
+
+                        {/* HOSTING / LOBBY UI */}
+                        {activeTab === 'HOSTING' && (
+                            <View style={styles.hostingContainer}>
+                                {!currentGroup ? (
+                                    <View style={styles.createContainer}>
+                                        <View style={styles.createIconBg}>
+                                            <FontAwesome5 name="road" size={40} color="#FFD700" />
+                                        </View>
+                                        <Text style={styles.createTitle}>No Active Lobby</Text>
+                                        <Text style={styles.createSubtitle}>Create a new ride group and invite friends to track each other.</Text>
+
+                                        <TouchableOpacity
+                                            style={styles.createBtn}
+                                            onPress={handleCreateLobby}
+                                            disabled={loading}
+                                        >
+                                            {loading ? <ActivityIndicator color="black" /> : (
+                                                <Text style={styles.createBtnText}>CREATE NEW LOBBY</Text>
+                                            )}
                                         </TouchableOpacity>
                                     </View>
+                                ) : (
+                                    <View style={styles.lobbyContainer}>
+                                        {/* Access Code Card - Fixed Top */}
+                                        <LinearGradient
+                                            colors={['#1F2937', '#111827']}
+                                            style={styles.accessCard}
+                                        >
+                                            <View style={styles.accessHeader}>
+                                                <Text style={styles.accessLabel}>RIDE ACCESS CODE</Text>
+                                                <TouchableOpacity onPress={handleShare}>
+                                                    <MaterialIcons name="share" size={24} color="#9CA3AF" />
+                                                </TouchableOpacity>
+                                            </View>
 
-                                    <View style={styles.codeRow}>
-                                        <Text style={styles.accessCode}>{currentGroup.id}</Text>
-                                        <View style={styles.qrSmallBox}>
-                                            <QRCode
-                                                value={currentGroup.id}
-                                                size={60}
-                                                backgroundColor="transparent"
-                                                color="white"
-                                            />
+                                            <View style={styles.codeRow}>
+                                                <Text style={styles.accessCode}>{currentGroup.id}</Text>
+                                                <View style={styles.qrSmallBox}>
+                                                    <QRCode
+                                                        value={currentGroup.id}
+                                                        size={60}
+                                                        backgroundColor="transparent"
+                                                        color="white"
+                                                    />
+                                                </View>
+                                            </View>
+
+                                            <View style={styles.statusRow}>
+                                                <View style={styles.statusDot} />
+                                                <Text style={styles.statusText}>Lobby is active • Waiting for riders</Text>
+                                            </View>
+                                        </LinearGradient>
+
+                                        {/* Riders List Header */}
+                                        <View style={styles.listHeader}>
+                                            <Text style={styles.listTitle}>RIDERS <Text style={{ color: '#FFD700' }}>({currentGroup.members?.length || 0})</Text></Text>
+                                            <TouchableOpacity onPress={leaveLobby}>
+                                                <Text style={[styles.manageText, { color: '#EF4444' }]}>Leave</Text>
+                                            </TouchableOpacity>
                                         </View>
-                                    </View>
 
-                                    <View style={styles.statusRow}>
-                                        <View style={styles.statusDot} />
-                                        <Text style={styles.statusText}>Lobby is active • Waiting for riders</Text>
-                                    </View>
-                                </LinearGradient>
+                                        {/* Scrollable List */}
+                                        <ScrollView
+                                            style={styles.ridersList}
+                                            showsVerticalScrollIndicator={false}
+                                            contentContainerStyle={{ paddingBottom: 20 }}
+                                        >
+                                            {currentGroup.members && currentGroup.members.map((member) => (
+                                                <LinearGradient
+                                                    key={member.id}
+                                                    colors={['#1F2937', '#161925']}
+                                                    style={[styles.riderCard, (member.id === currentGroup.hostId) && styles.hostCard]}
+                                                >
+                                                    {/* Host Indicator Stripe */}
+                                                    {(member.id === currentGroup.hostId) && <View style={styles.hostStripe} />}
 
-                                {/* Riders List */}
-                                <View style={styles.listHeader}>
-                                    <Text style={styles.listTitle}>RIDERS <Text style={{ color: '#FFD700' }}>({currentGroup.members?.length || 0})</Text></Text>
-                                    <TouchableOpacity onPress={leaveLobby}>
-                                        <Text style={[styles.manageText, { color: '#EF4444' }]}>Leave</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                                    <View style={styles.riderContent}>
+                                                        <View style={styles.avatarContainer}>
+                                                            <View style={[styles.regularAvatar, (member.id === currentGroup.hostId) && styles.hostAvatar]}>
+                                                                <Text style={{ color: 'white', fontWeight: 'bold' }}>
+                                                                    {member.name ? member.name.charAt(0).toUpperCase() : '?'}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
 
-                                <ScrollView style={styles.ridersList}>
-                                    {currentGroup.members && currentGroup.members.map((member) => (
-                                        <View key={member.id} style={[styles.riderCard, (member.id === currentGroup.hostId) && styles.hostCard]}>
-                                            {/* Host Indicator Stripe */}
-                                            {(member.id === currentGroup.hostId) && <View style={styles.hostStripe} />}
+                                                        <View style={styles.riderInfo}>
+                                                            <Text style={styles.riderName}>{member.name || 'Unknown'}</Text>
+                                                            <Text style={styles.bikeModel}>{member.id === user?.id ? 'You' : 'Rider'}</Text>
+                                                        </View>
 
-                                            <View style={styles.riderContent}>
-                                                <View style={styles.avatarContainer}>
-                                                    <View style={[styles.regularAvatar, (member.id === currentGroup.hostId) && styles.hostAvatar]}>
-                                                        <Text style={{ color: 'white', fontWeight: 'bold' }}>
-                                                            {member.name ? member.name.charAt(0).toUpperCase() : '?'}
-                                                        </Text>
+                                                        {(member.id === currentGroup.hostId) && (
+                                                            <FontAwesome5 name="medal" size={16} color="#FFD700" />
+                                                        )}
                                                     </View>
-                                                </View>
+                                                </LinearGradient>
+                                            ))}
+                                            {/* Spacer for bottom controls */}
+                                            <View style={{ height: 20 }} />
+                                        </ScrollView>
 
-                                                <View style={styles.riderInfo}>
-                                                    <Text style={styles.riderName}>{member.name || 'Unknown'}</Text>
-                                                    <Text style={styles.bikeModel}>{member.id === user?.id ? 'You' : 'Rider'}</Text>
-                                                </View>
-
-                                                {(member.id === currentGroup.hostId) && (
-                                                    <FontAwesome5 name="medal" size={16} color="#FFD700" />
-                                                )}
+                                        {/* Fixed Bottom Controls */}
+                                        <View style={[styles.bottomControls, { marginBottom: insets.bottom + 70 }]}>
+                                            <Text style={styles.controlsTitle}>CONTROLS</Text>
+                                            <View style={styles.controlsRow}>
+                                                <TouchableOpacity style={styles.startButton} onPress={handleStartRide}>
+                                                    <MaterialIcons name="play-arrow" size={24} color="white" />
+                                                    <Text style={styles.startButtonText}>OPEN MAP</Text>
+                                                </TouchableOpacity>
                                             </View>
                                         </View>
-                                    ))}
-                                </ScrollView>
-
-                                {/* Host Controls */}
-                                <Text style={styles.controlsTitle}>CONTROLS</Text>
-                                <View style={styles.controlsRow}>
-                                    <TouchableOpacity style={styles.startButton} onPress={handleStartRide}>
-                                        <MaterialIcons name="play-arrow" size={24} color="white" />
-                                        <Text style={styles.startButtonText}>OPEN MAP</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
+                                    </View>
+                                )}
+                            </View>
                         )}
-                    </>
-                )}
+                    </View>
+                </KeyboardAvoidingView>
             </SafeAreaView>
 
             {/* Host Ride Modal */}
             <Modal visible={showHostModal} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>CREATE RIDE EVENT</Text>
-                            <TouchableOpacity onPress={() => setShowHostModal(false)}>
-                                <MaterialIcons name="close" size={24} color="white" />
+                        <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>CREATE RIDE EVENT</Text>
+                                <TouchableOpacity onPress={() => setShowHostModal(false)}>
+                                    <MaterialIcons name="close" size={24} color="white" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.label}>EVENT NAME</Text>
+                            <TextInput style={styles.input} placeholder="e.g. Sunday Morning Run" placeholderTextColor="#4B5563" />
+
+                            <Text style={styles.label}>ROUTE / DESTINATION</Text>
+                            <TextInput style={styles.input} placeholder="Select on Map..." placeholderTextColor="#4B5563" />
+
+                            <View style={styles.row}>
+                                <View style={{ flex: 1, marginRight: 10 }}>
+                                    <Text style={styles.label}>DATE</Text>
+                                    <View style={styles.dateBox}><Text style={{ color: 'white' }}>Today</Text></View>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.label}>TIME</Text>
+                                    <View style={styles.dateBox}><Text style={{ color: 'white' }}>Now</Text></View>
+                                </View>
+                            </View>
+
+                            <Text style={styles.label}>DIFFICULTY</Text>
+                            <View style={styles.diffRow}>
+                                <TouchableOpacity style={[styles.diffChip, { backgroundColor: '#10B981' }]}><Text style={styles.diffText}>Chill</Text></TouchableOpacity>
+                                <TouchableOpacity style={[styles.diffChip, { borderColor: '#F59E0B', borderWidth: 1 }]}><Text style={[styles.diffText, { color: '#F59E0B' }]}>Sport</Text></TouchableOpacity>
+                                <TouchableOpacity style={[styles.diffChip, { borderColor: '#EF4444', borderWidth: 1 }]}><Text style={[styles.diffText, { color: '#EF4444' }]}>Race</Text></TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity style={styles.createEventBtn} onPress={() => setShowHostModal(false)}>
+                                <Text style={styles.createBtnText}>PUBLISH EVENT</Text>
                             </TouchableOpacity>
-                        </View>
-
-                        <Text style={styles.label}>EVENT NAME</Text>
-                        <TextInput style={styles.input} placeholder="e.g. Sunday Morning Run" placeholderTextColor="#4B5563" />
-
-                        <Text style={styles.label}>ROUTE / DESTINATION</Text>
-                        <TextInput style={styles.input} placeholder="Select on Map..." placeholderTextColor="#4B5563" />
-
-                        <View style={styles.row}>
-                            <View style={{ flex: 1, marginRight: 10 }}>
-                                <Text style={styles.label}>DATE</Text>
-                                <View style={styles.dateBox}><Text style={{ color: 'white' }}>Today</Text></View>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>TIME</Text>
-                                <View style={styles.dateBox}><Text style={{ color: 'white' }}>Now</Text></View>
-                            </View>
-                        </View>
-
-                        <Text style={styles.label}>DIFFICULTY</Text>
-                        <View style={styles.diffRow}>
-                            <TouchableOpacity style={[styles.diffChip, { backgroundColor: '#10B981' }]}><Text style={styles.diffText}>Chill</Text></TouchableOpacity>
-                            <TouchableOpacity style={[styles.diffChip, { borderColor: '#F59E0B', borderWidth: 1 }]}><Text style={[styles.diffText, { color: '#F59E0B' }]}>Sport</Text></TouchableOpacity>
-                            <TouchableOpacity style={[styles.diffChip, { borderColor: '#EF4444', borderWidth: 1 }]}><Text style={[styles.diffText, { color: '#EF4444' }]}>Race</Text></TouchableOpacity>
-                        </View>
-
-                        <TouchableOpacity style={styles.createBtn} onPress={() => setShowHostModal(false)}>
-                            <Text style={styles.createBtnText}>PUBLISH EVENT</Text>
-                        </TouchableOpacity>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
 
             {/* Floating Action Button for Events */}
             {activeTab === 'HOSTING' && (
-                <TouchableOpacity style={styles.fab} onPress={() => setShowHostModal(true)}>
+                <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 90 }]} onPress={() => setShowHostModal(true)}>
                     <MaterialIcons name="add" size={30} color="black" />
                 </TouchableOpacity>
             )}
-        </View>
+        </LinearGradient>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0F111A',
     },
-    content: {
+    safeArea: {
+        flex: 1,
+    },
+    keyboardView: {
         flex: 1,
         paddingHorizontal: 20,
     },
     header: {
         alignItems: 'center',
-        marginTop: 20,
-        marginBottom: 30,
+        marginTop: 10,
+        marginBottom: 20,
     },
     logoBox: {
         marginBottom: 10,
-        backgroundColor: '#FFD700', // Yellow bg for logo like mockup
+        backgroundColor: '#FFD700',
         padding: 5,
         borderRadius: 4,
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
     },
     logoImage: {
         width: 80,
@@ -463,66 +526,103 @@ const styles = StyleSheet.create({
     tabsContainer: {
         flexDirection: 'row',
         backgroundColor: '#161925',
-        borderRadius: 8,
-        padding: 4,
-        marginBottom: 25,
+        borderRadius: 16,
+        padding: 6,
+        marginBottom: 20,
+        marginHorizontal: 20,
+        borderWidth: 1,
+        borderColor: '#374151',
     },
     tab: {
         flex: 1,
-        paddingVertical: 12,
+        paddingVertical: 14,
         alignItems: 'center',
-        borderRadius: 6,
+        borderRadius: 12,
     },
     activeTab: {
         backgroundColor: '#FFD700',
+        shadowColor: '#FFD700',
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 2,
     },
     tabText: {
-        color: '#6B7280',
+        color: '#9CA3AF',
         fontWeight: 'bold',
         fontSize: 14,
+        letterSpacing: 0.5,
     },
     activeTabText: {
-        color: 'black',
+        color: '#000',
+    },
+    contentArea: {
+        flex: 1,
+        paddingHorizontal: 20,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingBottom: 150,
+        justifyContent: 'center', // Center content vertically
+    },
+    hostingContainer: {
+        flex: 1,
+    },
+    lobbyContainer: {
+        flex: 1,
     },
     // Create UI
     createContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 40,
+        paddingBottom: 80,
     },
     createIconBg: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+        width: 120,
+        height: 120,
+        borderRadius: 60,
         backgroundColor: '#1F2937',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
-        borderWidth: 1,
+        marginBottom: 24,
+        borderWidth: 2,
         borderColor: '#374151',
+        shadowColor: '#000',
+        shadowOpacity: 0.4,
+        shadowRadius: 15,
+        elevation: 10,
     },
     createTitle: {
         color: 'white',
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 12,
+        letterSpacing: 0.5,
     },
     createSubtitle: {
         color: '#9CA3AF',
         textAlign: 'center',
-        paddingHorizontal: 40,
-        marginBottom: 30,
-        lineHeight: 22,
+        paddingHorizontal: 30,
+        marginBottom: 40,
+        lineHeight: 24,
+        fontSize: 16,
     },
     createBtn: {
         backgroundColor: '#FFD700',
-        paddingHorizontal: 40,
-        paddingVertical: 15,
-        borderRadius: 12,
+        paddingHorizontal: 50,
+        paddingVertical: 18,
+        borderRadius: 16,
         shadowColor: '#FFD700',
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    createEventBtn: {
+        backgroundColor: '#FFD700',
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 30,
     },
     createBtnText: {
         color: 'black',
@@ -531,11 +631,14 @@ const styles = StyleSheet.create({
     },
     // Lobby Active UI
     accessCard: {
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 30,
+        borderRadius: 20,
+        padding: 24,
+        marginBottom: 24,
         borderWidth: 1,
-        borderColor: '#1F2937',
+        borderColor: '#374151',
+        shadowColor: 'black',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
     },
     accessHeader: {
         flexDirection: 'row',
@@ -543,7 +646,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     accessLabel: {
-        color: '#6B7280',
+        color: '#9CA3AF',
         fontSize: 12,
         fontWeight: 'bold',
         letterSpacing: 1,
@@ -552,18 +655,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 20,
     },
     accessCode: {
         color: 'white',
-        fontSize: 42,
+        fontSize: 48,
         fontWeight: 'bold',
-        letterSpacing: 2,
+        letterSpacing: 4,
+        textShadowColor: 'rgba(255, 215, 0, 0.3)',
+        textShadowRadius: 10,
     },
     qrSmallBox: {
         backgroundColor: 'black',
-        padding: 5,
-        borderRadius: 8,
+        padding: 8,
+        borderRadius: 12,
     },
     statusRow: {
         flexDirection: 'row',
@@ -575,6 +680,9 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         backgroundColor: '#10B981',
         marginRight: 8,
+        shadowColor: '#10B981',
+        shadowOpacity: 1,
+        shadowRadius: 5,
     },
     statusText: {
         color: '#9CA3AF',
@@ -599,13 +707,15 @@ const styles = StyleSheet.create({
     ridersList: {
         flex: 1,
     },
+    bottomControls: {
+        marginTop: 10,
+    },
     riderCard: {
-        backgroundColor: '#161925',
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 12,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#1F2937',
+        borderColor: '#374151',
     },
     hostCard: {
         borderColor: '#FFD700',
@@ -622,7 +732,7 @@ const styles = StyleSheet.create({
     riderContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 15,
+        padding: 16,
     },
     avatarContainer: {
         marginRight: 15,
@@ -632,9 +742,9 @@ const styles = StyleSheet.create({
         borderColor: '#FFD700',
     },
     regularAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 45,
+        height: 45,
+        borderRadius: 22.5,
         backgroundColor: '#374151',
         alignItems: 'center',
         justifyContent: 'center',
@@ -650,18 +760,18 @@ const styles = StyleSheet.create({
     bikeModel: {
         color: '#9CA3AF',
         fontSize: 12,
+        marginTop: 2,
     },
     controlsTitle: {
         color: '#6B7280',
         fontSize: 12,
         fontWeight: 'bold',
         marginBottom: 10,
-        marginTop: 10,
         letterSpacing: 1,
     },
     controlsRow: {
         flexDirection: 'row',
-        marginBottom: 20,
+        marginBottom: 10,
     },
     startButton: {
         flex: 1,
@@ -669,68 +779,88 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 16,
-        borderRadius: 12,
+        paddingVertical: 18,
+        borderRadius: 16,
         gap: 8,
+        shadowColor: '#EF4444',
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        elevation: 6,
     },
     startButtonText: {
         color: 'white',
         fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 16,
+        letterSpacing: 1,
     },
     // Join Mode Styles
     joinCard: {
         backgroundColor: '#161925',
-        borderRadius: 16,
+        borderRadius: 24,
         padding: 30,
         marginBottom: 30,
         borderWidth: 1,
-        borderColor: '#1F2937',
+        borderColor: '#374151',
         alignItems: 'center',
+        shadowColor: 'black',
+        shadowOpacity: 0.3,
+        shadowRadius: 15,
+        elevation: 10,
     },
     joinTitle: {
         color: 'white',
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 10,
         letterSpacing: 1,
     },
     joinSubtitle: {
         color: '#9CA3AF',
-        fontSize: 12,
+        fontSize: 14,
         marginBottom: 30,
+        textAlign: 'center',
     },
     codeInputContainer: {
         flexDirection: 'row',
-        gap: 10,
+        gap: 8,
         marginBottom: 30,
+        width: '100%',
+        justifyContent: 'center',
     },
     codeInput: {
-        width: 35, // reduced slightly
-        height: 50,
-        backgroundColor: '#111827',
+        width: 45,
+        height: 55,
+        backgroundColor: '#0F111A',
         borderWidth: 1,
         borderColor: '#374151',
-        borderRadius: 8,
+        borderRadius: 12,
         color: 'white',
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center',
+    },
+    codeInputFilled: {
+        borderColor: '#FFD700',
+        backgroundColor: '#1F2937',
     },
     connectButton: {
         width: '100%',
         backgroundColor: '#FFD700',
-        paddingVertical: 15,
-        borderRadius: 12,
+        paddingVertical: 16,
+        borderRadius: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
+        shadowColor: '#FFD700',
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
     },
     connectButtonText: {
         color: 'black',
         fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 16,
         letterSpacing: 1,
     },
     scannerContainer: {
@@ -745,36 +875,57 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        padding: 15,
+        padding: 16,
         borderWidth: 1,
-        borderColor: '#06B6D450',
-        borderRadius: 12,
-        backgroundColor: '#06B6D410',
+        borderColor: 'rgba(6, 182, 212, 0.3)',
+        borderRadius: 16,
+        backgroundColor: 'rgba(6, 182, 212, 0.1)',
     },
     scanText: {
         color: '#06B6D4',
         fontWeight: 'bold',
+        fontSize: 16,
     },
-    // Modal Styles
+    // Scan Overlay
+    scanOverlay: {
+        position: 'absolute',
+        top: 60,
+        left: 0,
+        right: 0,
+        padding: 20,
+        alignItems: 'center'
+    },
+    scanInst: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        padding: 10
+    },
+    closeScanBtn: {
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        padding: 10,
+        borderRadius: 25
+    },
+    // Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.8)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#161925',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        padding: 20,
-        minHeight: 500,
-        borderTopWidth: 1,
-        borderColor: '#FFD700',
+        backgroundColor: '#1F2937',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        maxHeight: '80%',
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 24,
     },
     modalTitle: {
         color: 'white',
@@ -783,27 +934,30 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     label: {
-        color: '#6B7280',
-        fontSize: 10,
+        color: '#9CA3AF',
+        fontSize: 12,
         fontWeight: 'bold',
         marginBottom: 8,
-        marginTop: 10,
+        marginTop: 16,
     },
     input: {
         backgroundColor: '#111827',
-        borderRadius: 8,
-        padding: 12,
-        color: 'white',
         borderWidth: 1,
         borderColor: '#374151',
+        borderRadius: 12,
+        padding: 16,
+        color: 'white',
+        fontSize: 16,
     },
     row: {
         flexDirection: 'row',
     },
     dateBox: {
-        backgroundColor: '#1F2937',
-        padding: 12,
-        borderRadius: 8,
+        backgroundColor: '#111827',
+        borderWidth: 1,
+        borderColor: '#374151',
+        borderRadius: 12,
+        padding: 16,
         alignItems: 'center',
     },
     diffRow: {
@@ -811,65 +965,31 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     diffChip: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-    },
-    diffText: {
-        color: 'black',
-        fontWeight: 'bold',
-        fontSize: 12,
-    },
-    createBtn: {
-        backgroundColor: '#FFD700',
-        marginTop: 40,
-        paddingVertical: 16,
+        flex: 1,
+        paddingVertical: 12,
         borderRadius: 12,
         alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#111827',
     },
-    createBtnText: {
-        color: 'black',
+    diffText: {
+        color: 'white',
         fontWeight: 'bold',
-        fontSize: 16,
-        letterSpacing: 1,
     },
     fab: {
         position: 'absolute',
-        bottom: 100, // Above tab bar
         right: 20,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         backgroundColor: '#FFD700',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#FFD700',
-        shadowOpacity: 0.5,
+        shadowOpacity: 0.4,
         shadowRadius: 10,
-        elevation: 10,
+        elevation: 8,
     },
-    // Scanner Overlay
-    scanOverlay: {
-        position: 'absolute',
-        top: 100,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    scanInst: {
-        color: 'white',
-        fontSize: 18,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        padding: 10,
-        borderRadius: 10,
-        overflow: 'hidden',
-        marginBottom: 20,
-    },
-    closeScanBtn: {
-        backgroundColor: 'rgba(255,0,0,0.5)',
-        borderRadius: 30,
-        padding: 5,
-    }
 });
 
 export default LobbyScreen;

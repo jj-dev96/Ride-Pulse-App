@@ -1,20 +1,34 @@
 import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, Animated, PanResponder, StatusBar, Platform, Alert } from 'react-native';
-import MapView, { Marker, UrlTile, MAP_TYPES } from 'react-native-maps';
+// import MapView, { Marker, UrlTile, Polyline, MAP_TYPES } from 'react-native-maps'; // Removed for OSMWebView
+import OSMMapView from '../components/OSMMapView';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { AuthContext } from '../context/AuthContext';
 import LottieView from 'lottie-react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { geocodeAddress, getRoute, getDistance, MAP_TILE_URL, cacheLocation, getCachedLocation, searchPlaces, reverseGeocode } from '../services/MapService';
+import { FlatList } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+const GEOFENCE_RADIUS = 500; // meters
 
 const DashboardScreen = ({ navigation }) => {
     const { user } = useContext(AuthContext);
     const [searchQuery, setSearchQuery] = useState('');
+    const [startLocationQuery, setStartLocationQuery] = useState('');
+    const [useCurrentLocation, setUseCurrentLocation] = useState(true);
+    const [manualStartLocation, setManualStartLocation] = useState(null); // { latitude, longitude }
     const [isRideActive, setIsRideActive] = useState(false);
+    const [hasArrived, setHasArrived] = useState(false);
     const [isConnected, setIsConnected] = useState(true);
+    const [currentLocationName, setCurrentLocationName] = useState("Current Location");
+
+    // Navigation & Autocomplete
+    const [suggestions, setSuggestions] = useState([]);
+    const [routeSteps, setRouteSteps] = useState([]);
+    const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
     // Real Stats
     const [rideDuration, setRideDuration] = useState(0);
@@ -30,8 +44,16 @@ const DashboardScreen = ({ navigation }) => {
     // Location State
     const [location, setLocation] = useState(null);
     const [heading, setHeading] = useState(0);
-    const mapRef = useRef(null);
+    // Map Reference
+    const mapRef = useRef(null); // Now refers to OSMMapView internal logic if we expose it, but for now we drive via props.
+    // Actually we don't need mapRef for animateToRegion anymore as the component handles updates via props
+
+    // Connectivity Monitoring
     const locationSubscription = useRef(null);
+
+    // Route State
+    const [destination, setDestination] = useState(null);
+    const [routeCoords, setRouteCoords] = useState([]);
 
     // Connectivity Monitoring
     useEffect(() => {
@@ -46,44 +68,33 @@ const DashboardScreen = ({ navigation }) => {
     useEffect(() => {
         (async () => {
             try {
+                // Try to load cached location first for instant UI
+                const cached = await getCachedLocation();
+                if (cached) {
+                    setLocation(cached);
+                }
+
                 let { status } = await Location.requestForegroundPermissionsAsync();
                 if (status !== 'granted') {
                     Alert.alert('Permission to access location was denied');
                     return;
                 }
 
-                let currentLocation;
-                try {
-                    currentLocation = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                    });
-                } catch (locError) {
-                    console.warn("Dashboard: Location failed, using fallback", locError);
-                    // Fallback to San Francisco (or any default)
-                    currentLocation = {
-                        coords: {
-                            latitude: 37.78825,
-                            longitude: -122.4324,
-                            heading: 0,
-                            speed: 0
-                        }
-                    };
-                    Alert.alert("Location Services Unavailable", "Using demo location for now.");
-                }
-
+                // ... fetch current location logic ...
+                let currentLocation = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
+                });
                 setLocation(currentLocation.coords);
+                cacheLocation(currentLocation.coords); // Cache it
 
-                // Center map initially
-                if (mapRef.current && currentLocation) {
-                    mapRef.current.animateToRegion({
-                        latitude: currentLocation.coords.latitude,
-                        longitude: currentLocation.coords.longitude,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                    }, 1000);
+                // Get Address Name
+                const address = await reverseGeocode(currentLocation.coords.latitude, currentLocation.coords.longitude);
+                if (address && address.shortAddress) {
+                    setCurrentLocationName(address.shortAddress);
                 }
+
             } catch (e) {
-                console.error("Dashboard: Location init fatal error", e);
+                console.warn("Location error", e);
             }
         })();
     }, []);
@@ -130,17 +141,24 @@ const DashboardScreen = ({ navigation }) => {
                 const currentSpeedKmh = speed && speed > 0 ? (speed * 3.6).toFixed(0) : 0;
                 setRideSpeed(currentSpeedKmh);
 
-                // TODO: Calculate real distance logic here (cumulative)
+                // Check Geofence (Silent Arrival - removed Alert/Stop as requested)
+                if (destination) {
+                    const distToDest = getDistance(newLocation.coords, destination);
+                    // We can still use distToDest for UI "Distance Remaining"
+
+                    // Simple Navigation Logic: Advance step if close to current step location
+                    if (routeSteps.length > 0 && currentStepIndex < routeSteps.length) {
+                        // This uses OSRM steps. Logic is simplified for demo.
+                        // In real nav, we'd snap to route and check progress along geometry.
+                    }
+                }
+
+                // Cache location periodically (e.g. every update)
+                cacheLocation(newLocation.coords);
 
                 // Animate Map Camera
-                if (mapRef.current) {
-                    mapRef.current.animateCamera({
-                        center: { latitude, longitude },
-                        pitch: 45,
-                        heading: newHeading, // Rotate map with user
-                        zoom: 17,
-                    }, { duration: 1000 });
-                }
+                // Handled implicitly by OSMMapView prop updates
+                // if (mapRef.current) { ... }
             }
         );
     };
@@ -228,50 +246,115 @@ const DashboardScreen = ({ navigation }) => {
 
     const stopRide = () => {
         setIsRideActive(false);
+        setRouteCoords([]);
+        setRouteSteps([]);
+        setCurrentStepIndex(0);
+        setDestination(null);
+        setHasArrived(false);
+    };
+
+    const onSearchTextChange = (text) => {
+        setSearchQuery(text);
+        if (text.length > 2) {
+            searchPlaces(text).then(setSuggestions);
+        } else {
+            setSuggestions([]);
+        }
+    };
+
+    const selectSuggestion = async (item) => {
+        setSearchQuery(item.name); // or item.fullAddress
+        setSuggestions([]);
+        // Trigger search directly with known coords
+        const destCoords = { latitude: item.latitude, longitude: item.longitude };
+        setDestination(destCoords);
+
+        let startCoords = location;
+        if (!useCurrentLocation && manualStartLocation) startCoords = manualStartLocation;
+
+        if (startCoords) {
+            const route = await getRoute(startCoords, destCoords);
+            if (route && route.coordinates) {
+                setRouteCoords(route.coordinates);
+                setRouteSteps(route.steps || []);
+                setRideDistance(route.distance / 1000);
+            }
+        }
+    };
+
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) return;
+
+        try {
+            // 1. Resolve Start Location
+            let startCoords = location;
+            if (!useCurrentLocation && startLocationQuery.trim()) {
+                const startResult = await geocodeAddress(startLocationQuery);
+                if (startResult) {
+                    startCoords = { latitude: startResult.latitude, longitude: startResult.longitude };
+                    setManualStartLocation(startCoords);
+                } else {
+                    Alert.alert("Start Location Not Found", "Using current location instead.");
+                }
+            }
+
+            // 2. Resolve Destination
+            const result = await geocodeAddress(searchQuery);
+            if (result) {
+                const destCoords = { latitude: result.latitude, longitude: result.longitude };
+                setDestination(destCoords);
+
+                // 3. Get Route
+                if (startCoords) {
+                    const route = await getRoute(startCoords, destCoords);
+                    if (route && route.coordinates) {
+                        setRouteCoords(route.coordinates);
+                        setRouteSteps(route.steps || []);
+                        setRideDistance(route.distance / 1000);
+                    }
+                }
+            } else {
+                Alert.alert("Location not found", "Could not find the entered location.");
+            }
+        } catch (err) {
+            console.error(err);
+            Alert.alert("Error", "Failed to search location.");
+        }
+    };
+
+    // Toggle handled nicely via input focus/change now
+    const resetToCurrentLocation = () => {
+        setUseCurrentLocation(true);
+        setStartLocationQuery('');
+        setManualStartLocation(null);
+    };
+
+    const handleStartLocationChange = (text) => {
+        setStartLocationQuery(text);
+        if (useCurrentLocation) {
+            setUseCurrentLocation(false);
+        }
+    };
+
+    const handleStartLocationFocus = () => {
+        if (useCurrentLocation) {
+            setStartLocationQuery(''); // Clear "Current Location" text for typing
+            setUseCurrentLocation(false);
+        }
     };
 
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
 
-            <MapView
-                ref={mapRef}
+            <OSMMapView
                 style={styles.map}
-                mapType={Platform.OS === 'android' ? MAP_TYPES.NONE : MAP_TYPES.STANDARD} // NONE for Custom Tiles on Android
-                rotateEnabled={true}
-                showsUserLocation={false} // We draw our own custom marker
-                initialRegion={{
-                    latitude: 37.78825, // Default Fallback
-                    longitude: -122.4324,
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                }}
-            >
-                {/* OpenStreetMap Dark Tiles (CartoDB Dark Matter) */}
-                <UrlTile
-                    urlTemplate="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-                    maximumZ={19}
-                    flipY={false}
-                />
-
-                {/* User Marker */}
-                {location && (
-                    <Marker
-                        coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-                        rotation={heading}
-                        anchor={{ x: 0.5, y: 0.5 }}
-                    >
-                        <View style={styles.userMarkerContainer}>
-                            <View style={[styles.userMarkerOuter, isRideActive && { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
-                                <View style={[styles.userMarkerInner, isRideActive && { backgroundColor: '#10B981', borderColor: 'white' }]}>
-                                    <FontAwesome5 name="location-arrow" size={14} color={isRideActive ? "white" : "black"} style={{ transform: [{ rotate: '-45deg' }] }} />
-                                </View>
-                            </View>
-                            {isRideActive && <View style={[styles.userMarkerPulse, { borderColor: '#10B981' }]} />}
-                        </View>
-                    </Marker>
-                )}
-            </MapView>
+                location={useCurrentLocation ? location : manualStartLocation || location}
+                destination={destination}
+                routeCoords={routeCoords}
+                isRideActive={isRideActive}
+                geofenceRadius={GEOFENCE_RADIUS}
+            />
 
             {/* Offline/Low Connectivity Indicator */}
             {!isConnected && (
@@ -284,16 +367,62 @@ const DashboardScreen = ({ navigation }) => {
             {/* Top Overlay: Search Bar (Hidden when riding) */}
             {!isRideActive && (
                 <SafeAreaView style={styles.topOverlay} pointerEvents="box-none">
-                    <View style={styles.searchBar}>
-                        <MaterialIcons name="search" size={24} color="#9CA3AF" />
-                        <TextInput
-                            placeholder="Enter Destination"
-                            placeholderTextColor="#9CA3AF"
-                            style={styles.searchInput}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                        />
-                        <MaterialIcons name="mic" size={24} color="#FFD700" />
+                    <View style={styles.searchContainer}>
+                        {/* FROM Location Input */}
+                        <View style={[styles.inputRow, !useCurrentLocation && { marginBottom: 10 }]}>
+                            {/* Icon: Click to reset to current location if manual */}
+                            <TouchableOpacity onPress={resetToCurrentLocation} style={styles.iconButton}>
+                                <MaterialIcons
+                                    name={useCurrentLocation ? "my-location" : "location-on"}
+                                    size={20}
+                                    color={useCurrentLocation ? "#10B981" : "#F59E0B"}
+                                />
+                            </TouchableOpacity>
+
+                            <TextInput
+                                placeholder={useCurrentLocation ? currentLocationName : "Enter Start Location"}
+                                placeholderTextColor="#6B7280"
+                                style={[styles.textInput, useCurrentLocation && { color: '#10B981', fontWeight: 'bold' }]}
+                                value={useCurrentLocation ? currentLocationName : startLocationQuery}
+                                onChangeText={handleStartLocationChange}
+                                onFocus={handleStartLocationChange}
+                            />
+
+                            {!useCurrentLocation && (
+                                <TouchableOpacity onPress={resetToCurrentLocation}>
+                                    <MaterialIcons name="close" size={20} color="#6B7280" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* TO Location Input */}
+                        <View style={styles.inputRow}>
+                            <MaterialIcons name="flag" size={20} color="#EF4444" style={{ marginLeft: 5, marginRight: 5 }} />
+                            <TextInput
+                                placeholder="Enter Destination"
+                                placeholderTextColor="#9CA3AF"
+                                style={styles.textInput}
+                                value={searchQuery}
+                                onChangeText={onSearchTextChange}
+                                onSubmitEditing={handleSearch}
+                                returnKeyType="search"
+                            />
+                            <TouchableOpacity onPress={handleSearch} style={{ padding: 5 }}>
+                                <MaterialIcons name="search" size={24} color="#FFD700" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Suggestions List */}
+                        {suggestions.length > 0 && (
+                            <View style={styles.suggestionsContainer}>
+                                {suggestions.map((item) => (
+                                    <TouchableOpacity key={item.id} style={styles.suggestionItem} onPress={() => selectSuggestion(item)}>
+                                        <MaterialIcons name="place" size={16} color="#9CA3AF" style={{ marginRight: 10 }} />
+                                        <Text style={styles.suggestionText} numberOfLines={1}>{item.name}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                     </View>
 
                     {/* Live Group Card */}
@@ -340,6 +469,21 @@ const DashboardScreen = ({ navigation }) => {
                         <Text style={styles.speedUnit}>KM/H</Text>
                     </View>
 
+                    {/* Navigation Guidance Overlay */}
+                    {routeSteps.length > 0 && (
+                        <View style={styles.navGuidanceBox}>
+                            <MaterialIcons name="turn-right" size={30} color="white" />
+                            <View style={{ marginLeft: 15 }}>
+                                <Text style={styles.navInstruction}>
+                                    {routeSteps[currentStepIndex]?.instruction || "Follow Route"}
+                                </Text>
+                                <Text style={styles.navDistance}>
+                                    {routeSteps[currentStepIndex]?.name || ""}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+
                     {/* Stop Button */}
                     <TouchableOpacity
                         style={styles.stopRideButton}
@@ -372,14 +516,9 @@ const DashboardScreen = ({ navigation }) => {
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.fab}>
                             <MaterialIcons name="my-location" size={24} color="#FFD700" onPress={() => {
-                                if (location && mapRef.current) {
-                                    mapRef.current.animateToRegion({
-                                        latitude: location.latitude,
-                                        longitude: location.longitude,
-                                        latitudeDelta: 0.01,
-                                        longitudeDelta: 0.01,
-                                    })
-                                }
+                                // Logic to re-center would go here, maybe a forceUpdate prop or ref method on OSMMapView
+                                // For now, the user location update handles it if they move. 
+                                // To implement "recur", we'd simply ensure the next prop update centers it.
                             }} />
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.fab}>
@@ -502,24 +641,85 @@ const styles = StyleSheet.create({
         top: 0,
         left: 20,
         right: 20,
-        bottom: 40,
+        bottom: 100, // Adjusted for TabBar
         zIndex: 20,
         justifyContent: 'space-between',
     },
-    searchBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    searchContainer: {
         backgroundColor: 'rgba(22, 25, 37, 0.95)',
         borderRadius: 15,
-        paddingHorizontal: 15,
-        height: 55,
+        padding: 10,
         borderWidth: 1,
         borderColor: '#374151',
     },
-    searchInput: {
-        flex: 1,
-        marginLeft: 10,
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        height: 45,
+        zIndex: 20,
+    },
+    suggestionsContainer: {
+        backgroundColor: '#1F2937',
+        top: 5,
+        borderRadius: 10,
+        padding: 5,
+        maxHeight: 200,
+        zIndex: 50, // Ensure it sits on top
+        elevation: 10,
+    },
+    suggestionItem: {
+        padding: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#374151',
+    },
+    suggestionText: {
         color: 'white',
+        fontSize: 14,
+    },
+    navGuidanceBox: {
+        position: 'absolute',
+        top: 80, // Below top stats
+        left: 0,
+        right: 0,
+        backgroundColor: '#10B981',
+        marginHorizontal: 10,
+        borderRadius: 15,
+        padding: 15,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: 'black',
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 5,
+    },
+    navInstruction: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    navDistance: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 14,
+        marginTop: 2,
+    },
+    iconButton: {
+        padding: 5,
+    },
+    readOnlyInput: {
+        flex: 1,
+        color: '#10B981',
+        marginLeft: 10,
+        fontWeight: 'bold',
+    },
+    textInput: {
+        flex: 1,
+        color: 'white',
+        marginLeft: 10,
         fontSize: 16,
     },
     liveGroupCard: {
@@ -608,7 +808,7 @@ const styles = StyleSheet.create({
     rightButtons: {
         position: 'absolute',
         right: 20,
-        bottom: 120, // Default when slider is visible
+        bottom: 220, // Moved HIGHER to ensure visibility above slider/tabs
         gap: 15,
         alignItems: 'center',
     },
@@ -632,19 +832,20 @@ const styles = StyleSheet.create({
     },
     bottomOverlay: {
         position: 'absolute',
-        bottom: 90,
+        bottom: 110, // Adjusted for TabBar height
         left: 20,
         right: 20,
         flexDirection: 'row',
         alignItems: 'center',
+        zIndex: 50,
     },
     profileButton: {
         marginRight: 15,
     },
     profileIconCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         backgroundColor: '#FFD700',
         alignItems: 'center',
         justifyContent: 'center',
@@ -665,29 +866,41 @@ const styles = StyleSheet.create({
     sliderTrack: {
         flex: 1,
         height: 60,
-        backgroundColor: 'rgba(22, 25, 37, 0.9)',
+        backgroundColor: '#111827',
         borderRadius: 30,
         justifyContent: 'center',
-        paddingHorizontal: 5,
+        paddingHorizontal: 4,
         borderWidth: 1,
-        borderColor: '#FFD70033',
+        borderColor: '#374151',
+        // Glow effect
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
     },
     sliderHandle: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
         backgroundColor: '#FFD700',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 10,
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 8,
     },
     sliderText: {
         position: 'absolute',
         alignSelf: 'center',
-        color: '#9CA3AF',
+        color: '#6B7280',
         fontSize: 14,
         fontWeight: 'bold',
-        letterSpacing: 2,
+        letterSpacing: 4,
+        textTransform: 'uppercase',
     },
     userMarkerContainer: {
         alignItems: 'center',
@@ -966,5 +1179,23 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     }
 });
+
+const mapDarkStyle = [
+    { "elementType": "geometry", "stylers": [{ "color": "#242f3e" }] },
+    { "elementType": "labels.text.stroke", "stylers": [{ "color": "#242f3e" }] },
+    { "elementType": "labels.text.fill", "stylers": [{ "color": "#746855" }] },
+    { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+    { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+    { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#263c3f" }] },
+    { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#6b9a76" }] },
+    { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#38414e" }] },
+    { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#212a37" }] },
+    { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#9ca5b3" }] },
+    { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#746855" }] },
+    { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#1f2835" }] },
+    { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#17263c" }] },
+    { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#515c6d" }] },
+    { "featureType": "water", "elementType": "labels.text.stroke", "stylers": [{ "color": "#17263c" }] }
+];
 
 export default DashboardScreen;

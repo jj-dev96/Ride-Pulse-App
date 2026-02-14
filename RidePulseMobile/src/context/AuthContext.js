@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPhoneNumber } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPhoneNumber, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 
 export const AuthContext = createContext();
 
@@ -95,6 +95,19 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const loginWithGoogleCredential = async (idToken) => {
+        try {
+            //Create a Google credential with the token
+            const credential = GoogleAuthProvider.credential(idToken);
+            // Sign-in with credential from the Google user.
+            await signInWithCredential(auth, credential);
+            return { success: true };
+        } catch (e) {
+            console.error("Google Auth Error:", e.code, e.message);
+            return { success: false, error: e.message };
+        }
+    };
+
     const logout = async () => {
         try {
             await signOut(auth);
@@ -103,8 +116,20 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const loginAnonymously = async () => {
+        try {
+            await import('firebase/auth').then(({ signInAnonymously }) => {
+                return signInAnonymously(auth);
+            });
+            return { success: true };
+        } catch (e) {
+            console.error("Anonymous Auth Error:", e.code, e.message);
+            return { success: false, error: e.message };
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, loginWithPhone, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, register, loginWithPhone, loginWithGoogleCredential, loginAnonymously, logout }}>
             {children}
         </AuthContext.Provider>
     );

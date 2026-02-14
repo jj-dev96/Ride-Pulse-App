@@ -18,7 +18,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.ridepulse"
+      "package": "com.ridepulse",
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      }
     },
     "ios": {
       "supportsTablet": true,
@@ -33,7 +38,8 @@
         {
           "cameraPermission": "Allow RidePulse to access your camera to scan QR codes for ride groups."
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }
