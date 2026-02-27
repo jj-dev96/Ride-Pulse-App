@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Modal, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { app } from '../config/firebase';
 
 const RiderIDCard = ({ visible, onClose, userId }) => {
   const [profile, setProfile] = useState(null);
@@ -9,16 +10,14 @@ const RiderIDCard = ({ visible, onClose, userId }) => {
 
   useEffect(() => {
     if (!userId) return;
-    const unsub = firestore()
-      .collection('users')
-      .doc(userId)
-      .collection('profile')
-      .onSnapshot(snapshot => {
-        if (!snapshot.empty) {
-          setProfile(snapshot.docs[0].data());
-        }
-        setLoading(false);
-      });
+    const db = getFirestore(app);
+    const profileRef = collection(doc(collection(db, 'users'), userId), 'profile');
+    const unsub = onSnapshot(profileRef, (snapshot) => {
+      if (!snapshot.empty) {
+        setProfile(snapshot.docs[0].data());
+      }
+      setLoading(false);
+    });
     return () => unsub();
   }, [userId]);
 
@@ -28,12 +27,9 @@ const RiderIDCard = ({ visible, onClose, userId }) => {
       const year = new Date().getFullYear();
       const unique = Math.floor(100000 + Math.random() * 900000);
       const riderId = `RP-${year}-${unique}`;
-      firestore()
-        .collection('users')
-        .doc(userId)
-        .collection('profile')
-        .doc('main')
-        .set({ ...profile, riderId }, { merge: true });
+      const db = getFirestore(app);
+      const mainProfileRef = doc(collection(doc(collection(db, 'users'), userId), 'profile'), 'main');
+      setDoc(mainProfileRef, { ...profile, riderId }, { merge: true });
     }
   }, [profile, userId]);
 

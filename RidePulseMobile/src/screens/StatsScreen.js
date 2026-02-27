@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import Svg, { Circle, Path, Line, G } from 'react-native-svg';
+import { db } from '../config/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
 const StatsScreen = ({ navigation }) => {
     const [activeTab, setActiveTab] = useState('History');
+    const [loading, setLoading] = useState(true);
+    const [rides, setRides] = useState([]);
+    const [userId, setUserId] = useState(null); // Set this from auth context or props
 
     // --- CHART CONFIG & DATA ---
     const chartConfig = {
@@ -28,405 +33,361 @@ const StatsScreen = ({ navigation }) => {
         datasets: [{
             data: [20, 45, 28, 80, 50, 60, 40],
             color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
-    import firestore from '@react-native-firebase/firestore';
             strokeWidth: 3
         }]
     };
 
-    const heatmapData = {
-        const [loading, setLoading] = useState(true);
-        const [rides, setRides] = useState([]);
-        const [userId, setUserId] = useState(null); // Set this from auth context or props
-        labels: ["Start", "15m", "30m", "45m", "End"],
-        useEffect(() => {
-            // TODO: Replace with actual userId from auth context
-            const uid = userId || 'CURRENT_USER_ID';
-            const unsub = firestore()
-                .collection('rides')
-                .where('userId', '==', uid)
-                .where('status', '==', 'completed')
-                .onSnapshot(snapshot => {
-                    setRides(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                    setLoading(false);
-                });
-            return () => unsub();
-        }, [userId]);
-        datasets: [{
-        // Aggregation logic
-        const stats = useMemo(() => {
-            let totalDistance = 0, totalRides = 0, totalDuration = 0, maxSpeed = 0, longestRide = 0;
-            rides.forEach(ride => {
-                totalDistance += ride.distance || 0;
-                totalDuration += ride.duration || 0;
-                maxSpeed = Math.max(maxSpeed, ride.maxSpeed || 0);
-                longestRide = Math.max(longestRide, ride.distance || 0);
-            });
-            totalRides = rides.length;
-            const avgSpeed = totalDuration ? totalDistance / (totalDuration / 60) : 0; // km/h
-            return {
-                totalDistance,
-                totalRides,
-                avgSpeed,
-                maxSpeed,
-                longestRide,
-                totalDuration
-            };
-        }, [rides]);
-            data: [40, 60, 55, 90, 80, 110, 65],
-            color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
-            strokeWidth: 2
-        }]
-    };
-
-    // --- RIDE DNA CHART ---
-                        <Text style={styles.summaryValue}>{stats.totalDistance.toFixed(2)} <Text style={styles.summaryUnit}>km</Text></Text>
-        return (
-            <View style={{ alignItems: 'center', justifyContent: 'center', height: 320 }}>
-                <Svg height="300" width="300" viewBox="0 0 300 300">
-                        <Text style={styles.summaryValue}>{stats.totalRides} <Text style={[styles.summaryUnit, { color: '#10B981' }]}>rides</Text></Text>
-                        <Circle cx="150" cy="150" r="100" stroke="#333" strokeWidth="1" fill="none" />
-                        <Circle cx="150" cy="150" r="75" stroke="#333" strokeWidth="1" fill="none" />
-                        <Circle cx="150" cy="150" r="50" stroke="#333" strokeWidth="1" fill="none" />
-                        {[...Array(24)].map((_, i) => {
-                            const angle = (i * 15) * (Math.PI / 180);
-                            const x2 = 150 + Math.cos(angle) * 100;
-                            const y2 = 150 + Math.sin(angle) * 100;
-                            const isActive = i > 18 || i < 6;
-                            const color = isActive ? "#EF4444" : "#1F2937";
-                            const rInner = isActive ? Math.random() * 40 + 20 : 0;
-                            const xInner = 150 + Math.cos(angle) * rInner;
-                            const yInner = 150 + Math.sin(angle) * rInner;
-                            return isActive ? (
-                                <Line key={i} x1="150" y1="150" x2={xInner} y2={yInner} stroke={color} strokeWidth="3" />
-                            ) : null;
-                        })}
-                        <Path
-                            d="M 150 150 Q 80 80 150 50 T 250 150"
-                            stroke="#06B6D4"
-                            strokeWidth="3"
-                            fill="none"
-                        />
-                    </G>
-                </Svg>
-            </View>
+    useEffect(() => {
+        // TODO: Replace with actual userId from auth context
+        const uid = userId || 'CURRENT_USER_ID';
+        const q = query(
+            collection(db, 'rides'),
+            where('userId', '==', uid),
+            where('status', '==', 'completed')
         );
-    };
+        const unsub = onSnapshot(q, snapshot => {
+            setRides(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoading(false);
+        });
+        return () => unsub();
+    }, [userId]);
+
+    // Aggregation logic
+    const stats = useMemo(() => {
+        let totalDistance = 0, totalRides = 0, totalDuration = 0, maxSpeed = 0, longestRide = 0;
+        rides.forEach(ride => {
+            totalDistance += ride.distance || 0;
+            totalDuration += ride.duration || 0;
+            maxSpeed = Math.max(maxSpeed, ride.maxSpeed || 0);
+            longestRide = Math.max(longestRide, ride.distance || 0);
+        });
+        totalRides = rides.length;
+        const avgSpeed = totalDuration ? totalDistance / (totalDuration / 60) : 0; // km/h
+        return {
+            totalDistance,
+            totalRides,
+            avgSpeed,
+            maxSpeed,
+            longestRide,
+            totalDuration
+        };
+    }, [rides]);
 
     // --- TAB: HISTORY ---
-    const renderHistory = () => (
-        <View>
-            <View style={styles.summaryContainer}>
-                <View style={styles.summaryCard}>
-                    <Text style={styles.summaryLabel}>TOTAL DISTANCE</Text>
-                    <Text style={styles.summaryValue}>1,248 <Text style={styles.summaryUnit}>km</Text></Text>
-                </View>
-                <View style={styles.summaryCard}>
-                    <Text style={styles.summaryLabel}>TOTAL RIDES</Text>
-                    <Text style={styles.summaryValue}>42 <Text style={[styles.summaryUnit, { color: '#10B981' }]}>rides</Text></Text>
-                </View>
-            </View>
 
-            <View style={styles.sectionHeader}>
-                <MaterialIcons name="history" size={20} color="#FFD700" />
-                <Text style={styles.sectionTitle}>Recent Highlights</Text>
+// --- TAB: HISTORY ---
+const renderHistory = () => (
+    <View>
+        <View style={styles.summaryContainer}>
+            <View style={styles.summaryCard}>
+                <Text style={styles.summaryLabel}>TOTAL DISTANCE</Text>
+                <Text style={styles.summaryValue}>1,248 <Text style={styles.summaryUnit}>km</Text></Text>
             </View>
+            <View style={styles.summaryCard}>
+                <Text style={styles.summaryLabel}>TOTAL RIDES</Text>
+                <Text style={styles.summaryValue}>42 <Text style={[styles.summaryUnit, { color: '#10B981' }]}>rides</Text></Text>
+            </View>
+        </View>
 
-            <View style={styles.featuredCard}>
-                <LinearGradient colors={['#1F2937', '#111827']} style={styles.featuredCardHeader}>
-                    <Text style={styles.mapPlaceholderText}>Pacific Coast Highway Run</Text>
-                    <Text style={styles.mapSubText}>Malibu to Ventura</Text>
-                    {/* Real-time stats will be displayed here */}
-                    <Text style={styles.dnaValue}>Flow: {stats.flow || 'N/A'}</Text>
-                    <Text style={styles.dnaValue}>Intensity: {stats.intensity || 'N/A'}</Text>
-                    <Text style={styles.dnaValue}>Harmony: {stats.harmony || 'N/A'}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.actionRow}>
-                        <View style={styles.avatarStack}>
-                            <View style={[styles.avatar, { backgroundColor: '#EF4444', zIndex: 3 }]}><Text style={styles.avatarText}>JD</Text></View>
-                            <View style={[styles.avatar, { backgroundColor: '#3B82F6', zIndex: 2, marginLeft: -10 }]}><Text style={styles.avatarText}>MK</Text></View>
-                            <View style={[styles.avatar, { backgroundColor: '#4B5563', zIndex: 1, marginLeft: -10 }]}><Text style={styles.avatarText}>+3</Text></View>
-                        </View>
-                        <TouchableOpacity style={styles.analyticsButton}>
-                            <Text style={styles.analyticsButtonText}>View Details</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+        <View style={styles.sectionHeader}>
+            <MaterialIcons name="history" size={20} color="#FFD700" />
+            <Text style={styles.sectionTitle}>Recent Highlights</Text>
+        </View>
 
-            <View style={[styles.sectionHeader, { marginTop: 20 }]}>
-                <Text style={[styles.sectionTitle, { marginLeft: 0 }]}>RIDE DNA</Text>
-                <View style={styles.proBadge}><Text style={styles.proText}>PRO</Text></View>
-            </View>
-            <View style={styles.dnaCard}>
-                <RideDNAChart />
-                <View style={styles.dnaStatsRow}>
-                    <View style={styles.dnaStat}>
-                        <Text style={styles.dnaLabel}>FLOW</Text>
-                        <Text style={styles.dnaValue}>92%</Text>
-                    </View>
-                    <View style={styles.dnaStat}>
-                        <Text style={styles.dnaLabel}>INTENSITY</Text>
-                        <Text style={[styles.dnaValue, { color: '#EF4444' }]}>88%</Text>
-                    </View>
-                    <View style={styles.dnaStat}>
-                        <Text style={styles.dnaLabel}>HARMONY</Text>
-                        <Text style={[styles.dnaValue, { color: '#F59E0B' }]}>95%</Text>
-                    </View>
+        <View style={styles.featuredCard}>
+            <LinearGradient colors={['#1F2937', '#111827']} style={styles.featuredCardHeader}>
+                <Text style={styles.mapPlaceholderText}>Pacific Coast Highway Run</Text>
+                <Text style={styles.mapSubText}>Malibu to Ventura</Text>
+                {/* Real-time stats will be displayed here */}
+                <Text style={styles.dnaValue}>Flow: {stats.flow || 'N/A'}</Text>
+                <Text style={styles.dnaValue}>Intensity: {stats.intensity || 'N/A'}</Text>
+                <Text style={styles.dnaValue}>Harmony: {stats.harmony || 'N/A'}</Text>
+            </LinearGradient>
+            <View style={styles.actionRow}>
+                <View style={styles.avatarStack}>
+                    <View style={[styles.avatar, { backgroundColor: '#EF4444', zIndex: 3 }]}><Text style={styles.avatarText}>JD</Text></View>
+                    <View style={[styles.avatar, { backgroundColor: '#3B82F6', zIndex: 2, marginLeft: -10 }]}><Text style={styles.avatarText}>MK</Text></View>
+                    <View style={[styles.avatar, { backgroundColor: '#4B5563', zIndex: 1, marginLeft: -10 }]}><Text style={styles.avatarText}>+3</Text></View>
                 </View>
-                <TouchableOpacity style={styles.shareBtn}>
-                    <MaterialIcons name="share" size={16} color="white" style={{ marginRight: 8 }} />
-                    <Text style={styles.shareBtnText}>SHARE FINGERPRINT</Text>
+                <TouchableOpacity style={styles.analyticsButton}>
+                    <Text style={styles.analyticsButtonText}>View Details</Text>
                 </TouchableOpacity>
             </View>
         </View>
-    );
 
-    // --- TAB: TELEMETRY ---
-    const renderTelemetry = () => (
-        <View>
-            <View style={[styles.card, { padding: 0 }]}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.liveIndicatorRow}>
-                        <View style={styles.recordingDot} />
-                        <Text style={styles.cardTitle}>Live Session Replay</Text>
-                    </View>
-                    <View style={styles.liveBadge}>
-                        <Text style={styles.liveBadgeText}>LIVE</Text>
-                    </View>
+        <View style={[styles.sectionHeader, { marginTop: 20 }]}> 
+            <Text style={[styles.sectionTitle, { marginLeft: 0 }]}>RIDE DNA</Text>
+            <View style={styles.proBadge}><Text style={styles.proText}>PRO</Text></View>
+        </View>
+        <View style={styles.dnaCard}>
+            <RideDNAChart />
+            <View style={styles.dnaStatsRow}>
+                <View style={styles.dnaStat}>
+                    <Text style={styles.dnaLabel}>FLOW</Text>
+                    <Text style={styles.dnaValue}>92%</Text>
                 </View>
-                <View style={{ height: 120, marginLeft: -20, marginTop: 10 }}>
-                    <LineChart
-                        data={lineData}
-                        width={width - 20}
-                        height={120}
-                        chartConfig={{ ...chartConfig, color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})` }}
-                        bezier
-                        withHorizontalLines={false}
-                        withVerticalLines={false}
-                        withHorizontalLabels={false}
-                        withDots={false}
-                    />
-                    <View style={{ position: 'absolute', left: '42%', top: 35, width: 12, height: 12, borderRadius: 6, backgroundColor: 'white', shadowColor: '#FFD700', shadowOpacity: 1, shadowRadius: 10 }} />
+                <View style={styles.dnaStat}>
+                    <Text style={styles.dnaLabel}>INTENSITY</Text>
+                    <Text style={[styles.dnaValue, { color: '#EF4444' }]}>88%</Text>
                 </View>
-                <View style={styles.timeRow}>
-                    <Text style={styles.timeText}>09:12:00</Text>
-                    <Text style={[styles.timeText, { color: '#FFD700' }]}>09:45:30</Text>
-                </View>
-                <View style={styles.controlsRow}>
-                    <TouchableOpacity><MaterialIcons name="replay-10" size={20} color="#6B7280" /></TouchableOpacity>
-                    <TouchableOpacity style={styles.playPauseBtn}>
-                        <MaterialIcons name="pause" size={24} color="black" />
-                    </TouchableOpacity>
-                    <TouchableOpacity><MaterialIcons name="forward-10" size={20} color="#6B7280" /></TouchableOpacity>
+                <View style={styles.dnaStat}>
+                    <Text style={styles.dnaLabel}>HARMONY</Text>
+                    <Text style={[styles.dnaValue, { color: '#F59E0B' }]}>95%</Text>
                 </View>
             </View>
-
-            <View style={styles.gridRow}>
-                <View style={[styles.card, styles.gridCard]}>
-                    <View style={styles.cardHeaderSimple}>
-                        <Text style={styles.gridLabel}>MAX LEAN</Text>
-                        <MaterialIcons name="refresh" size={14} color="#06B6D4" style={{ marginLeft: 'auto' }} />
-                    </View>
-                    <View style={styles.valueRow}>
-                        <Text style={styles.bigValue}>48°</Text>
-                        <Text style={styles.subValue}>Left</Text>
-                    </View>
-                    <View style={styles.leanGauge}>
-                        <View style={[styles.gaugeArc, { transform: [{ rotate: '-45deg' }] }]} />
-                        <View style={styles.gaugeNeedle} />
-                    </View>
-                </View>
-
-                <View style={[styles.card, styles.gridCard]}>
-                    <View style={styles.cardHeaderSimple}>
-                        <Text style={styles.gridLabel}>G-FORCE</Text>
-                        <MaterialIcons name="speed" size={14} color="#EF4444" style={{ marginLeft: 'auto' }} />
-                    </View>
-                    <View style={styles.valueRow}>
-                        <Text style={styles.bigValue}>1.2</Text>
-                        <Text style={[styles.subValue, { fontSize: 16, marginTop: 8 }]}>G</Text>
-                    </View>
-                    <View style={styles.gForceGrid}>
-                        <View style={styles.gridLineH} />
-                        <View style={styles.gridLineV} />
-                        <View style={styles.gForceDot} />
-                    </View>
-                </View>
-            </View>
-
-            <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>Speed Heatmap</Text>
-                    <TouchableOpacity style={styles.filterBtn}>
-                        <Text style={styles.filterBtnText}>Last Ride</Text>
-                    </TouchableOpacity>
-                </View>
-                <View style={{ marginTop: 10 }}>
-                    <LineChart
-                        data={heatmapData}
-                        width={width - 50}
-                        height={140}
-                        chartConfig={{
-                            ...chartConfig,
-                            fillShadowGradientFrom: "#FFD700",
-                            fillShadowGradientFromOpacity: 0.5,
-                            fillShadowGradientTo: "#FFD700",
-                            fillShadowGradientToOpacity: 0.1,
-                            decimalPlaces: 0,
-                            color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
-                            labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
-                        }}
-                        bezier
-                        style={{ borderRadius: 8 }}
-                        withInnerLines={true}
-                        withOuterLines={false}
-                    />
-                </View>
-            </View>
-
-            <TouchableOpacity style={styles.exportButton}>
-                <MaterialIcons name="file-download" size={20} color="black" />
-                <Text style={styles.exportButtonText}>EXPORT TELEMETRY DATA</Text>
+            <TouchableOpacity style={styles.shareBtn}>
+                <MaterialIcons name="share" size={16} color="white" style={{ marginRight: 8 }} />
+                <Text style={styles.shareBtnText}>SHARE FINGERPRINT</Text>
             </TouchableOpacity>
         </View>
-    );
+    </View>
+);
 
-    // --- TAB: ACHIEVEMENTS ---
-    const renderAchievements = () => (
-        <View>
-            {/* Main Big Badge */}
-            <View style={styles.mainBadgeContainer}>
-                <LinearGradient colors={['#FFD70020', '#FFD70000']} style={styles.mainBadgeGlow} />
-                <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/625/625394.png' }} style={styles.mainBadgeIcon} tintColor="#FFD700" />
-                <Text style={styles.mainBadgeTitle}>IRON BUTT</Text>
-                <Text style={styles.mainBadgeSub}>Ride 1000km in 24 hours</Text>
-                <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { width: '80%', backgroundColor: '#FFD700' }]} />
+// --- TAB: TELEMETRY ---
+const renderTelemetry = () => (
+    <View>
+        <View style={[styles.card, { padding: 0 }]}>
+            <View style={styles.cardHeader}>
+                <View style={styles.liveIndicatorRow}>
+                    <View style={styles.recordingDot} />
+                    <Text style={styles.cardTitle}>Live Session Replay</Text>
                 </View>
-                <Text style={styles.mainBadgeProgress}>820 / 1000 km</Text>
+                <View style={styles.liveBadge}>
+                    <Text style={styles.liveBadgeText}>LIVE</Text>
+                </View>
             </View>
-
-            <Text style={styles.gridTitle}>RECENTLY UNLOCKED</Text>
-            <View style={styles.badgesGrid}>
-                {[
-                    { name: 'Night Rider', icon: 'brightness-3', color: '#8B5CF6', locked: false },
-                    { name: 'Canyon Carver', icon: 'terrain', color: '#10B981', locked: false },
-                    { name: 'Speed Demon', icon: 'flash-on', color: '#EF4444', locked: false },
-                ].map((badge, index) => (
-                    <View key={index} style={styles.badgeCard}>
-                        <View style={[styles.badgeIconBg, { backgroundColor: badge.color + '20' }]}>
-                            <MaterialIcons name={badge.icon} size={24} color={badge.color} />
-                        </View>
-                        <Text style={styles.badgeName}>{badge.name}</Text>
-                    </View>
-                ))}
+            <View style={{ height: 120, marginLeft: -20, marginTop: 10 }}>
+                <LineChart
+                    data={lineData}
+                    width={width - 20}
+                    height={120}
+                    chartConfig={{ ...chartConfig, color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})` }}
+                    bezier
+                    withHorizontalLines={false}
+                    withVerticalLines={false}
+                    withHorizontalLabels={false}
+                    withDots={false}
+                />
+                <View style={{ position: 'absolute', left: '42%', top: 35, width: 12, height: 12, borderRadius: 6, backgroundColor: 'white', shadowColor: '#FFD700', shadowOpacity: 1, shadowRadius: 10 }} />
             </View>
-
-            <Text style={styles.gridTitle}>LOCKED</Text>
-            <View style={styles.badgesGrid}>
-                {[
-                    { name: 'Global Tourist', icon: 'public', color: '#6B7280', locked: true },
-                    { name: 'Squad Leader', icon: 'groups', color: '#6B7280', locked: true },
-                    { name: 'Ghost Rider', icon: 'no-sim', color: '#6B7280', locked: true },
-                ].map((badge, index) => (
-                    <View key={index} style={[styles.badgeCard, { opacity: 0.5 }]}>
-                        <View style={[styles.badgeIconBg, { backgroundColor: '#1F2937' }]}>
-                            <MaterialIcons name="lock" size={20} color="#6B7280" />
-                        </View>
-                        <Text style={[styles.badgeName, { color: '#6B7280' }]}>{badge.name}</Text>
-                    </View>
-                ))}
+            <View style={styles.timeRow}>
+                <Text style={styles.timeText}>09:12:00</Text>
+                <Text style={[styles.timeText, { color: '#FFD700' }]}>09:45:30</Text>
+            </View>
+            <View style={styles.controlsRow}>
+                <TouchableOpacity><MaterialIcons name="replay-10" size={20} color="#6B7280" /></TouchableOpacity>
+                <TouchableOpacity style={styles.playPauseBtn}>
+                    <MaterialIcons name="pause" size={24} color="black" />
+                </TouchableOpacity>
+                <TouchableOpacity><MaterialIcons name="forward-10" size={20} color="#6B7280" /></TouchableOpacity>
             </View>
         </View>
-    );
 
-    // --- TAB: ROUTES ---
-    const renderRoutes = () => (
-        <View>
-            <TouchableOpacity style={styles.addRouteBtn}>
-                <MaterialIcons name="add" size={24} color="black" />
-                <Text style={styles.addRouteText}>PLAN NEW ROUTE</Text>
-            </TouchableOpacity>
+        <View style={styles.gridRow}>
+            <View style={[styles.card, styles.gridCard]}>
+                <View style={styles.cardHeaderSimple}>
+                    <Text style={styles.gridLabel}>MAX LEAN</Text>
+                    <MaterialIcons name="refresh" size={14} color="#06B6D4" style={{ marginLeft: 'auto' }} />
+                </View>
+                <View style={styles.valueRow}>
+                    <Text style={styles.bigValue}>48°</Text>
+                    <Text style={styles.subValue}>Left</Text>
+                </View>
+                <View style={styles.leanGauge}>
+                    <View style={[styles.gaugeArc, { transform: [{ rotate: '-45deg' }] }]} />
+                    <View style={styles.gaugeNeedle} />
+                </View>
+            </View>
 
-            <Text style={styles.gridTitle}>FAVORITES</Text>
+            <View style={[styles.card, styles.gridCard]}>
+                <View style={styles.cardHeaderSimple}>
+                    <Text style={styles.gridLabel}>G-FORCE</Text>
+                    <MaterialIcons name="speed" size={14} color="#EF4444" style={{ marginLeft: 'auto' }} />
+                </View>
+                <View style={styles.valueRow}>
+                    <Text style={styles.bigValue}>1.2</Text>
+                    <Text style={[styles.subValue, { fontSize: 16, marginTop: 8 }]}>G</Text>
+                </View>
+                <View style={styles.gForceGrid}>
+                    <View style={styles.gridLineH} />
+                    <View style={styles.gridLineV} />
+                    <View style={styles.gForceDot} />
+                </View>
+            </View>
+        </View>
 
+        <View style={styles.card}>
+            <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Speed Heatmap</Text>
+                <TouchableOpacity style={styles.filterBtn}>
+                    <Text style={styles.filterBtnText}>Last Ride</Text>
+                </TouchableOpacity>
+            </View>
+            <View style={{ marginTop: 10 }}>
+                <LineChart
+                    data={heatmapData}
+                    width={width - 50}
+                    height={140}
+                    chartConfig={{
+                        ...chartConfig,
+                        fillShadowGradientFrom: "#FFD700",
+                        fillShadowGradientFromOpacity: 0.5,
+                        fillShadowGradientTo: "#FFD700",
+                        fillShadowGradientToOpacity: 0.1,
+                        decimalPlaces: 0,
+                        color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
+                        labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+                    }}
+                    bezier
+                    style={{ borderRadius: 8 }}
+                    withInnerLines={true}
+                    withOuterLines={false}
+                />
+            </View>
+        </View>
+
+        <TouchableOpacity style={styles.exportButton}>
+            <MaterialIcons name="file-download" size={20} color="black" />
+            <Text style={styles.exportButtonText}>EXPORT TELEMETRY DATA</Text>
+        </TouchableOpacity>
+    </View>
+);
+
+// --- TAB: ACHIEVEMENTS ---
+const renderAchievements = () => (
+    <View>
+        {/* Main Big Badge */}
+        <View style={styles.mainBadgeContainer}>
+            <LinearGradient colors={['#FFD70020', '#FFD70000']} style={styles.mainBadgeGlow} />
+            <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/625/625394.png' }} style={styles.mainBadgeIcon} tintColor="#FFD700" />
+            <Text style={styles.mainBadgeTitle}>IRON BUTT</Text>
+            <Text style={styles.mainBadgeSub}>Ride 1000km in 24 hours</Text>
+            <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: '80%', backgroundColor: '#FFD700' }]} />
+            </View>
+            <Text style={styles.mainBadgeProgress}>820 / 1000 km</Text>
+        </View>
+
+        <Text style={styles.gridTitle}>RECENTLY UNLOCKED</Text>
+        <View style={styles.badgesGrid}>
             {[
-                { name: 'Mulholland Drive', dist: '32 km', curves: 5, elev: '420m', img: '#1F2937' },
-                { name: 'Angeles Crest', dist: '105 km', curves: 4, elev: '2200m', img: '#111827' },
-            ].map((route, i) => (
-                <View key={i} style={styles.routeCard}>
-                    <View style={[styles.routeImg, { backgroundColor: route.img }]}>
-                        <MaterialIcons name="map" size={40} color="#374151" />
+                { name: 'Night Rider', icon: 'brightness-3', color: '#8B5CF6', locked: false },
+                { name: 'Canyon Carver', icon: 'terrain', color: '#10B981', locked: false },
+                { name: 'Speed Demon', icon: 'flash-on', color: '#EF4444', locked: false },
+            ].map((badge, index) => (
+                <View key={index} style={styles.badgeCard}>
+                    <View style={[styles.badgeIconBg, { backgroundColor: badge.color + '20' }]}>
+                        <MaterialIcons name={badge.icon} size={24} color={badge.color} />
                     </View>
-                    <View style={styles.routeContent}>
-                        <Text style={styles.routeTitle}>{route.name}</Text>
-                        <View style={styles.routeStats}>
-                            <View style={styles.routeStatParam}>
-                                <MaterialIcons name="straighten" size={14} color="#9CA3AF" />
-                                <Text style={styles.routeStatVal}>{route.dist}</Text>
-                            </View>
-                            <View style={styles.routeStatParam}>
-                                <MaterialIcons name="terrain" size={14} color="#9CA3AF" />
-                                <Text style={styles.routeStatVal}>{route.elev}</Text>
-                            </View>
-                        </View>
-                        {/* Curve Rating */}
-                        <View style={styles.curveRating}>
-                            {[...Array(5)].map((_, starI) => (
-                                <MaterialIcons
-                                    key={starI}
-                                    name="star"
-                                    size={12}
-                                    color={starI < route.curves ? '#FFD700' : '#374151'}
-                                />
-                            ))}
-                            <Text style={styles.curveLabel}>Curve Rating</Text>
-                        </View>
-                    </View>
-                    <TouchableOpacity style={styles.goBtn}>
-                        <MaterialIcons name="navigation" size={24} color="white" />
-                    </TouchableOpacity>
+                    <Text style={styles.badgeName}>{badge.name}</Text>
                 </View>
             ))}
         </View>
-    );
 
-    return (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
-            <SafeAreaView edges={['top']}>
-                <View style={styles.header}>
-                    <View style={styles.logoContainer}>
-                        <View style={styles.logoIcon}>
-                            <FontAwesome5 name="motorcycle" size={20} color="black" />
+        <Text style={styles.gridTitle}>LOCKED</Text>
+        <View style={styles.badgesGrid}>
+            {[
+                { name: 'Global Tourist', icon: 'public', color: '#6B7280', locked: true },
+                { name: 'Squad Leader', icon: 'groups', color: '#6B7280', locked: true },
+                { name: 'Ghost Rider', icon: 'no-sim', color: '#6B7280', locked: true },
+            ].map((badge, index) => (
+                <View key={index} style={[styles.badgeCard, { opacity: 0.5 }]}>
+                    <View style={[styles.badgeIconBg, { backgroundColor: '#1F2937' }]}>
+                        <MaterialIcons name="lock" size={20} color="#6B7280" />
+                    </View>
+                    <Text style={[styles.badgeName, { color: '#6B7280' }]}>{badge.name}</Text>
+                </View>
+            ))}
+        </View>
+    </View>
+);
+
+// --- TAB: ROUTES ---
+const renderRoutes = () => (
+    <View>
+        <TouchableOpacity style={styles.addRouteBtn}>
+            <MaterialIcons name="add" size={24} color="black" />
+            <Text style={styles.addRouteText}>PLAN NEW ROUTE</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.gridTitle}>FAVORITES</Text>
+
+        {[
+            { name: 'Mulholland Drive', dist: '32 km', curves: 5, elev: '420m', img: '#1F2937' },
+            { name: 'Angeles Crest', dist: '105 km', curves: 4, elev: '2200m', img: '#111827' },
+        ].map((route, i) => (
+            <View key={i} style={styles.routeCard}>
+                <View style={[styles.routeImg, { backgroundColor: route.img }]}>
+                    <MaterialIcons name="map" size={40} color="#374151" />
+                </View>
+                <View style={styles.routeContent}>
+                    <Text style={styles.routeTitle}>{route.name}</Text>
+                    <View style={styles.routeStats}>
+                        <View style={styles.routeStatParam}>
+                            <MaterialIcons name="straighten" size={14} color="#9CA3AF" />
+                            <Text style={styles.routeStatVal}>{route.dist}</Text>
                         </View>
-                        <Text style={styles.logoText}>RIDEPULSE</Text>
+                        <View style={styles.routeStatParam}>
+                            <MaterialIcons name="terrain" size={14} color="#9CA3AF" />
+                            <Text style={styles.routeStatVal}>{route.elev}</Text>
+                        </View>
+                    </View>
+                    {/* Curve Rating */}
+                    <View style={styles.curveRating}>
+                        {[...Array(5)].map((_, starI) => (
+                            <MaterialIcons
+                                key={starI}
+                                name="star"
+                                size={12}
+                                color={starI < route.curves ? '#FFD700' : '#374151'}
+                            />
+                        ))}
+                        <Text style={styles.curveLabel}>Curve Rating</Text>
                     </View>
                 </View>
+                <TouchableOpacity style={styles.goBtn}>
+                    <MaterialIcons name="navigation" size={24} color="white" />
+                </TouchableOpacity>
+            </View>
+        ))}
+    </View>
+);
 
-                {/* SCROLLABLE TAB SWITCHER */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabContainer}>
-                    {['History', 'Telemetry', 'Achievements', 'Routes'].map((tab) => (
-                        <TouchableOpacity
-                            key={tab}
-                            style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
-                            onPress={() => setActiveTab(tab)}
-                        >
-                            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
+return (
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
+        <SafeAreaView edges={['top']}>
+            <View style={styles.header}>
+                <View style={styles.logoContainer}>
+                    <View style={styles.logoIcon}>
+                        <FontAwesome5 name="motorcycle" size={20} color="black" />
+                    </View>
+                    <Text style={styles.logoText}>RIDEPULSE</Text>
+                </View>
+            </View>
 
-                {/* Content Render */}
-                {activeTab === 'History' && renderHistory()}
-                {activeTab === 'Telemetry' && renderTelemetry()}
-                {activeTab === 'Achievements' && renderAchievements()}
-                {activeTab === 'Routes' && renderRoutes()}
+            {/* SCROLLABLE TAB SWITCHER */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabContainer}>
+                {['History', 'Telemetry', 'Achievements', 'Routes'].map((tab) => (
+                    <TouchableOpacity
+                        key={tab}
+                        style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+                        onPress={() => setActiveTab(tab)}
+                    >
+                        <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
 
-            </SafeAreaView>
-        </ScrollView>
-    );
-};
+            {/* Content Render */}
+            {activeTab === 'History' && renderHistory()}
+            {activeTab === 'Telemetry' && renderTelemetry()}
+            {activeTab === 'Achievements' && renderAchievements()}
+            {activeTab === 'Routes' && renderRoutes()}
+
+        </SafeAreaView>
+    </ScrollView>
+);
+// End of StatsScreen component
 
 // --- STYLES ---
 const styles = StyleSheet.create({
@@ -541,4 +502,5 @@ const styles = StyleSheet.create({
     goBtn: { width: 50, backgroundColor: '#06B6D4', alignItems: 'center', justifyContent: 'center' }
 });
 
+}
 export default StatsScreen;

@@ -15,8 +15,8 @@ import {
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { db, auth } from '../config/firebase';
+import { collection, doc, onSnapshot, getDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -49,11 +49,11 @@ const ShopScreen = () => {
     const [cart, setCart] = useState([]);
     const [wishlist, setWishlist] = useState([]);
     const [loading, setLoading] = useState(true);
-    const userId = auth().currentUser?.uid;
+    const userId = auth.currentUser?.uid;
 
     // Fetch products from Firebase
     useEffect(() => {
-        const unsub = firestore().collection('products').onSnapshot(snapshot => {
+        const unsub = onSnapshot(collection(db, 'products'), snapshot => {
             setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setLoading(false);
         });
@@ -63,10 +63,10 @@ const ShopScreen = () => {
     // Fetch cart and wishlist
     useEffect(() => {
         if (!userId) return;
-        const cartUnsub = firestore().collection('users').doc(userId).collection('cart').onSnapshot(snapshot => {
+        const cartUnsub = onSnapshot(collection(db, 'users', userId, 'cart'), snapshot => {
             setCart(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-        const wishUnsub = firestore().collection('users').doc(userId).collection('wishlist').onSnapshot(snapshot => {
+        const wishUnsub = onSnapshot(collection(db, 'users', userId, 'wishlist'), snapshot => {
             setWishlist(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
         return () => { cartUnsub(); wishUnsub(); };
@@ -77,28 +77,26 @@ const ShopScreen = () => {
         return products.filter(p => p.category === activeCategory);
     }, [products, activeCategory]);
 
-    const addToCart = (product) => {
+    const addToCart = async (product) => {
         if (!userId) return;
-        const cartRef = firestore().collection('users').doc(userId).collection('cart').doc(product.id);
-        cartRef.get().then(doc => {
-            if (doc.exists) {
-                cartRef.update({ quantity: (doc.data().quantity || 1) + 1 });
-            } else {
-                cartRef.set({ ...product, quantity: 1 });
-            }
-        });
+        const cartRef = doc(db, 'users', userId, 'cart', product.id);
+        const docSnap = await getDoc(cartRef);
+        if (docSnap.exists()) {
+            await updateDoc(cartRef, { quantity: (docSnap.data().quantity || 1) + 1 });
+        } else {
+            await setDoc(cartRef, { ...product, quantity: 1 });
+        }
     };
 
-    const toggleWishlist = (product) => {
+    const toggleWishlist = async (product) => {
         if (!userId) return;
-        const wishRef = firestore().collection('users').doc(userId).collection('wishlist').doc(product.id);
-        wishRef.get().then(doc => {
-            if (doc.exists) {
-                wishRef.delete();
-            } else {
-                wishRef.set(product);
-            }
-        });
+        const wishRef = doc(db, 'users', userId, 'wishlist', product.id);
+        const docSnap = await getDoc(wishRef);
+        if (docSnap.exists()) {
+            await deleteDoc(wishRef);
+        } else {
+            await setDoc(wishRef, product);
+        }
     };
 
     const renderProduct = ({ item }) => (
@@ -138,18 +136,16 @@ const ShopScreen = () => {
                 style={StyleSheet.absoluteFill}
             />
             <SafeAreaView style={styles.safeArea}>
-                {/* Header */}
                 <View style={styles.header}>
                     <View>
                         <Text style={styles.headerTitle}>RIDER STORE</Text>
                         <Text style={styles.headerSubtitle}>Premium gear for the road</Text>
                     </View>
-                    <TouchableOpacity style={styles.cartBtn} onPress={() => {/* TODO: Open cart modal */}}>
+                    <TouchableOpacity style={styles.cartBtn} onPress={() => { }}>
                         <Ionicons name="cart-outline" size={28} color="#FFD700" />
                         {cart.length > 0 && <View style={styles.cartBadge}><Text style={{ color: 'white', fontSize: 10 }}>{cart.length}</Text></View>}
                     </TouchableOpacity>
                 </View>
-                {/* Categories */}
                 <View style={styles.categoriesContainer}>
                     <ScrollView
                         horizontal
@@ -180,10 +176,9 @@ const ShopScreen = () => {
                         ))}
                     </ScrollView>
                 </View>
-                {/* Product List */}
                 {filteredProducts.length === 0 ? (
                     <View style={{ alignItems: 'center', marginTop: 40 }}>
-                        <Text style={{ color: '#FFD700', fontSize: 16 }}>No products available in this category.</Text>
+                        <Text style={{ color: '#FFD700', fontSize: 16 }}>No products available.</Text>
                     </View>
                 ) : (
                     <FlatList
@@ -197,18 +192,16 @@ const ShopScreen = () => {
                     />
                 )}
             </SafeAreaView>
-            {/* Bottom Navigation */}
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#161925', flexDirection: 'row', justifyContent: 'space-around', padding: 12, borderTopWidth: 1, borderColor: '#222' }}>
-                <TouchableOpacity onPress={() => {/* TODO: Open cart modal */}} style={{ alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => { }} style={{ alignItems: 'center' }}>
                     <Ionicons name="cart" size={24} color="#FFD700" />
                     <Text style={{ color: '#FFD700', fontSize: 12 }}>Cart</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => {/* TODO: Open wishlist modal */}} style={{ alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => { }} style={{ alignItems: 'center' }}>
                     <MaterialIcons name="favorite" size={24} color="#FFD700" />
                     <Text style={{ color: '#FFD700', fontSize: 12 }}>Wishlist</Text>
                 </TouchableOpacity>
             </View>
-            {/* Webview Modal */}
             <Modal
                 visible={!!selectedProduct}
                 animationType="slide"
@@ -232,221 +225,6 @@ const ShopScreen = () => {
                             <Ionicons name="share-outline" size={24} color="white" />
                         </TouchableOpacity>
                     </View>
-                    {selectedProduct && (
-                        <WebView
-                            source={{ uri: selectedProduct.url }}
-                            style={styles.webview}
-                            startInLoadingState={true}
-                            renderLoading={() => (
-                                <View style={styles.loader}>
-                                    <ActivityIndicator size="large" color="#FFD700" />
-                                </View>
-                            )}
-                        />
-                    )}
-                </SafeAreaView>
-            </Modal>
-        </View>
-    );
-        id: '4',
-        category: 'electronics',
-        name: 'Bobo BM4 Mobile Holder',
-        price: '₹1,450',
-        image: 'https://m.media-amazon.com/images/I/71Nn+9XjGgL._AC_SL1500_.jpg',
-        url: 'https://www.amazon.in/BOBO-BM4-Bicycle-Motorbike-Aluminum/dp/B07S7C71T3',
-        site: 'Amazon',
-        description: 'Secure aluminum mobile holder with 360 rotation.'
-    },
-    {
-        id: '5',
-        category: 'maint',
-        name: 'Motul C2 Chain Lube',
-        price: '₹550',
-        image: 'https://m.media-amazon.com/images/I/61I2lWj8WJL._AC_SL1500_.jpg',
-        url: 'https://www.amazon.in/Motul-C2-Chain-Lube-Road/dp/B007K7Z0D6',
-        site: 'Amazon',
-        description: 'Performance lubricant for all types of motorcycle chains.'
-    },
-    {
-        id: '6',
-        category: 'riding',
-        name: 'Royal Enfield Shot Boots',
-        price: '₹4,500',
-        image: 'https://store.royalenfield.com/cdn/shop/products/1_569a7b97-1589-4e7a-9694-032a188f8c4e.jpg?v=1658488824',
-        url: 'https://store.royalenfield.com/en/tcx-stich-black-boots',
-        site: 'RE Store',
-        description: 'Durable leather riding boots with ankle protection.'
-    },
-    {
-        id: '7',
-        category: 'travel',
-        name: 'Guardian Gears Jaws Bag',
-        price: '₹2,650',
-        image: 'https://m.media-amazon.com/images/I/71Xm0p58F+L._AC_SL1500_.jpg',
-        url: 'https://www.amazon.in/Guardian-Gears-Universal-Magnetic-Motorcycle/dp/B082F1S1MT',
-        site: 'Amazon',
-        description: 'Magnetic tank bag for easy access to essentials.'
-    },
-    {
-        id: '8',
-        category: 'electronics',
-        name: 'BluArmor C30 Intercom',
-        price: '₹10,999',
-        image: 'https://bluarmor.com/cdn/shop/files/C30_Hero_1.png?v=1690000000',
-        url: 'https://bluarmor.com/products/c30',
-        site: 'BluArmor',
-        description: 'Advanced mesh intercom with world-class noise cancellation.'
-    },
-    {
-        id: '9',
-        category: 'riding',
-        name: 'TVS Racing Gloves',
-        price: '₹1,599',
-        image: 'https://m.media-amazon.com/images/I/71Xm0p58F+L._AC_SL1500_.jpg', // Place-holder image similar to TVS gloves
-        url: 'https://www.amazon.in/TVS-Ventilation-Protection-Compatible-Fingertips-Premium/dp/B0BFW8S7RN',
-        site: 'Amazon',
-        description: 'Premium ventilation and protection with touch-compatible fingertips.'
-    },
-    {
-        id: '10',
-        category: 'riding',
-        name: 'ZIGLY Knee & Elbow Guards',
-        price: '₹799',
-        image: 'https://m.media-amazon.com/images/I/71uVvO7uW1L._AC_SL1500_.jpg', // Representative image for knee/elbow protectors
-        url: 'https://www.amazon.in/ZIGLY-Motorcycle-Cycling-Elbow-Protector/dp/B07TVJWJZL',
-        site: 'Amazon',
-        description: 'Hard shell protection for knees and elbows with adjustable straps.'
-    }
-];
-
-const ShopScreen = () => {
-    const [activeCategory, setActiveCategory] = useState('all');
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [isWebViewVisible, setWebViewVisible] = useState(false);
-
-    const filteredProducts = activeCategory === 'all'
-        ? PRODUCTS
-        : PRODUCTS.filter(p => p.category === activeCategory);
-
-    const openProduct = (product) => {
-        setSelectedProduct(product);
-        setWebViewVisible(true);
-    };
-
-    const renderProduct = ({ item }) => (
-        <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.9}
-            onPress={() => openProduct(item)}
-        >
-            <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
-                <View style={styles.siteBadge}>
-                    <Text style={styles.siteBadgeText}>{item.site}</Text>
-                </View>
-            </View>
-            <View style={styles.cardContent}>
-                <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.productDesc} numberOfLines={2}>{item.description}</Text>
-                <View style={styles.priceRow}>
-                    <Text style={styles.productPrice}>{item.price}</Text>
-                    <TouchableOpacity style={styles.buyButton} onPress={() => openProduct(item)}>
-                        <Text style={styles.buyButtonText}>VIEW</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
-
-    return (
-        <View style={styles.container}>
-            <LinearGradient
-                colors={['#0F111A', '#161925', '#0F111A']}
-                style={StyleSheet.absoluteFill}
-            />
-
-            <SafeAreaView style={styles.safeArea}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>RIDER STORE</Text>
-                        <Text style={styles.headerSubtitle}>Premium gear for the road</Text>
-                    </View>
-                    <TouchableOpacity style={styles.cartBtn}>
-                        <Ionicons name="cart-outline" size={28} color="#FFD700" />
-                        <View style={styles.cartBadge} />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Categories */}
-                <View style={styles.categoriesContainer}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.categoriesList}
-                    >
-                        {CATEGORIES.map((cat) => (
-                            <TouchableOpacity
-                                key={cat.id}
-                                style={[
-                                    styles.categoryBtn,
-                                    activeCategory === cat.id && styles.categoryBtnActive
-                                ]}
-                                onPress={() => setActiveCategory(cat.id)}
-                            >
-                                <FontAwesome5
-                                    name={cat.icon}
-                                    size={16}
-                                    color={activeCategory === cat.id ? '#000' : '#FFD700'}
-                                />
-                                <Text style={[
-                                    styles.categoryText,
-                                    activeCategory === cat.id && styles.categoryTextActive
-                                ]}>
-                                    {cat.name}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-
-                {/* Product List */}
-                <FlatList
-                    data={filteredProducts}
-                    renderItem={renderProduct}
-                    keyExtractor={item => item.id}
-                    numColumns={2}
-                    contentContainerStyle={styles.productList}
-                    showsVerticalScrollIndicator={false}
-                    columnWrapperStyle={styles.row}
-                />
-            </SafeAreaView>
-
-            {/* Webview Modal (The "iFrame" feature) */}
-            <Modal
-                visible={isWebViewVisible}
-                animationType="slide"
-                onRequestClose={() => setWebViewVisible(false)}
-            >
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <TouchableOpacity
-                            onPress={() => setWebViewVisible(false)}
-                            style={styles.closeBtn}
-                        >
-                            <Ionicons name="close" size={28} color="white" />
-                        </TouchableOpacity>
-                        <View style={styles.modalTitleContainer}>
-                            <Text style={styles.modalTitle} numberOfLines={1}>
-                                {selectedProduct?.name}
-                            </Text>
-                            <Text style={styles.modalSub}>{selectedProduct?.site}</Text>
-                        </View>
-                        <TouchableOpacity style={styles.shareBtn}>
-                            <Ionicons name="share-outline" size={24} color="white" />
-                        </TouchableOpacity>
-                    </View>
-
                     {selectedProduct && (
                         <WebView
                             source={{ uri: selectedProduct.url }}

@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import RiderIDCard from '../components/RiderIDCard';
-import firestore from '@react-native-firebase/firestore';
+import { db } from '../config/firebase';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 
 const SettingsScreen = ({ navigation }) => {
     const { logout, user } = useContext(AuthContext);
@@ -27,24 +28,22 @@ const SettingsScreen = ({ navigation }) => {
         ]);
     };
 
-    const SectionHeader = ({ title }) => (
+    const SectionHeader = ({ title }) => {
         const [profile, setProfile] = useState(null);
-        <Text style={styles.sectionHeader}>{title}</Text>
         useEffect(() => {
             if (user?.id) {
-                const unsub = firestore()
-                    .collection('users')
-                    .doc(user.id)
-                    .collection('profile')
-                    .onSnapshot(snapshot => {
-                        if (!snapshot.empty) {
-                            setProfile(snapshot.docs[0].data());
-                        }
-                    });
+                const unsub = onSnapshot(doc(db, 'users', user.id, 'profile', 'data'), snapshot => {
+                    if (snapshot.exists()) {
+                        setProfile(snapshot.data());
+                    }
+                });
                 return () => unsub();
             }
         }, [user?.id]);
-    );
+        return (
+            <Text style={styles.sectionHeader}>{title}</Text>
+        );
+    };
 
     const MenuItem = ({ icon, title, subtitle, showChevron = true, rightElement, color = '#6B7280', onPress }) => (
         <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
@@ -80,8 +79,8 @@ const SettingsScreen = ({ navigation }) => {
                         <TouchableOpacity style={styles.iconBtn} onPress={() => setRiderCardVisible(true)}>
                             <MaterialIcons name="person" size={24} color="#FFD700" />
                         </TouchableOpacity>
-                                {/* Rider ID Card Modal */}
-                                <RiderIDCard visible={riderCardVisible} onClose={() => setRiderCardVisible(false)} userId={user?.id} />
+                        {/* Rider ID Card Modal */}
+                        <RiderIDCard visible={riderCardVisible} onClose={() => setRiderCardVisible(false)} userId={user?.id} />
                     </View>
 
                     {/* Garage & Machine */}
