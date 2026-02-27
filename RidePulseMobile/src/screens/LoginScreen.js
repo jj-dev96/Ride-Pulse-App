@@ -10,7 +10,7 @@ import * as WebBrowser from 'expo-web-browser';
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = () => {
-    const { login, register, loginAnonymously, loginWithGoogleCredential } = useContext(AuthContext);
+    const { login, register, loginWithGoogleCredential } = useContext(AuthContext);
     const { colorScheme, toggleTheme } = useContext(ThemeContext);
     const [isLogin, setIsLogin] = useState(true);
 
@@ -99,24 +99,6 @@ const LoginScreen = () => {
         promptAsync();
     };
 
-    const handleAppleLogin = async () => {
-        Alert.alert(
-            "SSO Demo Mode",
-            "Real Apple Sign-In requires an Apple Developer Account. Logging in as Guest for now.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Continue as Guest",
-                    onPress: async () => {
-                        setLoading(true);
-                        await loginAnonymously();
-                        setLoading(false);
-                    }
-                }
-            ]
-        );
-    };
-
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="light-content" backgroundColor="#0F111A" />
@@ -154,7 +136,7 @@ const LoginScreen = () => {
                                 <Image
                                     source={require('../../assets/ride-pulse-logo-shield.png')}
                                     style={styles.leader}
-                                    resizeMode="contain"
+                                    resizeMode="cover"
                                 />
                             </View>
                         </ImageBackground>
@@ -246,11 +228,6 @@ const LoginScreen = () => {
                                 <Ionicons name="logo-google" size={24} color="white" />
                                 <Text style={styles.ssoText}>Google</Text>
                             </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.ssoButton} onPress={handleAppleLogin}>
-                                <Ionicons name="logo-apple" size={24} color="white" />
-                                <Text style={styles.ssoText}>Apple</Text>
-                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -309,15 +286,17 @@ const styles = StyleSheet.create({
     },
     animationGroup: {
         marginTop: 10,
-        width: 300,
-        height: 250,
+        width: 200,
+        height: 200,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 2,
     },
     leader: {
-        width: 250,
-        height: 250,
+        width: 160,
+        height: 160,
+        borderRadius: 80,
+        backgroundColor: '#161925',
     },
     title: {
         fontSize: 30,

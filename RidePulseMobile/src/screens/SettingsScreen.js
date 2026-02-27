@@ -1,8 +1,11 @@
-import React, { useContext, useState } from 'react';
+
+import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
+import RiderIDCard from '../components/RiderIDCard';
+import firestore from '@react-native-firebase/firestore';
 
 const SettingsScreen = ({ navigation }) => {
     const { logout, user } = useContext(AuthContext);
@@ -10,8 +13,10 @@ const SettingsScreen = ({ navigation }) => {
     const [locationEnabled, setLocationEnabled] = useState(false);
     const [unit, setUnit] = useState('KM'); // 'KM' or 'MI'
 
+
     // Modals
     const [profileModalVisible, setProfileModalVisible] = useState(false);
+    const [riderCardVisible, setRiderCardVisible] = useState(false);
     const [supportModalVisible, setSupportModalVisible] = useState(false);
     const [supportContent, setSupportContent] = useState('');
 
@@ -23,7 +28,22 @@ const SettingsScreen = ({ navigation }) => {
     };
 
     const SectionHeader = ({ title }) => (
+        const [profile, setProfile] = useState(null);
         <Text style={styles.sectionHeader}>{title}</Text>
+        useEffect(() => {
+            if (user?.id) {
+                const unsub = firestore()
+                    .collection('users')
+                    .doc(user.id)
+                    .collection('profile')
+                    .onSnapshot(snapshot => {
+                        if (!snapshot.empty) {
+                            setProfile(snapshot.docs[0].data());
+                        }
+                    });
+                return () => unsub();
+            }
+        }, [user?.id]);
     );
 
     const MenuItem = ({ icon, title, subtitle, showChevron = true, rightElement, color = '#6B7280', onPress }) => (
@@ -57,9 +77,11 @@ const SettingsScreen = ({ navigation }) => {
                                 <Text style={styles.logoSubText}>SETTINGS</Text>
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.iconBtn}>
-                            <MaterialIcons name="notifications" size={20} color="#9CA3AF" />
+                        <TouchableOpacity style={styles.iconBtn} onPress={() => setRiderCardVisible(true)}>
+                            <MaterialIcons name="person" size={24} color="#FFD700" />
                         </TouchableOpacity>
+                                {/* Rider ID Card Modal */}
+                                <RiderIDCard visible={riderCardVisible} onClose={() => setRiderCardVisible(false)} userId={user?.id} />
                     </View>
 
                     {/* Garage & Machine */}

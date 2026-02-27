@@ -28,13 +28,50 @@ const StatsScreen = ({ navigation }) => {
         datasets: [{
             data: [20, 45, 28, 80, 50, 60, 40],
             color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
+    import firestore from '@react-native-firebase/firestore';
             strokeWidth: 3
         }]
     };
 
     const heatmapData = {
+        const [loading, setLoading] = useState(true);
+        const [rides, setRides] = useState([]);
+        const [userId, setUserId] = useState(null); // Set this from auth context or props
         labels: ["Start", "15m", "30m", "45m", "End"],
+        useEffect(() => {
+            // TODO: Replace with actual userId from auth context
+            const uid = userId || 'CURRENT_USER_ID';
+            const unsub = firestore()
+                .collection('rides')
+                .where('userId', '==', uid)
+                .where('status', '==', 'completed')
+                .onSnapshot(snapshot => {
+                    setRides(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                    setLoading(false);
+                });
+            return () => unsub();
+        }, [userId]);
         datasets: [{
+        // Aggregation logic
+        const stats = useMemo(() => {
+            let totalDistance = 0, totalRides = 0, totalDuration = 0, maxSpeed = 0, longestRide = 0;
+            rides.forEach(ride => {
+                totalDistance += ride.distance || 0;
+                totalDuration += ride.duration || 0;
+                maxSpeed = Math.max(maxSpeed, ride.maxSpeed || 0);
+                longestRide = Math.max(longestRide, ride.distance || 0);
+            });
+            totalRides = rides.length;
+            const avgSpeed = totalDuration ? totalDistance / (totalDuration / 60) : 0; // km/h
+            return {
+                totalDistance,
+                totalRides,
+                avgSpeed,
+                maxSpeed,
+                longestRide,
+                totalDuration
+            };
+        }, [rides]);
             data: [40, 60, 55, 90, 80, 110, 65],
             color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
             strokeWidth: 2
@@ -42,11 +79,11 @@ const StatsScreen = ({ navigation }) => {
     };
 
     // --- RIDE DNA CHART ---
-    const RideDNAChart = () => {
+                        <Text style={styles.summaryValue}>{stats.totalDistance.toFixed(2)} <Text style={styles.summaryUnit}>km</Text></Text>
         return (
             <View style={{ alignItems: 'center', justifyContent: 'center', height: 320 }}>
                 <Svg height="300" width="300" viewBox="0 0 300 300">
-                    <G rotation="-90" origin="150, 150">
+                        <Text style={styles.summaryValue}>{stats.totalRides} <Text style={[styles.summaryUnit, { color: '#10B981' }]}>rides</Text></Text>
                         <Circle cx="150" cy="150" r="100" stroke="#333" strokeWidth="1" fill="none" />
                         <Circle cx="150" cy="150" r="75" stroke="#333" strokeWidth="1" fill="none" />
                         <Circle cx="150" cy="150" r="50" stroke="#333" strokeWidth="1" fill="none" />
@@ -98,25 +135,10 @@ const StatsScreen = ({ navigation }) => {
                 <LinearGradient colors={['#1F2937', '#111827']} style={styles.featuredCardHeader}>
                     <Text style={styles.mapPlaceholderText}>Pacific Coast Highway Run</Text>
                     <Text style={styles.mapSubText}>Malibu to Ventura</Text>
-                    <View style={styles.datePill}>
-                        <Text style={styles.dateText}>Oct 24, 2023</Text>
-                    </View>
-                </LinearGradient>
-                <View style={styles.featuredCardBody}>
-                    <View style={styles.statsRow}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>DISTANCE</Text>
-                            <Text style={styles.statValue}>85 km</Text>
-                        </View>
-                        <View style={styles.verticalDivider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>DURATION</Text>
-                            <Text style={styles.statValue}>1h 12m</Text>
-                        </View>
-                        <View style={styles.verticalDivider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>AVG SPEED</Text>
-                            <Text style={styles.statValue}>68 km/h</Text>
+                    {/* Real-time stats will be displayed here */}
+                    <Text style={styles.dnaValue}>Flow: {stats.flow || 'N/A'}</Text>
+                    <Text style={styles.dnaValue}>Intensity: {stats.intensity || 'N/A'}</Text>
+                    <Text style={styles.dnaValue}>Harmony: {stats.harmony || 'N/A'}</Text>
                         </View>
                     </View>
                     <View style={styles.actionRow}>

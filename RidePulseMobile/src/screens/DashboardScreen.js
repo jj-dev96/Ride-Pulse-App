@@ -1,5 +1,5 @@
 import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, Animated, PanResponder, StatusBar, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, Animated, PanResponder, StatusBar, Platform, Alert, ToastAndroid } from 'react-native';
 // import MapView, { Marker, UrlTile, Polyline, MAP_TYPES } from 'react-native-maps'; // Removed for OSMWebView
 import OSMMapView from '../components/OSMMapView';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -10,7 +10,9 @@ import LottieView from 'lottie-react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { geocodeAddress, getRoute, getDistance, MAP_TILE_URL, cacheLocation, getCachedLocation, searchPlaces, reverseGeocode } from '../services/MapService';
 import { FlatList } from 'react-native';
-
+import QuickMessageSheet from '../components/QuickMessageSheet';
+import MemberControlSheet from '../components/MemberControlSheet';
+import { GroupService } from '../services/GroupService';
 const { width, height } = Dimensions.get('window');
 const GEOFENCE_RADIUS = 500; // meters
 
@@ -54,6 +56,44 @@ const DashboardScreen = ({ navigation }) => {
     // Route State
     const [destination, setDestination] = useState(null);
     const [routeCoords, setRouteCoords] = useState([]);
+
+    // Live Group State
+    const [activeGroup, setActiveGroup] = useState(null);
+    const unsubscribeGroup = useRef(null);
+
+    // Modals
+    const [showQuickMessages, setShowQuickMessages] = useState(false);
+    const [showMemberControl, setShowMemberControl] = useState(false);
+
+    // Sync active group
+    useEffect(() => {
+        if (!user) return;
+        (async () => {
+            const group = await GroupService.getUserActiveGroup(user.id);
+            if (group) {
+                unsubscribeGroup.current = GroupService.subscribeToGroup(group.id, (data) => {
+                    setActiveGroup(data);
+                });
+            }
+        })();
+        return () => {
+            if (unsubscribeGroup.current) unsubscribeGroup.current();
+        }
+    }, [user]);
+
+    const handleSendQuickMessage = (msg) => {
+        if (activeGroup) {
+            GroupService.sendMessage(activeGroup.id, {
+                id: Date.now().toString(),
+                sender: user.name || 'Rider',
+                text: msg,
+                timestamp: new Date().toISOString()
+            });
+            ToastAndroid.show("Message sent to group", ToastAndroid.SHORT);
+        } else {
+            ToastAndroid.show("You must be in a ride group to send messages.", ToastAndroid.SHORT);
+        }
+    };
 
     // Connectivity Monitoring
     useEffect(() => {
@@ -172,9 +212,32 @@ const DashboardScreen = ({ navigation }) => {
 
     // SOS Functions
     const triggerSOS = () => {
-        setSosActive(true);
-        setSosTriggered(false);
-        setSosCountdown(10);
+        Alert.alert(
+            'Confirm SOS',
+            'Are you sure you want to trigger an SOS? All group members will be notified.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Trigger SOS',
+                    style: 'destructive',
+                    onPress: () => {
+                        setSosActive(true);
+                        setSosTriggered(false);
+                        setSosCountdown(10);
+                        if (activeGroup) {
+                            GroupService.sendMessage(activeGroup.id, {
+                                id: Date.now().toString(),
+                                sender: user.name || 'Rider',
+                                text: `Emergency Alert from ${user.name || 'Rider'}`,
+                                type: 'sos',
+                                timestamp: new Date().toISOString()
+                            });
+                            ToastAndroid.show('SOS sent to group!', ToastAndroid.LONG);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const cancelSOS = () => {
@@ -211,30 +274,22 @@ const DashboardScreen = ({ navigation }) => {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Slide to Start Animation
-    // Track width will be calculated on layout
+    // Slide to Start Animation (optimized for instant feedback)
     const [trackWidth, setTrackWidth] = useState(0);
     const slideAnim = useRef(new Animated.Value(0)).current;
-
     const panResponder = useMemo(() => PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onPanResponderMove: (evt, gestureState) => {
-            const maxSlide = trackWidth - 55; // Handle width (50) + padding (5)
+            const maxSlide = trackWidth - 55;
             if (!isRideActive && gestureState.dx >= 0 && gestureState.dx <= maxSlide) {
                 slideAnim.setValue(gestureState.dx);
             }
         },
         onPanResponderRelease: (evt, gestureState) => {
             const maxSlide = trackWidth - 55;
-            if (gestureState.dx > maxSlide * 0.5) { // Threshold 50%
-                // Successful slide
-                Animated.spring(slideAnim, {
-                    toValue: maxSlide,
-                    useNativeDriver: true,
-                }).start(() => {
-                    setIsRideActive(true);
-                    slideAnim.setValue(0);
-                });
+            if (gestureState.dx > maxSlide * 0.5) {
+                setIsRideActive(true);
+                slideAnim.setValue(0); // instant reset for no lag
             } else {
                 Animated.spring(slideAnim, {
                     toValue: 0,
@@ -243,6 +298,21 @@ const DashboardScreen = ({ navigation }) => {
             }
         },
     }), [trackWidth, isRideActive]);
+    // Real-time member add/remove notifications
+    useEffect(() => {
+        if (!activeGroup || !activeGroup.id) return;
+        const unsub = GroupService.subscribeToMembers && GroupService.subscribeToMembers(activeGroup.id, (changes) => {
+            changes.forEach(change => {
+                if (change.type === 'added') {
+                    ToastAndroid.show(`${change.doc.data().name} joined the ride`, ToastAndroid.SHORT);
+                }
+                if (change.type === 'removed') {
+                    ToastAndroid.show(`${change.doc.data().name} left the ride`, ToastAndroid.SHORT);
+                }
+            });
+        });
+        return () => unsub && unsub();
+    }, [activeGroup?.id]);
 
     const stopRide = () => {
         setIsRideActive(false);
@@ -426,14 +496,16 @@ const DashboardScreen = ({ navigation }) => {
                     </View>
 
                     {/* Live Group Card */}
-                    <View style={styles.liveGroupCard}>
-                        <View style={styles.liveIndicator}>
-                            <View style={styles.liveDot} />
-                            <Text style={styles.liveText}>LIVE GROUP</Text>
+                    {activeGroup && (
+                        <View style={styles.liveGroupCard}>
+                            <View style={styles.liveIndicator}>
+                                <View style={styles.liveDot} />
+                                <Text style={styles.liveText}>LIVE GROUP</Text>
+                            </View>
+                            <Text style={styles.groupName}>{activeGroup.id} - {activeGroup.hostName}'s Ride</Text>
+                            <Text style={styles.groupStats}>{activeGroup.members?.length || 1} Riders • {Math.floor(rideDuration / 60)} min active</Text>
                         </View>
-                        <Text style={styles.groupName}>Sunday Canyon Run</Text>
-                        <Text style={styles.groupStats}>4 Riders • 12mi left</Text>
-                    </View>
+                    )}
 
                     {/* Radar Overlay Lottie */}
                     <View style={styles.radarContainer}>
@@ -514,14 +586,10 @@ const DashboardScreen = ({ navigation }) => {
                         >
                             <MaterialIcons name="report-problem" size={28} color="white" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.fab}>
-                            <MaterialIcons name="my-location" size={24} color="#FFD700" onPress={() => {
-                                // Logic to re-center would go here, maybe a forceUpdate prop or ref method on OSMMapView
-                                // For now, the user location update handles it if they move. 
-                                // To implement "recur", we'd simply ensure the next prop update centers it.
-                            }} />
+                        <TouchableOpacity style={styles.fab} onPress={() => { }}>
+                            <MaterialIcons name="my-location" size={24} color="#FFD700" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.fab}>
+                        <TouchableOpacity style={styles.fab} onPress={() => setShowQuickMessages(true)}>
                             <MaterialIcons name="chat-bubble" size={24} color="#FFD700" />
                         </TouchableOpacity>
                     </>
@@ -531,12 +599,15 @@ const DashboardScreen = ({ navigation }) => {
             {/* Bottom Overlay: Slide to Start (Visible only when NOT riding) */}
             {!isRideActive && (
                 <View style={styles.bottomOverlay}>
-                    {/* Profile Button */}
-                    <TouchableOpacity style={styles.profileButton}>
+                    {/* Profile Button / Member Control (Replaced) */}
+                    <TouchableOpacity style={styles.profileButton} onPress={() => {
+                        if (activeGroup) setShowMemberControl(true);
+                        else Alert.alert("No active ride", "Create or join a group first.");
+                    }}>
                         <View style={styles.profileIconCircle}>
-                            <FontAwesome5 name="user-ninja" size={30} color="black" />
+                            <MaterialIcons name="groups" size={30} color="black" />
                         </View>
-                        <View style={styles.profileBadge} />
+                        {activeGroup && <View style={styles.profileBadge} />}
                     </TouchableOpacity>
 
                     {/* Slider */}
@@ -617,6 +688,20 @@ const DashboardScreen = ({ navigation }) => {
                     )}
                 </View>
             )}
+            {/* Quick Messages Sheet */}
+            <QuickMessageSheet
+                visible={showQuickMessages}
+                onClose={() => setShowQuickMessages(false)}
+                onSelect={handleSendQuickMessage}
+            />
+
+            {/* Member Control Sheet */}
+            <MemberControlSheet
+                visible={showMemberControl}
+                onClose={() => setShowMemberControl(false)}
+                group={activeGroup}
+                user={user}
+            />
         </View>
     );
 };
@@ -872,12 +957,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 4,
         borderWidth: 1,
         borderColor: '#374151',
-        // Glow effect
         shadowColor: '#FFD700',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 5,
+        elevation: 0,
     },
     sliderHandle: {
         width: 52,

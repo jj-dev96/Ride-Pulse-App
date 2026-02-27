@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPhoneNumber, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 
 export const AuthContext = createContext();
@@ -33,25 +33,51 @@ export const AuthProvider = ({ children }) => {
 
             if (isCancelled) return;
             if (firebaseUser) {
-                const userData = {
-                    id: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-                    type: 'rider'
-                };
+                // Fetch from firestore
+                import('firebase/firestore').then(({ doc, getDoc }) => {
+                    const userRef = doc(db, 'users', firebaseUser.uid);
+                    getDoc(userRef).then(docSnap => {
+                        let additionalData = {};
+                        if (docSnap.exists()) {
+                            additionalData = docSnap.data();
+                        }
 
-                // 1. Update State IMMEDIATELY to unblock UI
-                setUser(userData);
+                        const userData = {
+                            id: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+                            type: 'rider',
+                            profileCompleted: additionalData.profileCompleted || false,
+                            skipProfileSetup: additionalData.skipProfileSetup || false,
+                            ...additionalData
+                        };
 
-                // 2. Persist in background (don't await)
-                AsyncStorage.setItem('user', JSON.stringify(userData)).catch(e =>
-                    console.error("AuthContext: Failed to save user to storage", e)
-                );
+                        setUser(userData);
+                        AsyncStorage.setItem('user', JSON.stringify(userData)).catch(e =>
+                            console.error("AuthContext: Failed to save user to storage", e)
+                        );
+                        setLoading(false);
+                    }).catch(err => {
+                        console.error("AuthContext: Error fetching user data", err);
+                        // Fallback
+                        const userData = {
+                            id: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+                            type: 'rider',
+                            profileCompleted: false,
+                            skipProfileSetup: false
+                        };
+                        setUser(userData);
+                        setLoading(false);
+                    });
+                });
             } else {
                 setUser(null);
                 AsyncStorage.removeItem('user').catch(e =>
                     console.error("AuthContext: Failed to remove user", e)
                 );
+                setLoading(false);
             }
 
             // 3. Unlock loading screen IMMEDIATELY
@@ -128,8 +154,25 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateProfileStatus = async (data) => {
+        try {
+            if (!user) return { success: false, error: "No user logged in" };
+            const { doc, setDoc } = await import('firebase/firestore');
+            const userRef = doc(db, 'users', user.id);
+            await setDoc(userRef, data, { merge: true });
+
+            const newUserData = { ...user, ...data };
+            setUser(newUserData);
+            await AsyncStorage.setItem('user', JSON.stringify(newUserData));
+            return { success: true };
+        } catch (e) {
+            console.error("Update Profile Error:", e);
+            return { success: false, error: e.message };
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, loginWithPhone, loginWithGoogleCredential, loginAnonymously, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, register, loginWithPhone, loginWithGoogleCredential, loginAnonymously, logout, updateProfileStatus }}>
             {children}
         </AuthContext.Provider>
     );

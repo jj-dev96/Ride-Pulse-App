@@ -128,5 +128,54 @@ export const GroupService = {
                 onUpdate(null);
             }
         });
+    },
+
+    getUserActiveGroup: async (userId) => {
+        try {
+            const { collection, query, getDocs } = await import('firebase/firestore');
+            const groupsRef = collection(db, 'groups');
+            const q = query(groupsRef);
+            const snapshot = await getDocs(q);
+
+            let activeGroup = null;
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                if ((data.status === 'waiting' || data.status === 'active') && data.members.some(m => m.id === userId)) {
+                    activeGroup = data;
+                }
+            });
+            return activeGroup;
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
+    },
+
+    kickMember: async (groupId, memberId) => {
+        try {
+            const groupRef = doc(db, 'groups', groupId);
+            const groupSnap = await getDoc(groupRef);
+            if (!groupSnap.exists()) return;
+            const groupData = groupSnap.data();
+            const memberToRemove = groupData.members.find(m => m.id === memberId);
+            if (memberToRemove) {
+                await updateDoc(groupRef, {
+                    members: arrayRemove(memberToRemove)
+                });
+            }
+        } catch (error) {
+            console.error("Error kicking member:", error);
+        }
+    },
+
+    sendMessage: async (groupId, messageObj) => {
+        try {
+            const groupRef = doc(db, 'groups', groupId);
+            await updateDoc(groupRef, {
+                messages: arrayUnion(messageObj)
+            });
+        } catch (error) {
+            console.error("Error sending message:", error);
+        }
     }
 };

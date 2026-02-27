@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -15,49 +15,239 @@ import {
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 
 const { width } = Dimensions.get('window');
 
 const CATEGORIES = [
     { id: 'all', name: 'All Gear', icon: 'shopping-bag' },
+    { id: 'helmets', name: 'Helmets', icon: 'hard-hat' },
     { id: 'riding', name: 'Riding Gear', icon: 'user-shield' },
-    { id: 'travel', name: 'Travel', icon: 'route' },
+    { id: 'gloves', name: 'Riding Gloves', icon: 'hand-rock' },
+    { id: 'jackets', name: 'Jackets', icon: 'tshirt' },
+    { id: 'boots', name: 'Boots', icon: 'shoe-prints' },
+    { id: 'knee', name: 'Knee Guards', icon: 'shield-alt' },
+    { id: 'pants', name: 'Riding Pants', icon: 'user' },
     { id: 'electronics', name: 'Electronics', icon: 'cpu' },
-    { id: 'maint', name: 'Maintenance', icon: 'tools' },
+    { id: 'mounts', name: 'Mounts & Holders', icon: 'mobile-alt' },
+    { id: 'accessories', name: 'Bike Accessories', icon: 'tools' },
+    { id: 'luggage', name: 'Luggage & Bags', icon: 'suitcase' },
+    { id: 'safety', name: 'Safety Gear', icon: 'exclamation-triangle' },
+    { id: 'maintenance', name: 'Maintenance Tools', icon: 'wrench' },
+    { id: 'performance', name: 'Performance Parts', icon: 'tachometer-alt' },
+    { id: 'lights', name: 'LED Lights', icon: 'lightbulb' },
+    { id: 'hydration', name: 'Hydration Gear', icon: 'tint' },
+    { id: 'comm', name: 'Communication', icon: 'headset' },
 ];
 
-const PRODUCTS = [
-    {
-        id: '1',
-        category: 'riding',
-        name: 'Rynox Stealth Evo Jacket',
-        price: '₹12,450',
-        image: 'https://rynoxgear.com/cdn/shop/files/StealthEvoJacket4.0_PhantomEdition_BlackandWhite.jpg?v=1733306381&width=1000',
-        url: 'https://rynoxgear.com/products/stealth-evo-jacket-4-0-black-grey',
-        site: 'Rynox',
-        description: 'Level 2 protection with specialized ventilations and waterproof liner.'
-    },
-    {
-        id: '2',
-        category: 'riding',
-        name: 'Axor Apex Helmet',
-        price: '₹4,994',
-        image: 'https://axorhelmets.com/cdn/shop/files/ApexVenomousDullBlackYellow.jpg?v=1684323631',
-        url: 'https://axorhelmets.com/products/apex-venomous-dull-black-yellow-helmet',
-        site: 'Axor',
-        description: 'ISI & DOT certified aerodynamic shell with double D-ring strap.'
-    },
-    {
-        id: '3',
-        category: 'travel',
-        name: 'ViaTerra Claw Mini',
-        price: '₹3,899',
-        image: 'https://viaterra.in/cdn/shop/products/ClawMiniTailbag-Black_1.jpg?v=1658488824',
-        url: 'https://viaterra.in/products/viaterra-claw-mini-tailbag',
-        site: 'ViaTerra',
-        description: '35L universal tail bag designed for all types of motorcycles.'
-    },
-    {
+const ShopScreen = () => {
+    const [activeCategory, setActiveCategory] = useState('all');
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [isWebViewVisible, setWebViewVisible] = useState(false);
+    const [products, setProducts] = useState([]);
+    const [cart, setCart] = useState([]);
+    const [wishlist, setWishlist] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const userId = auth().currentUser?.uid;
+
+    // Fetch products from Firebase
+    useEffect(() => {
+        const unsub = firestore().collection('products').onSnapshot(snapshot => {
+            setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoading(false);
+        });
+        return () => unsub();
+    }, []);
+
+    // Fetch cart and wishlist
+    useEffect(() => {
+        if (!userId) return;
+        const cartUnsub = firestore().collection('users').doc(userId).collection('cart').onSnapshot(snapshot => {
+            setCart(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+        const wishUnsub = firestore().collection('users').doc(userId).collection('wishlist').onSnapshot(snapshot => {
+            setWishlist(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+        return () => { cartUnsub(); wishUnsub(); };
+    }, [userId]);
+
+    const filteredProducts = useMemo(() => {
+        if (activeCategory === 'all') return products;
+        return products.filter(p => p.category === activeCategory);
+    }, [products, activeCategory]);
+
+    const addToCart = (product) => {
+        if (!userId) return;
+        const cartRef = firestore().collection('users').doc(userId).collection('cart').doc(product.id);
+        cartRef.get().then(doc => {
+            if (doc.exists) {
+                cartRef.update({ quantity: (doc.data().quantity || 1) + 1 });
+            } else {
+                cartRef.set({ ...product, quantity: 1 });
+            }
+        });
+    };
+
+    const toggleWishlist = (product) => {
+        if (!userId) return;
+        const wishRef = firestore().collection('users').doc(userId).collection('wishlist').doc(product.id);
+        wishRef.get().then(doc => {
+            if (doc.exists) {
+                wishRef.delete();
+            } else {
+                wishRef.set(product);
+            }
+        });
+    };
+
+    const renderProduct = ({ item }) => (
+        <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.9}
+            onPress={() => setSelectedProduct(item)}
+        >
+            <View style={styles.imageContainer}>
+                <Image source={{ uri: item.image }} style={styles.productImage} />
+                <View style={styles.siteBadge}>
+                    <Text style={styles.siteBadgeText}>{item.site}</Text>
+                </View>
+                <TouchableOpacity style={{ position: 'absolute', top: 10, right: 10 }} onPress={() => toggleWishlist(item)}>
+                    <MaterialIcons name={wishlist.find(w => w.id === item.id) ? 'favorite' : 'favorite-border'} size={22} color="#FFD700" />
+                </TouchableOpacity>
+            </View>
+            <View style={styles.cardContent}>
+                <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.productDesc} numberOfLines={2}>{item.description}</Text>
+                <View style={styles.priceRow}>
+                    <Text style={styles.productPrice}>{item.price}</Text>
+                    <TouchableOpacity style={styles.buyButton} onPress={() => addToCart(item)}>
+                        <Text style={styles.buyButtonText}>ADD TO CART</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+
+    if (loading) return <ActivityIndicator style={{ flex: 1, marginTop: 100 }} color="#FFD700" size="large" />;
+
+    return (
+        <View style={styles.container}>
+            <LinearGradient
+                colors={['#0F111A', '#161925', '#0F111A']}
+                style={StyleSheet.absoluteFill}
+            />
+            <SafeAreaView style={styles.safeArea}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerTitle}>RIDER STORE</Text>
+                        <Text style={styles.headerSubtitle}>Premium gear for the road</Text>
+                    </View>
+                    <TouchableOpacity style={styles.cartBtn} onPress={() => {/* TODO: Open cart modal */}}>
+                        <Ionicons name="cart-outline" size={28} color="#FFD700" />
+                        {cart.length > 0 && <View style={styles.cartBadge}><Text style={{ color: 'white', fontSize: 10 }}>{cart.length}</Text></View>}
+                    </TouchableOpacity>
+                </View>
+                {/* Categories */}
+                <View style={styles.categoriesContainer}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.categoriesList}
+                    >
+                        {CATEGORIES.map((cat) => (
+                            <TouchableOpacity
+                                key={cat.id}
+                                style={[
+                                    styles.categoryBtn,
+                                    activeCategory === cat.id && styles.categoryBtnActive
+                                ]}
+                                onPress={() => setActiveCategory(cat.id)}
+                            >
+                                <FontAwesome5
+                                    name={cat.icon}
+                                    size={16}
+                                    color={activeCategory === cat.id ? '#000' : '#FFD700'}
+                                />
+                                <Text style={[
+                                    styles.categoryText,
+                                    activeCategory === cat.id && styles.categoryTextActive
+                                ]}>
+                                    {cat.name}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+                {/* Product List */}
+                {filteredProducts.length === 0 ? (
+                    <View style={{ alignItems: 'center', marginTop: 40 }}>
+                        <Text style={{ color: '#FFD700', fontSize: 16 }}>No products available in this category.</Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={filteredProducts}
+                        renderItem={renderProduct}
+                        keyExtractor={item => item.id}
+                        numColumns={2}
+                        contentContainerStyle={styles.productList}
+                        showsVerticalScrollIndicator={false}
+                        columnWrapperStyle={styles.row}
+                    />
+                )}
+            </SafeAreaView>
+            {/* Bottom Navigation */}
+            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#161925', flexDirection: 'row', justifyContent: 'space-around', padding: 12, borderTopWidth: 1, borderColor: '#222' }}>
+                <TouchableOpacity onPress={() => {/* TODO: Open cart modal */}} style={{ alignItems: 'center' }}>
+                    <Ionicons name="cart" size={24} color="#FFD700" />
+                    <Text style={{ color: '#FFD700', fontSize: 12 }}>Cart</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => {/* TODO: Open wishlist modal */}} style={{ alignItems: 'center' }}>
+                    <MaterialIcons name="favorite" size={24} color="#FFD700" />
+                    <Text style={{ color: '#FFD700', fontSize: 12 }}>Wishlist</Text>
+                </TouchableOpacity>
+            </View>
+            {/* Webview Modal */}
+            <Modal
+                visible={!!selectedProduct}
+                animationType="slide"
+                onRequestClose={() => setSelectedProduct(null)}
+            >
+                <SafeAreaView style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity
+                            onPress={() => setSelectedProduct(null)}
+                            style={styles.closeBtn}
+                        >
+                            <Ionicons name="close" size={28} color="white" />
+                        </TouchableOpacity>
+                        <View style={styles.modalTitleContainer}>
+                            <Text style={styles.modalTitle} numberOfLines={1}>
+                                {selectedProduct?.name}
+                            </Text>
+                            <Text style={styles.modalSub}>{selectedProduct?.site}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.shareBtn}>
+                            <Ionicons name="share-outline" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                    {selectedProduct && (
+                        <WebView
+                            source={{ uri: selectedProduct.url }}
+                            style={styles.webview}
+                            startInLoadingState={true}
+                            renderLoading={() => (
+                                <View style={styles.loader}>
+                                    <ActivityIndicator size="large" color="#FFD700" />
+                                </View>
+                            )}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
+        </View>
+    );
         id: '4',
         category: 'electronics',
         name: 'Bobo BM4 Mobile Holder',

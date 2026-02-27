@@ -1,13 +1,12 @@
-import React, { useState, useRef, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Modal, Alert, ActivityIndicator, Share, KeyboardAvoidingView, Platform, LayoutAnimation, UIManager } from 'react-native';
+
+import React, { useState, useRef, useContext, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Modal, Alert, ActivityIndicator, Share, KeyboardAvoidingView, Platform, LayoutAnimation, UIManager, ToastAndroid, FlatList } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import LottieView from 'lottie-react-native';
-import QRCode from 'react-native-qrcode-svg';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import firestore from '@react-native-firebase/firestore';
 import { AuthContext } from '../context/AuthContext';
-import { GroupService } from '../services/GroupService';
+import ProfileAvatar from '../../components/ProfileAvatar';
+// ...existing code...
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
@@ -29,56 +28,105 @@ const LobbyScreen = ({ navigation }) => {
 
     // Remote State (Logic)
     const [loading, setLoading] = useState(false);
-    const [currentGroup, setCurrentGroup] = useState(null);
+    const [ride, setRide] = useState(null);
+    const [members, setMembers] = useState([]);
     const [scanning, setScanning] = useState(false);
-    const [permission, requestPermission] = useCameraPermissions();
-
+    const [permission, requestPermission] = useCameraPermissions && useCameraPermissions();
     const inputRefs = useRef([]);
 
-    // Listen to group updates
+    // Real-time ride and members fetch
     useEffect(() => {
-        let unsubscribe;
+        let rideUnsub, membersUnsub;
         if (currentGroup && currentGroup.id) {
-            unsubscribe = GroupService.subscribeToGroup(currentGroup.id, (data) => {
-                if (data) {
-                    setCurrentGroup(data);
-                } else {
-                    // Group deleted or lost
-                    if (currentGroup) {
-                        Alert.alert("Group Closed", "This lobby has been closed.");
-                        setCurrentGroup(null);
-                    }
-                }
-            });
+            rideUnsub = firestore()
+                .collection('rides')
+                .doc(currentGroup.id)
+                .onSnapshot(doc => {
+                    setRide(doc.data());
+                });
+            membersUnsub = firestore()
+                .collection('rides')
+                .doc(currentGroup.id)
+                .collection('members')
+                .onSnapshot(snapshot => {
+                    const memberList = [];
+                    snapshot.docChanges().forEach(change => {
+                        const data = { id: change.doc.id, ...change.doc.data() };
+                        if (change.type === 'added') {
+                            ToastAndroid.show(`${data.name} joined the ride`, ToastAndroid.SHORT);
+                        }
+                        if (change.type === 'removed') {
+                            ToastAndroid.show(`${data.name} left the ride`, ToastAndroid.SHORT);
+                        }
+                        if (change.type !== 'removed') memberList.push(data);
+                    });
+                    setMembers(memberList);
+                    setLoading(false);
+                });
         }
-        return () => unsubscribe && unsubscribe();
+        return () => {
+            if (rideUnsub) rideUnsub();
+            if (membersUnsub) membersUnsub();
+        };
     }, [currentGroup?.id]);
 
-    const handleSwitchTab = (tab) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setActiveTab(tab);
-    };
+    // Memoized sorted members
+    const sortedMembers = useMemo(() => {
+        if (!ride) return members;
+        return [
+            ...members.filter(m => m.id === ride.hostId),
+            ...members.filter(m => m.id !== ride.hostId && m.isOnline),
+            ...members.filter(m => m.id !== ride.hostId && !m.isOnline),
+        ];
+    }, [members, ride]);
+    // UI rendering
+    if (loading) return <ActivityIndicator />;
+    if (ride?.status === 'cancelled')
+        return <Text>This ride has been cancelled.</Text>;
+    if (ride?.status === 'completed')
+        return <Text>Ride completed. Read-only mode.</Text>;
 
-    const handleCodeChange = (text, index) => {
-        const newCode = [...joinCode];
-        newCode[index] = text.toUpperCase();
-        setJoinCode(newCode);
-
-        // Auto-advance
-        if (text && index < 5) {
-            inputRefs.current[index + 1].focus();
-        }
-
-        // Auto-submit if full (optional, can be dangerous if user types wrong)
-        if (index === 5 && text) {
-            // optional auto-submit logic
-        }
-    };
-
-    const handleKeyPress = ({ nativeEvent }, index) => {
-        if (nativeEvent.key === 'Backspace') {
-            // If current is empty, move back
-            if (joinCode[index] === '' && index > 0) {
+    return (
+        <View style={{ flex: 1, backgroundColor: '#161925', padding: 16 }}>
+            {/* Circular Logo (from Login) */}
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <Image source={require('../../assets/ride-pulse-logo-shield.png')} style={{ width: 80, height: 80, borderRadius: 40 }} />
+            </View>
+            {/* Ride Details */}
+            {ride && (
+                <View style={{ marginBottom: 16 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 20 }}>{ride.rideName}</Text>
+                    <Text>Host: {ride.hostName}</Text>
+                    <Text>Start: {ride.startLocation}</Text>
+                    <Text>Destination: {ride.destination}</Text>
+                    <Text>Type: {ride.rideType}</Text>
+                    <Text>Status: {ride.status}</Text>
+                    <Text>Created: {ride.createdAt ? new Date(ride.createdAt).toLocaleString() : ''}</Text>
+                    {ride.scheduledTime && <Text>Scheduled: {new Date(ride.scheduledTime).toLocaleString()}</Text>}
+                </View>
+            )}
+            {/* Members List */}
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>Members</Text>
+            {sortedMembers.length === 0 ? (
+                <Text>Waiting for members to join...</Text>
+            ) : (
+                <FlatList
+                    data={sortedMembers}
+                    keyExtractor={item => item.id}
+                    renderItem={({ item }) => (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <ProfileAvatar uri={item.profileImage} name={item.name} size={40} />
+                            <View style={{ marginLeft: 12 }}>
+                                <Text style={{ fontWeight: item.role === 'host' ? 'bold' : 'normal' }}>{item.name} {item.role === 'host' ? '(Host)' : ''}</Text>
+                                <Text style={{ color: item.isOnline ? 'green' : 'gray' }}>{item.isOnline ? 'Online' : 'Offline'}</Text>
+                                {item.vehicle && <Text style={{ fontSize: 12, color: '#aaa' }}>{item.vehicle}</Text>}
+                            </View>
+                        </View>
+                    )}
+                />
+            )}
+        </View>
+    );
                 const newCode = [...joinCode];
                 newCode[index - 1] = '';
                 setJoinCode(newCode);

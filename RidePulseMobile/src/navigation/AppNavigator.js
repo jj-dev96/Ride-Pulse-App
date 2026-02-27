@@ -11,6 +11,7 @@ import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import StatsScreen from '../screens/StatsScreen';
 import LobbyScreen from '../screens/LobbyScreen';
+import ProfileSetupScreen from '../screens/ProfileSetupScreen';
 
 import ShopScreen from '../screens/ShopScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -119,12 +120,16 @@ export default function AppNavigator() {
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {user ? (
-                    <>
-                        <Stack.Screen name="Main" component={MainTabs} />
-                        <Stack.Screen name="ZoneMode" component={ZoneModeScreen} />
-                        <Stack.Screen name="SmartGarage" component={SmartGarageScreen} />
-                        <Stack.Screen name="RideProgress" component={RideProgressScreen} />
-                    </>
+                    (!user.profileCompleted && !user.skipProfileSetup) ? (
+                        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+                    ) : (
+                        <>
+                            <Stack.Screen name="Main" component={MainTabs} />
+                            <Stack.Screen name="ZoneMode" component={ZoneModeScreen} />
+                            <Stack.Screen name="SmartGarage" component={SmartGarageScreen} />
+                            <Stack.Screen name="RideProgress" component={RideProgressScreen} />
+                        </>
+                    )
                 ) : (
                     <Stack.Screen name="Login" component={LoginScreen} />
                 )}
