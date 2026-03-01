@@ -11,8 +11,12 @@ import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import StatsScreen from '../screens/StatsScreen';
 import LobbyScreen from '../screens/LobbyScreen';
+import ProfileSetupScreen from '../screens/ProfileSetupScreen';
 
 import ShopScreen from '../screens/ShopScreen';
+import CartScreen from '../screens/CartScreen';
+import ProductDetailsScreen from '../screens/ProductDetailsScreen';
+import WishlistScreen from '../screens/WishlistScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SmartGarageScreen from '../screens/SmartGarageScreen';
 import RideProgressScreen from '../screens/RideProgressScreen';
@@ -120,10 +124,14 @@ export default function AppNavigator() {
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {user ? (
                     <>
+                        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
                         <Stack.Screen name="Main" component={MainTabs} />
                         <Stack.Screen name="ZoneMode" component={ZoneModeScreen} />
                         <Stack.Screen name="SmartGarage" component={SmartGarageScreen} />
                         <Stack.Screen name="RideProgress" component={RideProgressScreen} />
+                        <Stack.Screen name="Cart" component={CartScreen} />
+                        <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
+                        <Stack.Screen name="Wishlist" component={WishlistScreen} />
                     </>
                 ) : (
                     <Stack.Screen name="Login" component={LoginScreen} />

@@ -21,16 +21,18 @@ const generateGroupId = () => {
 };
 
 export const GroupService = {
-    // Create a new group
-    createGroup: async (user) => {
+    // Create a new ride group
+    createGroup: async (user, rideDetails = {}) => {
+        // Validate profile completion
+        if (!user?.profile?.profileCompleted) {
+            throw new Error("Please complete your profile details before hosting a ride.");
+        }
         try {
             let groupId = generateGroupId();
             let isUnique = false;
 
-            // Ensure uniqueness (simple check)
-            // In production, might want a more robust way or just handle collision
             while (!isUnique) {
-                const docRef = doc(db, 'groups', groupId);
+                const docRef = doc(db, 'rides', groupId);
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) {
                     isUnique = true;
@@ -39,94 +41,117 @@ export const GroupService = {
                 }
             }
 
-            const groupData = {
+            const rideData = {
                 id: groupId,
                 hostId: user.id,
                 hostName: user.name,
-                members: [{
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    joinedAt: new Date().toISOString()
-                }],
+                rideName: rideDetails.name || `${user.name}'s Ride`,
+                startLocation: rideDetails.startLocation || 'My Location',
+                destination: rideDetails.destination || 'TBD',
+                rideType: rideDetails.rideType || 'Outbound',
                 createdAt: serverTimestamp(),
-                status: 'waiting' // waiting, active, finished
+                status: 'waiting' // waiting, active, completed, cancelled
             };
 
-            await setDoc(doc(db, 'groups', groupId), groupData);
-            return groupId;
-        } catch (error) {
-            console.error("Error creating group:", error);
-            throw error;
-        }
-    },
+            await setDoc(doc(db, 'rides', groupId), rideData);
 
-    // Join an existing group
-    joinGroup: async (groupId, user) => {
-        try {
-            const groupRef = doc(db, 'groups', groupId);
-            const groupSnap = await getDoc(groupRef);
-
-            if (!groupSnap.exists()) {
-                throw new Error("Group not found");
-            }
-
-            const groupData = groupSnap.data();
-
-            // Check if already a member
-            if (groupData.members.some(m => m.id === user.id)) {
-                return groupData; // Already joined
-            }
-
-            const newMember = {
+            // Add host as first member in subcollection
+            const memberRef = doc(db, 'rides', groupId, 'members', user.id);
+            await setDoc(memberRef, {
                 id: user.id,
                 name: user.name,
-                email: user.email,
-                joinedAt: new Date().toISOString()
-            };
-
-            await updateDoc(groupRef, {
-                members: arrayUnion(newMember)
+                profileImage: user.profileImage || null,
+                vehicle: user.vehicle || null,
+                isOnline: true,
+                role: 'host',
+                joinedAt: serverTimestamp()
             });
 
-            return { ...groupData, members: [...groupData.members, newMember] };
+            return groupId;
         } catch (error) {
-            console.error("Error joining group:", error);
+            console.error("Error creating ride:", error);
             throw error;
         }
     },
 
-    // Leave group
+    // Join an existing ride
+    joinGroup: async (groupId, user) => {
+        // Validate profile completion
+        if (!user?.profile?.profileCompleted) {
+            throw new Error("Please complete your profile details before joining a ride.");
+        }
+        try {
+            const rideRef = doc(db, 'rides', groupId);
+            const rideSnap = await getDoc(rideRef);
+
+            if (!rideSnap.exists()) {
+                throw new Error("Ride not found");
+            }
+
+            const memberRef = doc(db, 'rides', groupId, 'members', user.id);
+            const memberSnap = await getDoc(memberRef);
+
+            if (!memberSnap.exists()) {
+                await setDoc(memberRef, {
+                    id: user.id,
+                    name: user.name,
+                    profileImage: user.profileImage || null,
+                    vehicle: user.vehicle || null,
+                    isOnline: true,
+                    role: 'member',
+                    joinedAt: serverTimestamp()
+                });
+            } else {
+                await updateDoc(memberRef, { isOnline: true });
+            }
+
+            return rideSnap.data();
+        } catch (error) {
+            console.error("Error joining ride:", error);
+            throw error;
+        }
+    },
+
+    // Leave ride
     leaveGroup: async (groupId, userId) => {
         try {
-            const groupRef = doc(db, 'groups', groupId);
-            const groupSnap = await getDoc(groupRef);
-
-            if (!groupSnap.exists()) return;
-
-            const groupData = groupSnap.data();
-            const memberToRemove = groupData.members.find(m => m.id === userId);
-
-            if (memberToRemove) {
-                await updateDoc(groupRef, {
-                    members: arrayRemove(memberToRemove)
-                });
-            }
+            const memberRef = doc(db, 'rides', groupId, 'members', userId);
+            await updateDoc(memberRef, { isOnline: false });
+            // In a real app, you might delete the doc or just set offline
+            // For now let's delete to keep list clean
+            // await deleteDoc(memberRef); 
         } catch (error) {
-            console.error("Error leaving group:", error);
-            throw error;
+            console.error("Error leaving ride:", error);
         }
     },
 
-    // Real-time subscription
+    // Real-time subscription to Ride AND Members
     subscribeToGroup: (groupId, onUpdate) => {
-        const groupRef = doc(db, 'groups', groupId);
-        return onSnapshot(groupRef, (doc) => {
+        const rideRef = doc(db, 'rides', groupId);
+        return onSnapshot(rideRef, (doc) => {
             if (doc.exists()) {
                 onUpdate(doc.data());
             } else {
                 onUpdate(null);
             }
         });
+    },
+
+    subscribeToMembers: (groupId, onUpdate) => {
+        const membersRef = collection(db, 'rides', groupId, 'members');
+        return onSnapshot(membersRef, (snapshot) => {
+            const members = snapshot.docs.map(doc => doc.data());
+            onUpdate(members);
+        });
+    },
+
+    // Update ride status
+    updateRideStatus: async (groupId, status) => {
+        try {
+            const rideRef = doc(db, 'rides', groupId);
+            await updateDoc(rideRef, { status });
+        } catch (error) {
+            console.error("Error updating status:", error);
+        }
     }
 };

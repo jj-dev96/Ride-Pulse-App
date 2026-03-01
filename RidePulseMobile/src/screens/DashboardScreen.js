@@ -1,5 +1,5 @@
 import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, Animated, PanResponder, StatusBar, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, Animated, PanResponder, StatusBar, Platform, Alert, Image } from 'react-native';
 // import MapView, { Marker, UrlTile, Polyline, MAP_TYPES } from 'react-native-maps'; // Removed for OSMWebView
 import OSMMapView from '../components/OSMMapView';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -10,6 +10,8 @@ import LottieView from 'lottie-react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { geocodeAddress, getRoute, getDistance, MAP_TILE_URL, cacheLocation, getCachedLocation, searchPlaces, reverseGeocode } from '../services/MapService';
 import { FlatList } from 'react-native';
+import { RideService } from '../services/RideService';
+import { GroupService } from '../services/GroupService';
 
 const { width, height } = Dimensions.get('window');
 const GEOFENCE_RADIUS = 500; // meters
@@ -25,8 +27,27 @@ const DashboardScreen = ({ navigation }) => {
     const [isConnected, setIsConnected] = useState(true);
     const [currentLocationName, setCurrentLocationName] = useState("Current Location");
 
-    // Navigation & Autocomplete
+    // Modals
     const [suggestions, setSuggestions] = useState([]);
+
+    const getInitials = (name) => {
+        if (!name) return 'RP';
+        const parts = name.split(' ');
+        if (parts.length > 1) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    };
+
+    const getAvatarColor = (name) => {
+        const colors = ['#FFD700', '#FF8C00', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+        if (!name) return colors[0];
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    };
     const [routeSteps, setRouteSteps] = useState([]);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
@@ -40,6 +61,8 @@ const DashboardScreen = ({ navigation }) => {
     const [sosCountdown, setSosCountdown] = useState(10);
     const [sosTriggered, setSosTriggered] = useState(false); // New state for post-countdown
     const sosTimerRef = useRef(null);
+    const [groupData, setGroupData] = useState(null);
+    const [joinedMembers, setJoinedMembers] = useState([]);
 
     // Location State
     const [location, setLocation] = useState(null);
@@ -63,6 +86,28 @@ const DashboardScreen = ({ navigation }) => {
         });
         return () => unsubscribe();
     }, []);
+
+    // Handle Return Trip Params
+    useEffect(() => {
+        const params = navigation.getState().routes.find(r => r.name === 'Map')?.params;
+        if (params?.returnTrip && params?.startCoords && params?.destCoords) {
+            setDestination(params.destCoords);
+            setManualStartLocation(params.startCoords);
+            setUseCurrentLocation(false);
+            setSearchQuery(params.destName || "");
+            setStartLocationQuery(params.startName || "");
+
+            // Auto calculate route
+            (async () => {
+                const route = await getRoute(params.startCoords, params.destCoords);
+                if (route && route.coordinates) {
+                    setRouteCoords(route.coordinates);
+                    setRouteSteps(route.steps || []);
+                    setRideDistance(route.distance / 1000);
+                }
+            })();
+        }
+    }, [navigation.getState()]);
 
     // Initial Location Setup
     useEffect(() => {
@@ -136,31 +181,70 @@ const DashboardScreen = ({ navigation }) => {
                 setLocation(newLocation.coords);
                 setHeading(newHeading);
 
-                // Speed is in m/s, convert to km/h or user pref. using km/h here.
-                // speed can be null/negative on emulator
                 const currentSpeedKmh = speed && speed > 0 ? (speed * 3.6).toFixed(0) : 0;
                 setRideSpeed(currentSpeedKmh);
 
-                // Check Geofence (Silent Arrival - removed Alert/Stop as requested)
-                if (destination) {
-                    const distToDest = getDistance(newLocation.coords, destination);
-                    // We can still use distToDest for UI "Distance Remaining"
-
-                    // Simple Navigation Logic: Advance step if close to current step location
-                    if (routeSteps.length > 0 && currentStepIndex < routeSteps.length) {
-                        // This uses OSRM steps. Logic is simplified for demo.
-                        // In real nav, we'd snap to route and check progress along geometry.
-                    }
+                // Update location in Firebase if in a group
+                if (groupData?.id) {
+                    GroupService.updateMemberLocation(groupData.id, user.id, {
+                        latitude,
+                        longitude,
+                        speed: currentSpeedKmh,
+                        heading: newHeading
+                    });
                 }
 
-                // Cache location periodically (e.g. every update)
+                // Cache location periodically
                 cacheLocation(newLocation.coords);
-
-                // Animate Map Camera
-                // Handled implicitly by OSMMapView prop updates
-                // if (mapRef.current) { ... }
             }
         );
+    };
+
+    // Sub to group
+    useEffect(() => {
+        // Find if user is in any active group (Mock: checking if they have a groupId in profile)
+        if (user?.groupId) {
+            const unsub = GroupService.subscribeToGroup(user.groupId, (data) => {
+                setGroupData(data);
+                if (data?.members) {
+                    setJoinedMembers(data.members);
+                }
+            });
+            return unsub;
+        }
+    }, [user?.groupId]);
+
+    const handleAddMember = async () => {
+        // In real app, open a search or suggest active users
+        Alert.prompt("Add Member", "Enter member email/ID", [
+            { text: "Cancel" },
+            {
+                text: "Add",
+                onPress: async (val) => {
+                    if (groupData?.id) {
+                        try {
+                            await GroupService.addMember(groupData.id, val);
+                            broadcastMessage(`${val} has joined the ride`);
+                        } catch (e) { Alert.alert("Error", e.message); }
+                    }
+                }
+            }
+        ]);
+    };
+
+    const handleRemoveMember = async (memberId, name) => {
+        Alert.alert("Remove Member", `Are you sure you want to remove ${name}?`, [
+            { text: "No" },
+            {
+                text: "Yes",
+                onPress: async () => {
+                    if (groupData?.id) {
+                        await GroupService.leaveGroup(groupData.id, memberId);
+                        broadcastMessage(`${name} has left the ride`);
+                    }
+                }
+            }
+        ]);
     };
 
     const stopLocationTracking = () => {
@@ -172,9 +256,23 @@ const DashboardScreen = ({ navigation }) => {
 
     // SOS Functions
     const triggerSOS = () => {
-        setSosActive(true);
-        setSosTriggered(false);
-        setSosCountdown(10);
+        Alert.alert(
+            "Confirm SOS",
+            "This will notify all group members of your emergency. Continue?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "YES, SEND ALERT",
+                    style: "destructive",
+                    onPress: () => {
+                        setSosActive(true);
+                        setSosTriggered(false);
+                        setSosCountdown(10);
+                        broadcastMessage("Emergency Alert! Need help!");
+                    }
+                }
+            ]
+        );
     };
 
     const cancelSOS = () => {
@@ -225,11 +323,33 @@ const DashboardScreen = ({ navigation }) => {
             }
         },
         onPanResponderRelease: (evt, gestureState) => {
+            const isProfileComplete = !!user?.profile?.profileCompleted;
+            if (!isProfileComplete) {
+                Alert.alert(
+                    "Profile Incomplete",
+                    "Please complete your profile before starting a ride.",
+                    [
+                        { text: "Later", style: "cancel" },
+                        {
+                            text: "Complete Now",
+                            onPress: () => navigation.navigate('ProfileSetup')
+                        }
+                    ]
+                );
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    friction: 8,
+                    useNativeDriver: true,
+                }).start();
+                return;
+            }
+
             const maxSlide = trackWidth - 55;
             if (gestureState.dx > maxSlide * 0.5) { // Threshold 50%
                 // Successful slide
-                Animated.spring(slideAnim, {
+                Animated.timing(slideAnim, {
                     toValue: maxSlide,
+                    duration: 100,
                     useNativeDriver: true,
                 }).start(() => {
                     setIsRideActive(true);
@@ -238,13 +358,36 @@ const DashboardScreen = ({ navigation }) => {
             } else {
                 Animated.spring(slideAnim, {
                     toValue: 0,
+                    friction: 8,
                     useNativeDriver: true,
                 }).start();
             }
         },
     }), [trackWidth, isRideActive]);
 
-    const stopRide = () => {
+    const stopRide = async () => {
+        // Log ride data before resetting
+        if (rideDistance > 0) {
+            try {
+                const rideData = {
+                    name: searchQuery || "Recent Ride",
+                    distance: rideDistance,
+                    duration: rideDuration,
+                    averageSpeed: rideDistance > 0 ? (rideDistance / (rideDuration / 3600)) : 0,
+                    maxSpeed: rideSpeed, // This is current speed, should ideally track max during interval
+                    startLocation: manualStartLocation || location,
+                    endLocation: destination,
+                    startName: useCurrentLocation ? currentLocationName : startLocationQuery,
+                    endName: searchQuery,
+                    rideType: navigation.getState().routes.find(r => r.name === 'Map')?.params?.returnTrip ? 'Return' : 'Outbound'
+                };
+                await RideService.logRide(user.id, rideData);
+                Alert.alert("Ride Completed", `You covered ${rideDistance.toFixed(1)}km!`);
+            } catch (error) {
+                console.error("Failed to log ride:", error);
+            }
+        }
+
         setIsRideActive(false);
         setRouteCoords([]);
         setRouteSteps([]);
@@ -253,12 +396,26 @@ const DashboardScreen = ({ navigation }) => {
         setHasArrived(false);
     };
 
-    const onSearchTextChange = (text) => {
-        setSearchQuery(text);
-        if (text.length > 2) {
-            searchPlaces(text).then(setSuggestions);
-        } else {
-            setSuggestions([]);
+    const [showMsgModal, setShowMsgModal] = useState(false);
+    const shortcuts = [
+        "Stopping for fuel", "Brake check", "Take left", "Take right",
+        "Slow down", "Speed up", "Emergency stop", "Need help",
+        "Regroup", "Reached destination"
+    ];
+
+    const broadcastMessage = async (text) => {
+        if (!groupData?.id) return;
+        try {
+            await GroupService.broadcastMessage(groupData.id, {
+                senderId: user.id,
+                senderName: user.name,
+                text,
+                timestamp: new Date().toISOString()
+            });
+            setShowMsgModal(false);
+            // Local notification toast logic could go here
+        } catch (e) {
+            console.error("Broadcast error", e);
         }
     };
 
@@ -279,6 +436,16 @@ const DashboardScreen = ({ navigation }) => {
                 setRouteSteps(route.steps || []);
                 setRideDistance(route.distance / 1000);
             }
+        }
+    };
+
+    const onSearchTextChange = async (text) => {
+        setSearchQuery(text);
+        if (text.length > 2) {
+            const results = await searchPlaces(text);
+            setSuggestions(results);
+        } else {
+            setSuggestions([]);
         }
     };
 
@@ -354,7 +521,24 @@ const DashboardScreen = ({ navigation }) => {
                 routeCoords={routeCoords}
                 isRideActive={isRideActive}
                 geofenceRadius={GEOFENCE_RADIUS}
+                members={joinedMembers}
             />
+
+            {/* Top-Right Map Info (Req 9) */}
+            {groupData && (
+                <View style={styles.topRightInfo}>
+                    <View style={styles.infoBadge}>
+                        <Text style={styles.groupNameText}>{groupData.name || "Live Group"}</Text>
+                        <View style={styles.infoSubRow}>
+                            <View style={styles.memberCountBox}>
+                                <MaterialIcons name="people" size={14} color="#FFD700" />
+                                <Text style={styles.memberCountText}>{joinedMembers.length}</Text>
+                            </View>
+                            <Text style={styles.durationText}>{formatTime(rideDuration)}</Text>
+                        </View>
+                    </View>
+                </View>
+            )}
 
             {/* Offline/Low Connectivity Indicator */}
             {!isConnected && (
@@ -521,23 +705,80 @@ const DashboardScreen = ({ navigation }) => {
                                 // To implement "recur", we'd simply ensure the next prop update centers it.
                             }} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.fab}>
+                        <TouchableOpacity style={styles.fab} onPress={() => setShowMsgModal(true)}>
                             <MaterialIcons name="chat-bubble" size={24} color="#FFD700" />
                         </TouchableOpacity>
                     </>
                 )}
             </View>
 
+            {/* Message Modal */}
+            {showMsgModal && (
+                <View style={styles.msgOverlay}>
+                    <View style={styles.msgModal}>
+                        <View style={styles.msgHeader}>
+                            <Text style={styles.msgTitle}>Quick Messages</Text>
+                            <TouchableOpacity onPress={() => setShowMsgModal(false)}>
+                                <MaterialIcons name="close" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                        <FlatList
+                            data={shortcuts}
+                            numColumns={2}
+                            keyExtractor={(item) => item}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity style={styles.shortcutBtn} onPress={() => broadcastMessage(item)}>
+                                    <Text style={styles.shortcutText}>{item}</Text>
+                                </TouchableOpacity>
+                            )}
+                            contentContainerStyle={{ gap: 10 }}
+                        />
+                    </View>
+                </View>
+            )}
+
             {/* Bottom Overlay: Slide to Start (Visible only when NOT riding) */}
             {!isRideActive && (
                 <View style={styles.bottomOverlay}>
                     {/* Profile Button */}
-                    <TouchableOpacity style={styles.profileButton}>
-                        <View style={styles.profileIconCircle}>
-                            <FontAwesome5 name="user-ninja" size={30} color="black" />
+                    <TouchableOpacity
+                        style={styles.profileButton}
+                        onPress={() => navigation.navigate('Settings')}
+                    >
+                        <View style={[
+                            styles.profileIconCircle,
+                            !user?.profile?.profileImage && { backgroundColor: getAvatarColor(user?.profile?.fullName || user?.name) }
+                        ]}>
+                            {user?.profile?.profileImage ? (
+                                <Image source={{ uri: user.profile.profileImage }} style={styles.dashboardAvatar} />
+                            ) : (
+                                <Text style={styles.dashboardAvatarText}>
+                                    {getInitials(user?.profile?.fullName || user?.name)}
+                                </Text>
+                            )}
                         </View>
-                        <View style={styles.profileBadge} />
+                        {!user?.profile?.profileCompleted && <View style={styles.dashboardWarningDot} />}
                     </TouchableOpacity>
+
+                    {/* Member Control Buttons */}
+                    <View style={styles.memberControls}>
+                        <TouchableOpacity style={styles.memberBtn} onPress={handleAddMember}>
+                            <MaterialIcons name="person-add" size={24} color="#FFD700" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.memberBtn} onPress={() => {
+                            if (joinedMembers.length > 1) {
+                                // Simple logic: show list to remove
+                                Alert.alert("Remove Member", "Select a member to remove", joinedMembers.filter(m => m.id !== user.id).map(m => ({
+                                    text: m.name,
+                                    onPress: () => handleRemoveMember(m.id, m.name)
+                                })).concat([{ text: "Cancel", style: 'cancel' }]));
+                            } else {
+                                Alert.alert("No members", "No other members to remove.");
+                            }
+                        }}>
+                            <MaterialIcons name="person-remove" size={24} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Slider */}
                     <View
@@ -625,6 +866,49 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#0F111A',
+    },
+    topRightInfo: {
+        position: 'absolute',
+        top: 60,
+        right: 20,
+        zIndex: 100,
+    },
+    infoBadge: {
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        padding: 12,
+        borderRadius: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(255,215,0,0.3)',
+        alignItems: 'flex-end',
+        minWidth: 120,
+    },
+    groupNameText: {
+        color: 'white',
+        fontWeight: '900',
+        fontSize: 14,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    infoSubRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 5,
+        gap: 10,
+    },
+    memberCountBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    memberCountText: {
+        color: '#FFD700',
+        fontWeight: 'bold',
+        fontSize: 12,
+    },
+    durationText: {
+        color: '#9CA3AF',
+        fontSize: 12,
+        fontWeight: 'bold',
     },
     map: {
         ...StyleSheet.absoluteFillObject,
@@ -840,6 +1124,7 @@ const styles = StyleSheet.create({
         zIndex: 50,
     },
     profileButton: {
+        position: 'relative',
         marginRight: 15,
     },
     profileIconCircle: {
@@ -851,6 +1136,29 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderWidth: 2,
         borderColor: '#000',
+        overflow: 'hidden'
+    },
+    dashboardAvatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+    },
+    dashboardAvatarText: {
+        color: '#000',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    dashboardWarningDot: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderColor: '#0F111A',
+        zIndex: 10
     },
     profileBadge: {
         position: 'absolute',

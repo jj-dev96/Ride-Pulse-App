@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Image, ImageBackground, Alert } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import * as WebBrowser from 'expo-web-browser';
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = () => {
-    const { login, register, loginAnonymously, loginWithGoogleCredential } = useContext(AuthContext);
+    const { login, register, loginWithGoogleCredential } = useContext(AuthContext);
     const { colorScheme, toggleTheme } = useContext(ThemeContext);
     const [isLogin, setIsLogin] = useState(true);
 
@@ -22,10 +22,9 @@ const LoginScreen = () => {
 
     // Google Auth Request
     const [request, response, promptAsync] = Google.useAuthRequest({
-        // TODO: Get these from Google Cloud Console
-        androidClientId: 'YOUR_ANDROID_CLIENT_ID',
+        androidClientId: '861623260957-cprhvegl89rp4626a17am1737iluvrju.apps.googleusercontent.com',
         iosClientId: 'YOUR_IOS_CLIENT_ID',
-        webClientId: 'YOUR_WEB_CLIENT_ID',
+        webClientId: '861623260957-cprhvegl89rp4626a17am1737iluvrju.apps.googleusercontent.com',
     });
 
     useEffect(() => {
@@ -102,19 +101,18 @@ const LoginScreen = () => {
     const handleAppleLogin = async () => {
         Alert.alert(
             "SSO Demo Mode",
-            "Real Apple Sign-In requires an Apple Developer Account. Logging in as Guest for now.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Continue as Guest",
-                    onPress: async () => {
-                        setLoading(true);
-                        await loginAnonymously();
-                        setLoading(false);
-                    }
-                }
-            ]
+            "Real Apple Sign-In requires an Apple Developer Account and valid Provisioning Profile.",
+            [{ text: "OK", style: "default" }]
         );
+    };
+
+    const handleDevLogin = async () => {
+        setEmail('dev@ridepulse.com');
+        setPassword('password123');
+        // We trigger the submit logic manually
+        setTimeout(() => {
+            handleSubmit();
+        }, 100);
     };
 
     return (
@@ -252,6 +250,15 @@ const LoginScreen = () => {
                                 <Text style={styles.ssoText}>Apple</Text>
                             </TouchableOpacity>
                         </View>
+
+                        {/* Developer Bypass */}
+                        <TouchableOpacity
+                            style={styles.devBypass}
+                            onPress={handleDevLogin}
+                            onLongPress={() => Alert.alert("Dev", "Auto-filling demo credentials")}
+                        >
+                            <Text style={styles.devBypassText}>DEVELOPER LOGIN</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {/* Footer */}
@@ -318,6 +325,10 @@ const styles = StyleSheet.create({
     leader: {
         width: 250,
         height: 250,
+        borderRadius: 125,
+        borderWidth: 4,
+        borderColor: '#FFD700',
+        resizeMode: 'cover',
     },
     title: {
         fontSize: 30,
@@ -467,6 +478,18 @@ const styles = StyleSheet.create({
         textDecorationLine: 'underline',
         color: '#9CA3AF',
     },
+    devBypass: {
+        marginTop: 20,
+        padding: 5,
+        alignItems: 'center',
+        opacity: 0.5,
+    },
+    devBypassText: {
+        color: '#FFD700',
+        fontSize: 10,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+    }
 });
 
 export default LoginScreen;
