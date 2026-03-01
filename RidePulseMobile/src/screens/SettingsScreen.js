@@ -335,7 +335,7 @@ const SettingsScreen = ({ navigation }) => {
                     </View>
                 </View>
             </Modal>
-        </View >
+        </View>
     );
 };
 
