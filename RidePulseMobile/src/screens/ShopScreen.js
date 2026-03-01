@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useMemo } from 'react';
-=======
 import React, { useState, useEffect, useContext, useMemo } from 'react';
->>>>>>> feb14-version
 import {
     View,
     Text,
@@ -22,14 +18,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons, FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-<<<<<<< HEAD
-import { WebView } from 'react-native-webview';
-import { db, auth } from '../config/firebase';
-import { collection, doc, onSnapshot, getDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
-=======
 import { AuthContext } from '../context/AuthContext';
 import { ShopService } from '../services/ShopService';
->>>>>>> feb14-version
 
 const { width } = Dimensions.get('window');
 
@@ -40,26 +30,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const CATEGORIES = [
     { id: 'all', name: 'All Gear', icon: 'shopping-bag' },
-<<<<<<< HEAD
-    { id: 'helmets', name: 'Helmets', icon: 'hard-hat' },
-    { id: 'riding', name: 'Riding Gear', icon: 'user-shield' },
-    { id: 'gloves', name: 'Riding Gloves', icon: 'hand-rock' },
-    { id: 'jackets', name: 'Jackets', icon: 'tshirt' },
-    { id: 'boots', name: 'Boots', icon: 'shoe-prints' },
-    { id: 'knee', name: 'Knee Guards', icon: 'shield-alt' },
-    { id: 'pants', name: 'Riding Pants', icon: 'user' },
-    { id: 'electronics', name: 'Electronics', icon: 'cpu' },
-    { id: 'mounts', name: 'Mounts & Holders', icon: 'mobile-alt' },
-    { id: 'accessories', name: 'Bike Accessories', icon: 'tools' },
-    { id: 'luggage', name: 'Luggage & Bags', icon: 'suitcase' },
-    { id: 'safety', name: 'Safety Gear', icon: 'exclamation-triangle' },
-    { id: 'maintenance', name: 'Maintenance Tools', icon: 'wrench' },
-    { id: 'performance', name: 'Performance Parts', icon: 'tachometer-alt' },
-    { id: 'lights', name: 'LED Lights', icon: 'lightbulb' },
-    { id: 'hydration', name: 'Hydration Gear', icon: 'tint' },
-    { id: 'comm', name: 'Communication', icon: 'headset' },
-];
-=======
     { id: 'helmets', name: 'Helmets', icon: 'user-secret' },
     { id: 'gloves', name: 'Gloves', icon: 'hand-paper' },
     { id: 'jackets', name: 'Jackets', icon: 'user-shield' },
@@ -75,90 +45,9 @@ const CATEGORIES = [
 const ShopScreen = ({ navigation }) => {
     const { user } = useContext(AuthContext);
     const insets = useSafeAreaInsets();
->>>>>>> feb14-version
 
     // UI State
     const [activeCategory, setActiveCategory] = useState('all');
-<<<<<<< HEAD
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [isWebViewVisible, setWebViewVisible] = useState(false);
-    const [products, setProducts] = useState([]);
-    const [cart, setCart] = useState([]);
-    const [wishlist, setWishlist] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const userId = auth.currentUser?.uid;
-
-    // Fetch products from Firebase
-    useEffect(() => {
-        const unsub = onSnapshot(collection(db, 'products'), snapshot => {
-            setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            setLoading(false);
-        });
-        return () => unsub();
-    }, []);
-
-    // Fetch cart and wishlist
-    useEffect(() => {
-        if (!userId) return;
-        const cartUnsub = onSnapshot(collection(db, 'users', userId, 'cart'), snapshot => {
-            setCart(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
-        const wishUnsub = onSnapshot(collection(db, 'users', userId, 'wishlist'), snapshot => {
-            setWishlist(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
-        return () => { cartUnsub(); wishUnsub(); };
-    }, [userId]);
-
-    const filteredProducts = useMemo(() => {
-        if (activeCategory === 'all') return products;
-        return products.filter(p => p.category === activeCategory);
-    }, [products, activeCategory]);
-
-    const addToCart = async (product) => {
-        if (!userId) return;
-        const cartRef = doc(db, 'users', userId, 'cart', product.id);
-        const docSnap = await getDoc(cartRef);
-        if (docSnap.exists()) {
-            await updateDoc(cartRef, { quantity: (docSnap.data().quantity || 1) + 1 });
-        } else {
-            await setDoc(cartRef, { ...product, quantity: 1 });
-        }
-    };
-
-    const toggleWishlist = async (product) => {
-        if (!userId) return;
-        const wishRef = doc(db, 'users', userId, 'wishlist', product.id);
-        const docSnap = await getDoc(wishRef);
-        if (docSnap.exists()) {
-            await deleteDoc(wishRef);
-        } else {
-            await setDoc(wishRef, product);
-        }
-    };
-
-    const renderProduct = ({ item }) => (
-        <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.9}
-            onPress={() => setSelectedProduct(item)}
-        >
-            <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
-                <View style={styles.siteBadge}>
-                    <Text style={styles.siteBadgeText}>{item.site}</Text>
-                </View>
-                <TouchableOpacity style={{ position: 'absolute', top: 10, right: 10 }} onPress={() => toggleWishlist(item)}>
-                    <MaterialIcons name={wishlist.find(w => w.id === item.id) ? 'favorite' : 'favorite-border'} size={22} color="#FFD700" />
-                </TouchableOpacity>
-            </View>
-            <View style={styles.cardContent}>
-                <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.productDesc} numberOfLines={2}>{item.description}</Text>
-                <View style={styles.priceRow}>
-                    <Text style={styles.productPrice}>{item.price}</Text>
-                    <TouchableOpacity style={styles.buyButton} onPress={() => addToCart(item)}>
-                        <Text style={styles.buyButtonText}>ADD TO CART</Text>
-=======
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -314,7 +203,6 @@ const ShopScreen = ({ navigation }) => {
                 {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
                         <Ionicons name="close-circle" size={20} color="#9CA3AF" />
->>>>>>> feb14-version
                     </TouchableOpacity>
                 )}
             </View>
@@ -423,110 +311,6 @@ const ShopScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-<<<<<<< HEAD
-            <LinearGradient
-                colors={['#0F111A', '#161925', '#0F111A']}
-                style={StyleSheet.absoluteFill}
-            />
-            <SafeAreaView style={styles.safeArea}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>RIDER STORE</Text>
-                        <Text style={styles.headerSubtitle}>Premium gear for the road</Text>
-                    </View>
-                    <TouchableOpacity style={styles.cartBtn} onPress={() => { }}>
-                        <Ionicons name="cart-outline" size={28} color="#FFD700" />
-                        {cart.length > 0 && <View style={styles.cartBadge}><Text style={{ color: 'white', fontSize: 10 }}>{cart.length}</Text></View>}
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.categoriesContainer}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.categoriesList}
-                    >
-                        {CATEGORIES.map((cat) => (
-                            <TouchableOpacity
-                                key={cat.id}
-                                style={[
-                                    styles.categoryBtn,
-                                    activeCategory === cat.id && styles.categoryBtnActive
-                                ]}
-                                onPress={() => setActiveCategory(cat.id)}
-                            >
-                                <FontAwesome5
-                                    name={cat.icon}
-                                    size={16}
-                                    color={activeCategory === cat.id ? '#000' : '#FFD700'}
-                                />
-                                <Text style={[
-                                    styles.categoryText,
-                                    activeCategory === cat.id && styles.categoryTextActive
-                                ]}>
-                                    {cat.name}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-                {filteredProducts.length === 0 ? (
-                    <View style={{ alignItems: 'center', marginTop: 40 }}>
-                        <Text style={{ color: '#FFD700', fontSize: 16 }}>No products available.</Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={filteredProducts}
-                        renderItem={renderProduct}
-                        keyExtractor={item => item.id}
-                        numColumns={2}
-                        contentContainerStyle={styles.productList}
-                        showsVerticalScrollIndicator={false}
-                        columnWrapperStyle={styles.row}
-                    />
-                )}
-            </SafeAreaView>
-            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#161925', flexDirection: 'row', justifyContent: 'space-around', padding: 12, borderTopWidth: 1, borderColor: '#222' }}>
-                <TouchableOpacity onPress={() => { }} style={{ alignItems: 'center' }}>
-                    <Ionicons name="cart" size={24} color="#FFD700" />
-                    <Text style={{ color: '#FFD700', fontSize: 12 }}>Cart</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { }} style={{ alignItems: 'center' }}>
-                    <MaterialIcons name="favorite" size={24} color="#FFD700" />
-                    <Text style={{ color: '#FFD700', fontSize: 12 }}>Wishlist</Text>
-                </TouchableOpacity>
-            </View>
-            <Modal
-                visible={!!selectedProduct}
-                animationType="slide"
-                onRequestClose={() => setSelectedProduct(null)}
-            >
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <TouchableOpacity
-                            onPress={() => setSelectedProduct(null)}
-                            style={styles.closeBtn}
-                        >
-                            <Ionicons name="close" size={28} color="white" />
-                        </TouchableOpacity>
-                        <View style={styles.modalTitleContainer}>
-                            <Text style={styles.modalTitle} numberOfLines={1}>
-                                {selectedProduct?.name}
-                            </Text>
-                            <Text style={styles.modalSub}>{selectedProduct?.site}</Text>
-                        </View>
-                        <TouchableOpacity style={styles.shareBtn}>
-                            <Ionicons name="share-outline" size={24} color="white" />
-                        </TouchableOpacity>
-                    </View>
-                    {selectedProduct && (
-                        <WebView
-                            source={{ uri: selectedProduct.url }}
-                            style={styles.webview}
-                            startInLoadingState={true}
-                            renderLoading={() => (
-                                <View style={styles.loader}>
-                                    <ActivityIndicator size="large" color="#FFD700" />
-=======
             <LinearGradient colors={['#0F111A', '#161925']} style={StyleSheet.absoluteFill} />
 
             <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -586,7 +370,6 @@ const ShopScreen = ({ navigation }) => {
                             {cartCount > 0 && (
                                 <View style={styles.hubCartBadge}>
                                     <Text style={styles.hubCartBadgeText}>{cartCount}</Text>
->>>>>>> feb14-version
                                 </View>
                             )}
                         </TouchableOpacity>
