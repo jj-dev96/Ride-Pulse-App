@@ -10,6 +10,7 @@ const OSMMapView = ({
     isRideActive,
     onMapReady,
     geofenceRadius, // in meters
+    members = [], // Array of {id, latitude, longitude, name, active}
     style
 }) => {
     const webViewRef = useRef(null);
@@ -108,6 +109,36 @@ const OSMMapView = ({
                     }
                 };
                 
+                // Function to update multiple members
+                var memberMarkers = {};
+                window.setMembers = function(members) {
+                    // Remove markers for members no longer in the list or inactive
+                    var currentIds = members.filter(m => m.active).map(m => m.id);
+                    Object.keys(memberMarkers).forEach(function(id) {
+                        if (currentIds.indexOf(id) === -1) {
+                            map.removeLayer(memberMarkers[id]);
+                            delete memberMarkers[id];
+                        }
+                    });
+
+                    members.forEach(function(m) {
+                        if (!m.active || !m.latitude || !m.longitude) return;
+                        
+                        var latlng = [m.latitude, m.longitude];
+                        if (memberMarkers[m.id]) {
+                            memberMarkers[m.id].setLatLng(latlng);
+                        } else {
+                            var icon = L.divIcon({
+                                className: 'member-marker',
+                                html: '<div style="background-color: #10B981; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center;"><span style="color: white; font-size: 8px; font-weight: bold; position: absolute; top: 16px; background: rgba(0,0,0,0.5); padding: 2px 4px; border-radius: 4px; white-space: nowrap;">'+m.name+'</span></div>',
+                                iconSize: [14, 14],
+                                iconAnchor: [7, 7]
+                            });
+                            memberMarkers[m.id] = L.marker(latlng, {icon: icon}).addTo(map);
+                        }
+                    });
+                };
+                
                 // Signal ready
                 window.ReactNativeWebView.postMessage("MAP_READY");
 
@@ -151,6 +182,13 @@ const OSMMapView = ({
             }
         }
     }, [routeCoords, mapLoaded]);
+
+    useEffect(() => {
+        if (mapLoaded) {
+            const script = `window.setMembers(${JSON.stringify(members)}); true;`;
+            webViewRef.current?.injectJavaScript(script);
+        }
+    }, [members, mapLoaded]);
 
     return (
         <View style={style}>

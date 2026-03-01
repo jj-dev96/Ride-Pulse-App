@@ -1,20 +1,67 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions, StyleSheet, Image } from 'react-native';
+=======
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, StyleSheet, Image, ActivityIndicator, RefreshControl } from 'react-native';
+>>>>>>> feb14-version
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
+<<<<<<< HEAD
 import Svg, { Circle, Path, Line, G } from 'react-native-svg';
 import { db } from '../config/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+=======
+import { AuthContext } from '../context/AuthContext';
+import { RideService } from '../services/RideService';
+>>>>>>> feb14-version
 
 const { width } = Dimensions.get('window');
 
 const StatsScreen = ({ navigation }) => {
+    const { user } = useContext(AuthContext);
     const [activeTab, setActiveTab] = useState('History');
     const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
     const [rides, setRides] = useState([]);
     const [userId, setUserId] = useState(null); // Set this from auth context or props
+=======
+    const [refreshing, setRefreshing] = useState(false);
+    const [stats, setStats] = useState(null);
+    const [history, setHistory] = useState([]);
+    const [achievements, setAchievements] = useState({});
+
+    useEffect(() => {
+        fetchData();
+    }, [user?.id]);
+
+    const fetchData = async () => {
+        if (!user?.id) return;
+        setLoading(true);
+        try {
+            const [userStats, rideHistory, userAch] = await Promise.all([
+                RideService.getUserStats(user.id),
+                RideService.getRideHistory(user.id),
+                RideService.getAchievements(user.id)
+            ]);
+            setStats(userStats);
+            setHistory(rideHistory);
+            setAchievements(userAch || {});
+        } catch (error) {
+            console.error("Error fetching stats data:", error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchData();
+    };
+>>>>>>> feb14-version
 
     // --- CHART CONFIG & DATA ---
     const chartConfig = {
@@ -37,6 +84,7 @@ const StatsScreen = ({ navigation }) => {
         }]
     };
 
+<<<<<<< HEAD
     useEffect(() => {
         // TODO: Replace with actual userId from auth context
         const uid = userId || 'CURRENT_USER_ID';
@@ -82,6 +130,34 @@ const renderHistory = () => (
             <View style={styles.summaryCard}>
                 <Text style={styles.summaryLabel}>TOTAL DISTANCE</Text>
                 <Text style={styles.summaryValue}>1,248 <Text style={styles.summaryUnit}>km</Text></Text>
+=======
+    const heatmapData = {
+        labels: ["Start", "15m", "30m", "45m", "End"],
+        datasets: [{
+            data: [40, 60, 55, 90, 80, 110, 65],
+            color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
+            strokeWidth: 2
+        }]
+    };
+
+    // --- TAB: HISTORY ---
+    const renderHistory = () => (
+        <View>
+            <View style={styles.summaryContainer}>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryLabel}>TOTAL DISTANCE</Text>
+                    <Text style={styles.summaryValue}>{stats?.totalDistance?.toFixed(1) || '0'} <Text style={styles.summaryUnit}>km</Text></Text>
+                </View>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryLabel}>TOTAL RIDES</Text>
+                    <Text style={styles.summaryValue}>{stats?.totalRides || '0'} <Text style={[styles.summaryUnit, { color: '#10B981' }]}>rides</Text></Text>
+                </View>
+            </View>
+
+            <View style={styles.sectionHeader}>
+                <MaterialIcons name="history" size={20} color="#FFD700" />
+                <Text style={styles.sectionTitle}>Recent Rides</Text>
+>>>>>>> feb14-version
             </View>
             <View style={styles.summaryCard}>
                 <Text style={styles.summaryLabel}>TOTAL RIDES</Text>
@@ -89,6 +165,7 @@ const renderHistory = () => (
             </View>
         </View>
 
+<<<<<<< HEAD
         <View style={styles.sectionHeader}>
             <MaterialIcons name="history" size={20} color="#FFD700" />
             <Text style={styles.sectionTitle}>Recent Highlights</Text>
@@ -113,6 +190,63 @@ const renderHistory = () => (
                     <Text style={styles.analyticsButtonText}>View Details</Text>
                 </TouchableOpacity>
             </View>
+=======
+            {history.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>No rides recorded yet.</Text>
+                </View>
+            ) : (
+                history.map((ride, index) => (
+                    <View key={ride.id} style={styles.featuredCard}>
+                        <LinearGradient colors={['#1F2937', '#111827']} style={styles.featuredCardHeader}>
+                            <Text style={styles.mapPlaceholderText}>{ride.name || `Ride #${history.length - index}`}</Text>
+                            <Text style={styles.mapSubText}>{ride.startName || 'Unknown Start'} → {ride.endName || 'Unknown Destination'}</Text>
+                            <View style={styles.datePill}>
+                                <Text style={styles.dateText}>
+                                    {ride.timestamp?.toDate ? ride.timestamp.toDate().toLocaleDateString() : 'Recent'}
+                                </Text>
+                            </View>
+                        </LinearGradient>
+                        <View style={styles.featuredCardBody}>
+                            <View style={styles.statsRow}>
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statLabel}>DISTANCE</Text>
+                                    <Text style={styles.statValue}>{ride.distance?.toFixed(1)} km</Text>
+                                </View>
+                                <View style={styles.verticalDivider} />
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statLabel}>DURATION</Text>
+                                    <Text style={styles.statValue}>{Math.floor(ride.duration / 60)}m {ride.duration % 60}s</Text>
+                                </View>
+                                <View style={styles.verticalDivider} />
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statLabel}>AVG SPEED</Text>
+                                    <Text style={styles.statValue}>{ride.averageSpeed?.toFixed(1)} km/h</Text>
+                                </View>
+                            </View>
+                            <View style={styles.actionRow}>
+                                <TouchableOpacity
+                                    style={styles.returnButton}
+                                    onPress={() => navigation.navigate('Map', {
+                                        returnTrip: true,
+                                        startCoords: ride.endLocation,
+                                        destCoords: ride.startLocation,
+                                        startName: ride.endName,
+                                        destName: ride.startName
+                                    })}
+                                >
+                                    <MaterialIcons name="replay" size={16} color="black" />
+                                    <Text style={styles.returnButtonText}>Return Trip</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.analyticsButton}>
+                                    <Text style={styles.analyticsButtonText}>Details</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                ))
+            )}
+>>>>>>> feb14-version
         </View>
 
         <View style={[styles.sectionHeader, { marginTop: 20 }]}> 
@@ -135,14 +269,85 @@ const renderHistory = () => (
                     <Text style={[styles.dnaValue, { color: '#F59E0B' }]}>95%</Text>
                 </View>
             </View>
+<<<<<<< HEAD
             <TouchableOpacity style={styles.shareBtn}>
                 <MaterialIcons name="share" size={16} color="white" style={{ marginRight: 8 }} />
                 <Text style={styles.shareBtnText}>SHARE FINGERPRINT</Text>
+=======
+
+            <View style={styles.gridRow}>
+                <View style={[styles.card, styles.gridCard]}>
+                    <View style={styles.cardHeaderSimple}>
+                        <Text style={styles.gridLabel}>MAX SPEED</Text>
+                        <MaterialIcons name="speed" size={14} color="#EF4444" style={{ marginLeft: 'auto' }} />
+                    </View>
+                    <View style={styles.valueRow}>
+                        <Text style={styles.bigValue}>{stats?.maxSpeed?.toFixed(1) || '0'}</Text>
+                        <Text style={styles.subValue}>km/h</Text>
+                    </View>
+                    <View style={styles.leanGauge}>
+                        <View style={[styles.gaugeArc, { borderTopColor: '#EF4444', borderLeftColor: '#EF4444' }]} />
+                        <View style={styles.gaugeNeedle} />
+                    </View>
+                </View>
+
+                <View style={[styles.card, styles.gridCard]}>
+                    <View style={styles.cardHeaderSimple}>
+                        <Text style={styles.gridLabel}>LONGEST RIDE</Text>
+                        <MaterialIcons name="terrain" size={14} color="#06B6D4" style={{ marginLeft: 'auto' }} />
+                    </View>
+                    <View style={styles.valueRow}>
+                        <Text style={styles.bigValue}>{stats?.longestRide?.toFixed(1) || '0'}</Text>
+                        <Text style={styles.subValue}>km</Text>
+                    </View>
+                    <View style={styles.gForceGrid}>
+                        <View style={styles.gridLineH} />
+                        <View style={styles.gridLineV} />
+                        <View style={styles.gForceDot} />
+                    </View>
+                </View>
+            </View>
+
+            <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>Speed Heatmap</Text>
+                    <TouchableOpacity style={styles.filterBtn}>
+                        <Text style={styles.filterBtnText}>Last Ride</Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={{ marginTop: 10 }}>
+                    <LineChart
+                        data={heatmapData}
+                        width={width - 50}
+                        height={140}
+                        chartConfig={{
+                            ...chartConfig,
+                            fillShadowGradientFrom: "#FFD700",
+                            fillShadowGradientFromOpacity: 0.5,
+                            fillShadowGradientTo: "#FFD700",
+                            fillShadowGradientToOpacity: 0.1,
+                            decimalPlaces: 0,
+                            color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
+                            labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+                        }}
+                        bezier
+                        style={{ borderRadius: 8 }}
+                        withInnerLines={true}
+                        withOuterLines={false}
+                    />
+                </View>
+            </View>
+
+            <TouchableOpacity style={styles.exportButton}>
+                <MaterialIcons name="file-download" size={20} color="black" />
+                <Text style={styles.exportButtonText}>EXPORT TELEMETRY DATA</Text>
+>>>>>>> feb14-version
             </TouchableOpacity>
         </View>
     </View>
 );
 
+<<<<<<< HEAD
 // --- TAB: TELEMETRY ---
 const renderTelemetry = () => (
     <View>
@@ -182,6 +387,45 @@ const renderTelemetry = () => (
                 <TouchableOpacity><MaterialIcons name="forward-10" size={20} color="#6B7280" /></TouchableOpacity>
             </View>
         </View>
+=======
+    // --- TAB: ACHIEVEMENTS ---
+    const renderAchievements = () => {
+        const achList = [
+            { id: 'first_ride', name: 'First Ride', icon: 'motorcycle', color: '#60A5FA', desc: 'Completed 1 ride' },
+            { id: '50km_club', name: '50 KM Club', icon: 'terrain', color: '#10B981', desc: 'Ride 50km total' },
+            { id: '100km_rider', name: '100 KM Rider', icon: 'flag', color: '#F59E0B', desc: 'Ride 100km total' },
+            { id: '10_rides', name: 'Veteran', icon: 'stars', color: '#8B5CF6', desc: '10 rides completed' },
+            { id: 'night_rider', name: 'Night Rider', icon: 'brightness-3', color: '#4B5563', desc: 'Ride after 10PM' },
+            { id: 'early_bird', name: 'Early Bird', icon: 'wb-sunny', color: '#FED7AA', desc: 'Ride before 6AM' },
+            { id: 'speed_master', name: 'Speed Master', icon: 'flash-on', color: '#EF4444', desc: 'Avg speed > 80km/h' },
+            { id: 'marathon_rider', name: 'Marathon', icon: 'timer', color: '#EC4899', desc: 'Single ride > 200km' },
+        ];
+
+        return (
+            <View>
+                <Text style={styles.gridTitle}>UNLOCKED ACHIEVEMENTS</Text>
+                <View style={styles.badgesGrid}>
+                    {achList.map((ach) => {
+                        const isUnlocked = !!achievements[ach.id];
+                        return (
+                            <View key={ach.id} style={[styles.badgeCard, !isUnlocked && { opacity: 0.3 }]}>
+                                <View style={[styles.badgeIconBg, { backgroundColor: isUnlocked ? ach.color + '20' : '#1F2937' }]}>
+                                    <MaterialIcons name={isUnlocked ? ach.icon : 'lock'} size={24} color={isUnlocked ? ach.color : '#6B7280'} />
+                                </View>
+                                <Text style={[styles.badgeName, !isUnlocked && { color: '#6B7280' }]}>{ach.name}</Text>
+                                {isUnlocked && (
+                                    <Text style={styles.unlockDate}>
+                                        {new Date(achievements[ach.id].unlockedAt).toLocaleDateString()}
+                                    </Text>
+                                )}
+                            </View>
+                        );
+                    })}
+                </View>
+            </View>
+        );
+    };
+>>>>>>> feb14-version
 
         <View style={styles.gridRow}>
             <View style={[styles.card, styles.gridCard]}>
@@ -284,6 +528,7 @@ const renderAchievements = () => (
             ))}
         </View>
 
+<<<<<<< HEAD
         <Text style={styles.gridTitle}>LOCKED</Text>
         <View style={styles.badgesGrid}>
             {[
@@ -326,6 +571,21 @@ const renderRoutes = () => (
                         <View style={styles.routeStatParam}>
                             <MaterialIcons name="straighten" size={14} color="#9CA3AF" />
                             <Text style={styles.routeStatVal}>{route.dist}</Text>
+=======
+    return (
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFD700" />
+            }
+        >
+            <SafeAreaView edges={['top']}>
+                <View style={styles.header}>
+                    <View style={styles.logoContainer}>
+                        <View style={styles.logoIcon}>
+                            <FontAwesome5 name="motorcycle" size={20} color="black" />
+>>>>>>> feb14-version
                         </View>
                         <View style={styles.routeStatParam}>
                             <MaterialIcons name="terrain" size={14} color="#9CA3AF" />
@@ -353,6 +613,7 @@ const renderRoutes = () => (
     </View>
 );
 
+<<<<<<< HEAD
 return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
         <SafeAreaView edges={['top']}>
@@ -388,6 +649,36 @@ return (
     </ScrollView>
 );
 // End of StatsScreen component
+=======
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabContainer}>
+                    {['History', 'Telemetry', 'Achievements', 'Routes'].map((tab) => (
+                        <TouchableOpacity
+                            key={tab}
+                            style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+                            onPress={() => setActiveTab(tab)}
+                        >
+                            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                {loading && !refreshing ? (
+                    <View style={{ height: 400, justifyContent: 'center' }}>
+                        <ActivityIndicator size="large" color="#FFD700" />
+                    </View>
+                ) : (
+                    <>
+                        {activeTab === 'History' && renderHistory()}
+                        {activeTab === 'Telemetry' && renderTelemetry()}
+                        {activeTab === 'Achievements' && renderAchievements()}
+                        {activeTab === 'Routes' && renderRoutes()}
+                    </>
+                )}
+            </SafeAreaView>
+        </ScrollView>
+    );
+};
+>>>>>>> feb14-version
 
 // --- STYLES ---
 const styles = StyleSheet.create({
@@ -499,7 +790,12 @@ const styles = StyleSheet.create({
     routeStatVal: { color: '#9CA3AF', fontSize: 10 },
     curveRating: { flexDirection: 'row', items: 'center', gap: 2 },
     curveLabel: { color: '#6B7280', fontSize: 8, marginLeft: 4 },
-    goBtn: { width: 50, backgroundColor: '#06B6D4', alignItems: 'center', justifyContent: 'center' }
+    goBtn: { width: 50, backgroundColor: '#06B6D4', alignItems: 'center', justifyContent: 'center' },
+    emptyState: { height: 200, alignItems: 'center', justifyContent: 'center' },
+    emptyText: { color: '#6B7280', fontSize: 14 },
+    returnButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFD700', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, gap: 5 },
+    returnButtonText: { color: 'black', fontSize: 12, fontWeight: 'bold' },
+    unlockDate: { color: '#10B981', fontSize: 8, marginTop: 4 }
 });
 
 }

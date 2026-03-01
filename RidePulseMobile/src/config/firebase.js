@@ -5,12 +5,12 @@ import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuration extracted from the provided google-services.json
 const firebaseConfig = {
-  apiKey: "AIzaSyCBISp6yy0ibqVDETe9fvyRn_7atGStdQo",
-  authDomain: "ridepulse-3772f.firebaseapp.com",
-  projectId: "ridepulse-3772f",
-  storageBucket: "ridepulse-3772f.firebasestorage.app",
-  messagingSenderId: "420864136803",
-  appId: "1:420864136803:android:f2d45761f7788f5e2b4a56"
+  apiKey: "AIzaSyC1Krp-eACRRNvc5LmSYhYxbbGU377SzXY",
+  authDomain: "ridepulse-6e912.firebaseapp.com",
+  projectId: "ridepulse-6e912",
+  storageBucket: "ridepulse-6e912.firebasestorage.app",
+  messagingSenderId: "861623260957",
+  appId: "1:861623260957:android:24e665425ac237d75833f4"
 };
 
 // Initialize Firebase

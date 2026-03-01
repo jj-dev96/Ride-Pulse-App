@@ -1,12 +1,9 @@
-
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import RiderIDCard from '../components/RiderIDCard';
-import { db } from '../config/firebase';
-import { collection, doc, onSnapshot } from 'firebase/firestore';
 
 const SettingsScreen = ({ navigation }) => {
     const { logout, user } = useContext(AuthContext);
@@ -14,10 +11,8 @@ const SettingsScreen = ({ navigation }) => {
     const [locationEnabled, setLocationEnabled] = useState(false);
     const [unit, setUnit] = useState('KM'); // 'KM' or 'MI'
 
-
     // Modals
-    const [profileModalVisible, setProfileModalVisible] = useState(false);
-    const [riderCardVisible, setRiderCardVisible] = useState(false);
+    const [idCardVisible, setIdCardVisible] = useState(false);
     const [supportModalVisible, setSupportModalVisible] = useState(false);
     const [supportContent, setSupportContent] = useState('');
 
@@ -28,22 +23,9 @@ const SettingsScreen = ({ navigation }) => {
         ]);
     };
 
-    const SectionHeader = ({ title }) => {
-        const [profile, setProfile] = useState(null);
-        useEffect(() => {
-            if (user?.id) {
-                const unsub = onSnapshot(doc(db, 'users', user.id, 'profile', 'data'), snapshot => {
-                    if (snapshot.exists()) {
-                        setProfile(snapshot.data());
-                    }
-                });
-                return () => unsub();
-            }
-        }, [user?.id]);
-        return (
-            <Text style={styles.sectionHeader}>{title}</Text>
-        );
-    };
+    const SectionHeader = ({ title }) => (
+        <Text style={styles.sectionHeader}>{title}</Text>
+    );
 
     const MenuItem = ({ icon, title, subtitle, showChevron = true, rightElement, color = '#6B7280', onPress }) => (
         <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
@@ -61,6 +43,28 @@ const SettingsScreen = ({ navigation }) => {
         </TouchableOpacity>
     );
 
+    const profile = user?.profile || {};
+    const isProfileComplete = !!profile.profileCompleted;
+
+    const getInitials = (name) => {
+        if (!name) return 'RP';
+        const parts = name.split(' ');
+        if (parts.length > 1) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    };
+
+    const getAvatarColor = (name) => {
+        const colors = ['#FFD700', '#FF8C00', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+        if (!name) return colors[0];
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    };
+
     return (
         <View style={styles.container}>
             <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
@@ -76,11 +80,69 @@ const SettingsScreen = ({ navigation }) => {
                                 <Text style={styles.logoSubText}>SETTINGS</Text>
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.iconBtn} onPress={() => setRiderCardVisible(true)}>
-                            <MaterialIcons name="person" size={24} color="#FFD700" />
+
+                        <TouchableOpacity
+                            style={styles.headerProfileBtn}
+                            onPress={() => setIdCardVisible(true)}
+                        >
+                            {profile.profileImage ? (
+                                <Image source={{ uri: profile.profileImage }} style={styles.headerAvatar} />
+                            ) : (
+                                <View style={[styles.headerAvatar, { backgroundColor: getAvatarColor(profile.fullName || user?.name) }]}>
+                                    <Text style={styles.headerAvatarText}>{getInitials(profile.fullName || user?.name)}</Text>
+                                </View>
+                            )}
+                            {!isProfileComplete && <View style={styles.warningDot} />}
                         </TouchableOpacity>
-                        {/* Rider ID Card Modal */}
-                        <RiderIDCard visible={riderCardVisible} onClose={() => setRiderCardVisible(false)} userId={user?.id} />
+                    </View>
+
+                    {/* Profile Banner */}
+                    {!isProfileComplete && (
+                        <TouchableOpacity
+                            style={styles.warningBanner}
+                            onPress={() => navigation.navigate('ProfileSetup')}
+                        >
+                            <MaterialIcons name="error-outline" size={20} color="#000" />
+                            <Text style={styles.warningBannerText}>Complete your profile to unlock all features.</Text>
+                            <MaterialIcons name="chevron-right" size={20} color="#000" />
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Profile Summary Card */}
+                    <SectionHeader title="PROFILE SUMMARY" />
+                    <View style={styles.profileCard}>
+                        <View style={styles.profileCardMain}>
+                            {profile.profileImage ? (
+                                <Image source={{ uri: profile.profileImage }} style={styles.summaryAvatar} />
+                            ) : (
+                                <View style={[styles.summaryAvatar, { backgroundColor: getAvatarColor(profile.fullName || user?.name) }]}>
+                                    <Text style={styles.summaryAvatarText}>{getInitials(profile.fullName || user?.name)}</Text>
+                                </View>
+                            )}
+                            <View style={styles.profileDetails}>
+                                <Text style={styles.profileName}>{profile.fullName || user?.name || 'Rider'}</Text>
+                                <Text style={styles.profileVehicle}>
+                                    {profile.vehicleName ? `${profile.vehicleName} ${profile.vehicleModel || ''}` : 'No vehicle registered'}
+                                </Text>
+                                {!isProfileComplete && (
+                                    <View style={styles.incompleteLabel}>
+                                        <Text style={styles.incompleteText}>
+                                            Profile Incomplete ({
+                                                ['fullName', 'age', 'licenseNumber', 'vehicleNumber', 'vehicleModel']
+                                                    .filter(field => !profile[field]).length
+                                            } fields missing)
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.editProfileBtn}
+                            onPress={() => navigation.navigate('ProfileSetup')}
+                        >
+                            <Text style={styles.editProfileText}>EDIT IDENTITY</Text>
+                            <MaterialIcons name="edit" size={16} color="#FFD700" />
+                        </TouchableOpacity>
                     </View>
 
                     {/* Garage & Machine */}
@@ -100,7 +162,7 @@ const SettingsScreen = ({ navigation }) => {
                     <View style={styles.card}>
                         <TouchableOpacity
                             style={[styles.menuItem, { paddingVertical: 15 }]}
-                            onPress={() => setProfileModalVisible(true)}
+                            onPress={() => setIdCardVisible(true)}
                         >
                             <View style={styles.avatarContainer}>
                                 <View style={styles.avatar}>
@@ -122,7 +184,7 @@ const SettingsScreen = ({ navigation }) => {
                         <MenuItem
                             icon={<MaterialIcons name="lock" size={18} color="#6B7280" />}
                             title="Password & Security"
-                            onPress={() => Alert.alert("Security", "Two-factor authentication is enabled.")}
+                            onPress={() => Alert.alert("Security", "Password change is available in website portal.")}
                         />
 
                         <View style={styles.divider} />
@@ -242,37 +304,14 @@ const SettingsScreen = ({ navigation }) => {
                 </SafeAreaView>
             </ScrollView>
 
-            {/* Profile Modal */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={profileModalVisible}
-                onRequestClose={() => setProfileModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Edit Profile</Text>
-                            <TouchableOpacity onPress={() => setProfileModalVisible(false)}>
-                                <MaterialIcons name="close" size={24} color="#9CA3AF" />
-                            </TouchableOpacity>
-                        </View>
+            {/* Rider ID Card Modal */}
+            <RiderIDCard
+                visible={idCardVisible}
+                onClose={() => setIdCardVisible(false)}
+                user={user}
+                onCompleteProfile={() => navigation.navigate('ProfileSetup')}
+            />
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Display Name</Text>
-                            <TextInput style={styles.input} defaultValue="Alex Rider" placeholderTextColor="#6B7280" />
-                        </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Email</Text>
-                            <TextInput style={styles.input} defaultValue="alex@ridepulse.com" placeholderTextColor="#6B7280" editable={false} />
-                        </View>
-
-                        <TouchableOpacity style={styles.saveButton} onPress={() => setProfileModalVisible(false)}>
-                            <Text style={styles.saveButtonText}>SAVE CHANGES</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
 
             {/* Support Modal */}
             <Modal
@@ -395,6 +434,122 @@ const styles = StyleSheet.create({
     },
     avatarContainer: {
         marginRight: 15,
+    },
+    headerProfileBtn: {
+        position: 'relative'
+    },
+    headerAvatar: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#374151',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#FFD700',
+    },
+    headerAvatarText: {
+        color: '#000',
+        fontWeight: '900',
+        fontSize: 14,
+    },
+    warningDot: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderColor: '#0F111A'
+    },
+    warningBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFD700',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 20,
+        gap: 10
+    },
+    warningBannerText: {
+        flex: 1,
+        color: '#000',
+        fontSize: 12,
+        fontWeight: 'bold'
+    },
+    profileCard: {
+        backgroundColor: '#161925',
+        borderRadius: 16,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#1F2937',
+        marginBottom: 25,
+    },
+    profileCardMain: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20
+    },
+    summaryAvatar: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#FFD700'
+    },
+    summaryAvatarText: {
+        color: '#000',
+        fontSize: 22,
+        fontWeight: 'bold'
+    },
+    profileDetails: {
+        marginLeft: 15,
+        flex: 1
+    },
+    profileName: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold'
+    },
+    profileVehicle: {
+        color: '#9CA3AF',
+        fontSize: 13,
+        marginTop: 4
+    },
+    incompleteLabel: {
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+        marginTop: 6,
+        borderWidth: 0.5,
+        borderColor: '#EF4444'
+    },
+    incompleteText: {
+        color: '#EF4444',
+        fontSize: 10,
+        fontWeight: 'bold'
+    },
+    editProfileBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#1F2937',
+        paddingVertical: 10,
+        borderRadius: 10,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: '#374151'
+    },
+    editProfileText: {
+        color: '#FFD700',
+        fontSize: 12,
+        fontWeight: 'bold'
     },
     avatar: {
         width: 44,
