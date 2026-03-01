@@ -1,7 +1,16 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../config/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPhoneNumber, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import {
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    signInWithPhoneNumber,
+    GoogleAuthProvider,
+    signInWithCredential,
+    signInAnonymously
+} from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { Alert } from 'react-native';
 
@@ -20,52 +29,6 @@ export const AuthProvider = ({ children }) => {
 
             if (isCancelled) return;
             if (firebaseUser) {
-<<<<<<< HEAD
-                // Fetch from firestore
-                import('firebase/firestore').then(({ doc, getDoc }) => {
-                    const userRef = doc(db, 'users', firebaseUser.uid);
-                    getDoc(userRef).then(docSnap => {
-                        let additionalData = {};
-                        if (docSnap.exists()) {
-                            additionalData = docSnap.data();
-                        }
-
-                        const userData = {
-                            id: firebaseUser.uid,
-                            email: firebaseUser.email,
-                            name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-                            type: 'rider',
-                            profileCompleted: additionalData.profileCompleted || false,
-                            skipProfileSetup: additionalData.skipProfileSetup || false,
-                            ...additionalData
-                        };
-
-                        setUser(userData);
-                        AsyncStorage.setItem('user', JSON.stringify(userData)).catch(e =>
-                            console.error("AuthContext: Failed to save user to storage", e)
-                        );
-                        setLoading(false);
-                    }).catch(err => {
-                        console.error("AuthContext: Error fetching user data", err);
-                        // Fallback
-                        const userData = {
-                            id: firebaseUser.uid,
-                            email: firebaseUser.email,
-                            name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-                            type: 'rider',
-                            profileCompleted: false,
-                            skipProfileSetup: false
-                        };
-                        setUser(userData);
-                        setLoading(false);
-                    });
-                });
-            } else {
-                setUser(null);
-                AsyncStorage.removeItem('user').catch(e =>
-                    console.error("AuthContext: Failed to remove user", e)
-                );
-=======
                 // Subscribe to real-time profile updates
                 const userDocRef = doc(db, 'users', firebaseUser.uid);
                 const unsubProfile = onSnapshot(userDocRef, async (docSnap) => {
@@ -131,7 +94,6 @@ export const AuthProvider = ({ children }) => {
             } else {
                 setUser(null);
                 AsyncStorage.removeItem('user').catch(() => { });
->>>>>>> feb14-version
                 setLoading(false);
             }
         });
@@ -148,7 +110,6 @@ export const AuthProvider = ({ children }) => {
             const unsub = onSnapshot(doc(db, 'groups', user.groupId), (snapshot) => {
                 const data = snapshot.data();
                 if (data?.lastMessage && data.lastMessage.senderId !== user.id) {
-                    // We'd ideally store lastMsgId in state to avoid re-triggering on local updates
                     Alert.alert(
                         `Ride Alert: ${data.lastMessage.senderName}`,
                         data.lastMessage.text,
@@ -173,7 +134,6 @@ export const AuthProvider = ({ children }) => {
     const register = async (email, password) => {
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            // New user, will need profile setup
             return { success: true, isNewUser: true };
         } catch (e) {
             console.error("Registration Error:", e.code, e.message);
@@ -202,6 +162,16 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const loginAnonymouslyAuth = async () => {
+        try {
+            await signInAnonymously(auth);
+            return { success: true };
+        } catch (e) {
+            console.error("Anonymous Auth Error:", e.code, e.message);
+            return { success: false, error: e.message };
+        }
+    };
+
     const logout = async () => {
         try {
             await signOut(auth);
@@ -210,29 +180,13 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-<<<<<<< HEAD
-    const loginAnonymously = async () => {
-        try {
-            await import('firebase/auth').then(({ signInAnonymously }) => {
-                return signInAnonymously(auth);
-            });
-            return { success: true };
-        } catch (e) {
-            console.error("Anonymous Auth Error:", e.code, e.message);
-            return { success: false, error: e.message };
-        }
-    };
-
     const updateProfileStatus = async (data) => {
         try {
             if (!user) return { success: false, error: "No user logged in" };
-            const { doc, setDoc } = await import('firebase/firestore');
             const userRef = doc(db, 'users', user.id);
             await setDoc(userRef, data, { merge: true });
 
-            const newUserData = { ...user, ...data };
-            setUser(newUserData);
-            await AsyncStorage.setItem('user', JSON.stringify(newUserData));
+            // Note: onSnapshot listener will handle the local state update
             return { success: true };
         } catch (e) {
             console.error("Update Profile Error:", e);
@@ -240,9 +194,6 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    return (
-        <AuthContext.Provider value={{ user, loading, login, register, loginWithPhone, loginWithGoogleCredential, loginAnonymously, logout, updateProfileStatus }}>
-=======
     return (
         <AuthContext.Provider value={{
             user,
@@ -252,9 +203,10 @@ export const AuthProvider = ({ children }) => {
             register,
             loginWithPhone,
             loginWithGoogleCredential,
-            logout
+            loginAnonymously: loginAnonymouslyAuth,
+            logout,
+            updateProfileStatus
         }}>
->>>>>>> feb14-version
             {children}
         </AuthContext.Provider>
     );
