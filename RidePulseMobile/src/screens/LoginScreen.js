@@ -98,8 +98,6 @@ const LoginScreen = () => {
         promptAsync();
     };
 
-<<<<<<< HEAD
-=======
     const handleAppleLogin = async () => {
         Alert.alert(
             "SSO Demo Mode",
@@ -116,8 +114,6 @@ const LoginScreen = () => {
             handleSubmit();
         }, 100);
     };
-
->>>>>>> feb14-version
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="light-content" backgroundColor="#0F111A" />
@@ -321,19 +317,12 @@ const styles = StyleSheet.create({
         zIndex: 2,
     },
     leader: {
-<<<<<<< HEAD
-        width: 160,
-        height: 160,
-        borderRadius: 80,
-        backgroundColor: '#161925',
-=======
         width: 250,
         height: 250,
         borderRadius: 125,
         borderWidth: 4,
         borderColor: '#FFD700',
         resizeMode: 'cover',
->>>>>>> feb14-version
     },
     title: {
         fontSize: 30,
