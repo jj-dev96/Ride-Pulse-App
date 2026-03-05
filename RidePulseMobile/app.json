@@ -20,11 +20,18 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.ridepulse",
+      "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+          "apiKey": "AIzaSyC1Krp-eACRRNvc5LmSYhYxbbGU377SzXY"
         }
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "ios": {
       "supportsTablet": true,
@@ -35,12 +42,25 @@
     },
     "plugins": [
       [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow RidePulse to access your location for ride tracking and navigation.",
+          "locationWhenInUsePermission": "Allow RidePulse to access your location for ride tracking and navigation."
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow RidePulse to access your camera to scan QR codes for ride groups."
         }
       ],
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "81b07839-261c-4468-b292-20185a1c6544"
+      }
+    },
+    "owner": "riderpulse"
   }
 }
