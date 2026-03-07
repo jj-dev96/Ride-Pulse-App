@@ -1005,13 +1005,15 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
 
 
-                            <TouchableOpacity
-                                style={[styles.rideQuickMessageBtn, activeGroup && { backgroundColor: '#3B82F6' }]}
-                                onPress={() => activeGroup ? setShowMultiplayerChat(prev => !prev) : setShowQuickMessages(prev => !prev)}
-                            >
-                                <MaterialIcons name="chat" size={24} color="white" />
-                                <Text style={styles.rideQuickMessageText}>{activeGroup ? 'GROUP' : 'MSG'}</Text>
-                            </TouchableOpacity>
+                            {activeGroup && (
+                                <TouchableOpacity
+                                    style={[styles.rideQuickMessageBtn, { backgroundColor: '#3B82F6' }]}
+                                    onPress={() => setShowMultiplayerChat(prev => !prev)}
+                                >
+                                    <MaterialIcons name="chat" size={24} color="white" />
+                                    <Text style={styles.rideQuickMessageText}>GROUP</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     </View>
                 </SafeAreaView>
