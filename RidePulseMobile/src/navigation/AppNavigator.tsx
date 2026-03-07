@@ -30,7 +30,9 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
     return (
         <View style={styles.tabBarContainer}>
             {state.routes.map((route, index) => {
-                const { options } = descriptors[route.key];
+                const descriptor = descriptors[route.key];
+                if (!descriptor) return null;
+                const { options } = descriptor;
                 const isFocused = state.index === index;
 
                 const onPress = () => {

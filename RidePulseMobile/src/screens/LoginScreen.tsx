@@ -104,13 +104,13 @@ const LoginScreen: React.FC<Props> = () => {
                     {/* Header Section */}
                     <View style={styles.header}>
                         <ImageBackground
-                            source={require('../../assets/dark-map-bg.png')}
+                            source={require('../../assets/darkmapbg.png')}
                             style={styles.mapBackground}
                             imageStyle={{ opacity: 0.6, borderRadius: 20 }}
                         >
                             <View style={styles.animationGroup}>
                                 <Image
-                                    source={require('../../assets/ride-pulse-logo-shield.png')}
+                                    source={require('../../assets/ridepulselogoshield.png')}
                                     style={styles.leader}
                                     resizeMode="cover"
                                 />

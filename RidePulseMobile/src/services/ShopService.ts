@@ -32,7 +32,7 @@ export const ShopService = {
             const snapshot = await getDocs(q);
             let products: Product[] = snapshot.docs.map(d => ({
                 id: d.id,
-                ...d.data()
+                ...(d.data() as any)
             })) as Product[];
 
             if (searchQuery) {

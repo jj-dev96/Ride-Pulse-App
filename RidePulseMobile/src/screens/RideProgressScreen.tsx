@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import QuickMessageSheet from '../components/QuickMessageSheet';
 import { GroupService } from '../services/GroupService';
 import { AuthContext } from '../context/AuthContext';
-import MapplsMapView from '../components/MapplsMapView';
+import MapboxMapView from '../components/MapView';
 import * as Location from 'expo-location';
 import { RootStackParamList, GroupData, LocationCoords } from '../types';
 
@@ -117,7 +117,7 @@ const RideProgressScreen: React.FC<Props> = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <MapplsMapView style={StyleSheet.absoluteFill as any} location={location} isRideActive={true} isDarkTheme={true} />
+            <MapboxMapView style={StyleSheet.absoluteFill as any} location={location} isRideActive={true} isDarkTheme={true} />
             <LinearGradient colors={['rgba(0,0,0,0.6)', 'transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient} />
 
             <View style={styles.content}>

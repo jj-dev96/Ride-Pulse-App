@@ -55,7 +55,11 @@ const useGroupTracking = (
     // ── Flush pending location to Firestore ────────────────────────────────────
     const flushLocation = useCallback(async () => {
         if (!groupId || !userId || !pendingCoordsRef.current) return;
+
         const { latitude, longitude, speed = 0, heading = 0 } = pendingCoordsRef.current;
+
+        // Final guard against invalid coordinates
+        if (typeof latitude !== 'number' || typeof longitude !== 'number') return;
         try {
             const memberRef = doc(db, 'rides', groupId, 'members', userId);
             await updateDoc(memberRef, {
@@ -101,11 +105,14 @@ const useGroupTracking = (
                     const data = change.doc.data() as GroupMember;
                     const id = change.doc.id;
 
-                    // Remove: left group or went offline
-                    if (change.type === 'removed' || data.isOnline === false) {
+                    // Safety Check: If data is missing or it's a removal
+                    if (!data || change.type === 'removed' || data.isOnline === false) {
                         membersMapRef.current.delete(id);
                         return;
                     }
+
+                    // Ensure ID is present in the object (Firestore data doesn't include doc ID automatically)
+                    const memberData = { ...data, id };
 
                     const lat = typeof data.latitude === 'number' ? data.latitude : 0;
                     const lng = typeof data.longitude === 'number' ? data.longitude : 0;
@@ -123,15 +130,15 @@ const useGroupTracking = (
                             duration: 800,
                             useNativeDriver: false,
                         }).start();
-                        // Update scalar fields
+
                         membersMapRef.current.set(id, {
-                            ...data,
+                            ...memberData,
                             animLat: existing.animLat,
                             animLng: existing.animLng,
                         });
                     } else {
                         membersMapRef.current.set(id, {
-                            ...data,
+                            ...memberData,
                             animLat: new Animated.Value(lat),
                             animLng: new Animated.Value(lng),
                         });

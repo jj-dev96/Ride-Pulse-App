@@ -1,559 +1,361 @@
 /**
- * MapScreen.tsx
- *
- * Full-featured map screen using:
- *  - react-native-maps (OSM tile server)
- *  - expo-location (live GPS)
- *  - OpenRouteService (routing via routingService)
- *  - Overpass API (nearby places via placesService)
- *  - useGroupTracking (real-time member positions)
- *  - RiderMarker (animated rider overlay)
- *
- * Features:
- *  ✅ Current user location (live GPS, blue dot)
- *  ✅ Set destination by tapping map or entering address
- *  ✅ Route polyline (green)
- *  ✅ ETA + distance HUD
- *  ✅ Auto-recalculate when user deviates > 80m
- *  ✅ Nearby fuel / food / hospital markers (toggle)
- *  ✅ Real-time group member markers with animated movement
- *  ✅ Remove rider marker when they leave group
+ * MapScreen.tsx — Premium Navigation Experience
+ * 
+ * Implements a Google Maps-like navigation interface using:
+ *  - react-native-maps + OSM tiles
+ *  - OSRM for routing
+ *  - Bottom Panel with Start Ride Slider
+ *  - Premium Floating Action Buttons (FABs)
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity,
-    ActivityIndicator, Alert, Animated, Platform,
+    View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
+    Alert, Dimensions, Platform, StatusBar
 } from 'react-native';
-import MapView, { Marker, Polyline, UrlTile, Region, MapPressEvent } from 'react-native-maps';
-import * as Location from 'expo-location';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
+import MapboxMapView from '../components/MapView';
+import { MapService } from '../services/mapService';
+import { LocationService, LocationUpdate } from '../services/locationService';
+import { Coordinate, RideMember } from '../types';
 import useAuth from '../hooks/useAuth';
 import useGroupTracking from '../hooks/useGroupTracking';
-import RiderMarker from '../components/RiderMarker';
-import {
-    getRoute, recalculateRoute, checkDeviation, getETAText,
-} from '../services/routingService';
-import { fetchNearbyPlaces, NearbyPlace, POICategory } from '../services/placesService';
-import { Coordinate } from '../types';
 
-// ── OSM tile server ────────────────────────────────────────────────────────────
-// OpenStreetMap Standard tiles (free, attribution required)
-const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-// ── Marker icon colours per POI category ──────────────────────────────────────
-const POI_COLORS: Record<POICategory, string> = {
-    fuel: '#F59E0B',
-    food: '#10B981',
-    hospital: '#EF4444',
-};
-const POI_ICONS: Record<POICategory, string> = {
-    fuel: 'local-gas-station',
-    food: 'restaurant',
-    hospital: 'local-hospital',
-};
-
-// ── Component ──────────────────────────────────────────────────────────────────
+const { width, height } = Dimensions.get('window');
 
 const MapScreen: React.FC = () => {
     const { user } = useAuth();
     const groupId = user?.groupId ?? null;
     const userId = user?.id ?? null;
 
-    // ── Location ──────────────────────────────────────────────────────────────
-    const [location, setLocation] = useState<Coordinate | null>(null);
-    const [startLocation, setStartLocation] = useState<Coordinate | null>(null);
-    const [heading, setHeading] = useState<number>(0);
-    const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
-    const locationSubRef = useRef<Location.LocationSubscription | null>(null);
-
-    // ── Route ─────────────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────────
+    const [userLocation, setUserLocation] = useState<Coordinate | null>(null);
+    const [userHeading, setUserHeading] = useState(0);
     const [destination, setDestination] = useState<Coordinate | null>(null);
     const [routeCoords, setRouteCoords] = useState<Coordinate[]>([]);
-    const [etaText, setEtaText] = useState<string>('');
-    const [isRouting, setIsRouting] = useState<boolean>(false);
-    const [isRecentering, setIsRecentering] = useState<boolean>(false);
-    const deviationCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [isRideActive, setIsRideActive] = useState(false);
 
-    // ── Nearby places ─────────────────────────────────────────────────────────
-    const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([]);
-    const [activePOI, setActivePOI] = useState<POICategory | null>(null);
-    const [loadingPOI, setLoadingPOI] = useState<boolean>(false);
+    // Stats
+    const [distance, setDistance] = useState<number>(0); // metres
+    const [duration, setDuration] = useState<number>(0); // seconds
+    const [loading, setLoading] = useState(false);
 
-    // ── Group tracking ────────────────────────────────────────────────────────
+    // Group tracking
     const { members, publishLocation } = useGroupTracking(groupId, userId);
 
-    // ── Map ref ───────────────────────────────────────────────────────────────
-    const mapRef = useRef<MapView>(null);
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Permission + GPS tracking
-    // ══════════════════════════════════════════════════════════════════════════
-
+    // ── Permissions & Location Tracking ──────────────────────────────────────────
     useEffect(() => {
-        (async () => {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                setPermissionGranted(false);
-                Alert.alert(
-                    'Location Permission Required',
-                    'RidePulse needs location access to show your position and track rides.'
-                );
+        let isStopped = false;
+
+        const initLocation = async () => {
+            const hasPermission = await LocationService.requestLocationPermission();
+            if (!hasPermission) {
+                Alert.alert('Permission Denied', 'Location access is required for navigation.');
                 return;
             }
-            setPermissionGranted(true);
 
             // Initial fix
-            const initial = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
-            const coords: Coordinate = {
-                latitude: initial.coords.latitude,
-                longitude: initial.coords.longitude,
-                heading: initial.coords.heading ?? 0,
-                speed: initial.coords.speed ?? 0,
-            };
-            setLocation(coords);
-            setStartLocation(coords);
-            publishLocation(coords);
-            centerMapOn(coords);
+            const current = await LocationService.getCurrentLocation();
+            if (current && !isStopped) {
+                setUserLocation(current);
+                publishLocation(current as any);
+            }
 
-            // Continuous watch
-            locationSubRef.current = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.High,
-                    timeInterval: 1500,
-                    distanceInterval: 5,
-                },
-                (pos) => {
-                    const updated: Coordinate = {
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude,
-                        heading: pos.coords.heading ?? 0,
-                        speed: pos.coords.speed ?? 0,
-                    };
-                    setLocation(updated);
-                    setHeading(pos.coords.heading ?? 0);
-                    publishLocation(updated);
-                }
-            );
-        })();
+            // Continuous tracking
+            await LocationService.startLocationTracking((update: LocationUpdate) => {
+                if (isStopped) return;
+                const coords = {
+                    latitude: update.latitude,
+                    longitude: update.longitude,
+                    heading: update.heading,
+                };
+                setUserLocation(coords);
+                setUserHeading(update.heading);
+                publishLocation(update as any);
+            });
+        };
+
+        initLocation();
 
         return () => {
-            locationSubRef.current?.remove();
+            isStopped = true;
+            LocationService.stopLocationTracking();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Routing
-    // ══════════════════════════════════════════════════════════════════════════
-
-    const fetchRoute = useCallback(async (from: Coordinate, to: Coordinate) => {
-        setIsRouting(true);
+    // ── Route Recalculation ─────────────────────────────────────────────────────
+    const calculateRoute = useCallback(async (start: Coordinate, end: Coordinate) => {
+        setLoading(true);
         try {
-            const result = await getRoute(from, to);
+            const result = await MapService.getRoute(start, end);
             if (result) {
                 setRouteCoords(result.coordinates);
-                setEtaText(getETAText(result.distance, result.duration));
-                mapRef.current?.fitToCoordinates(result.coordinates, {
-                    edgePadding: { top: 80, right: 40, bottom: 200, left: 40 },
-                    animated: true,
-                });
-            } else {
-                Alert.alert('Routing Error', 'Could not find a route to the destination.');
+                setDistance(result.distance);
+                setDuration(result.duration);
             }
-        } catch (err) {
-            console.error('[MapScreen] fetchRoute error:', err);
+        } catch (error) {
+            console.warn('[MapScreen] Route calculation failed:', error);
         } finally {
-            setIsRouting(false);
+            setLoading(false);
         }
     }, []);
 
-    // Trigger route fetch when destination changes
     useEffect(() => {
-        if (!destination || !location) return;
-        fetchRoute(location, destination);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (userLocation && destination) {
+            calculateRoute(userLocation, destination);
+        }
     }, [destination]);
 
-    // ── Deviation check every 10 seconds ─────────────────────────────────────
-    useEffect(() => {
-        if (!destination || routeCoords.length === 0) {
-            if (deviationCheckRef.current) clearInterval(deviationCheckRef.current);
-            return;
+    // ── Helper: Format Stats ────────────────────────────────────────────────────
+    const etaText = useMemo(() => {
+        if (!duration) return '0 min';
+        const mins = Math.ceil(duration / 60);
+        if (mins > 60) return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+        return `${mins} min`;
+    }, [duration]);
+
+    const distanceText = useMemo(() => {
+        if (!distance) return '0 km';
+        return `${(distance / 1000).toFixed(1)} km`;
+    }, [distance]);
+
+    // ── Handlers ───────────────────────────────────────────────────────────────
+    const handleRecenter = () => {
+        if (userLocation) {
+            // MapView internally handles recentering if location changes or bounds fit
         }
-
-        deviationCheckRef.current = setInterval(() => {
-            if (!location) return;
-            const deviated = checkDeviation(location, routeCoords, 80);
-            if (deviated) {
-                recalculateRoute(location, destination)
-                    .then((result) => {
-                        if (result) {
-                            setRouteCoords(result.coordinates);
-                            setEtaText(getETAText(result.distance, result.duration));
-                        }
-                    })
-                    .catch(console.error);
-            }
-        }, 10_000);
-
-        return () => {
-            if (deviationCheckRef.current) clearInterval(deviationCheckRef.current);
-        };
-    }, [destination, routeCoords, location]);
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Map tap → set destination
-    // ══════════════════════════════════════════════════════════════════════════
-
-    const onMapPress = useCallback((e: MapPressEvent) => {
-        const { latitude, longitude } = e.nativeEvent.coordinate;
-        setDestination({ latitude, longitude });
-    }, []);
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Nearby places
-    // ══════════════════════════════════════════════════════════════════════════
-
-    const togglePOI = useCallback(async (category: POICategory) => {
-        if (activePOI === category) {
-            setActivePOI(null);
-            setNearbyPlaces([]);
-            return;
-        }
-        if (!location) {
-            Alert.alert('No Location', 'Waiting for GPS fix…');
-            return;
-        }
-        setActivePOI(category);
-        setLoadingPOI(true);
-        try {
-            const places = await fetchNearbyPlaces(location, category, 3000);
-            setNearbyPlaces(places);
-        } catch (err) {
-            console.error('[MapScreen] togglePOI error:', err);
-        } finally {
-            setLoadingPOI(false);
-        }
-    }, [activePOI, location]);
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ══════════════════════════════════════════════════════════════════════════
-
-    const centerMapOn = (coord: Coordinate) => {
-        mapRef.current?.animateToRegion({
-            latitude: coord.latitude,
-            longitude: coord.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-        }, 600);
     };
 
-    const clearDestination = () => {
-        setDestination(null);
-        setRouteCoords([]);
-        setEtaText('');
+    const toggleRide = () => {
+        if (!destination) {
+            Alert.alert('No Destination', 'Please select a destination on the map first.');
+            return;
+        }
+        setIsRideActive(!isRideActive);
+        if (!isRideActive) {
+            Alert.alert('Ride Started', 'Navigation is now active.');
+        } else {
+            setDestination(null);
+            setRouteCoords([]);
+        }
     };
 
-    const recenterToCurrentLocation = useCallback(async () => {
-        try {
-            setIsRecentering(true);
-            const pos = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
-            const coords: Coordinate = {
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude,
-                heading: pos.coords.heading ?? 0,
-                speed: pos.coords.speed ?? 0,
-            };
-            setLocation(coords);
-            publishLocation(coords);
-            centerMapOn(coords);
-        } catch (err) {
-            console.error('[MapScreen] recenter error:', err);
-        } finally {
-            setIsRecentering(false);
+    const handleMapPress = (coord: Coordinate) => {
+        if (!isRideActive) {
+            setDestination(coord);
         }
-    }, [publishLocation]);
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Render guards
-    // ══════════════════════════════════════════════════════════════════════════
-
-    if (permissionGranted === false) {
-        return (
-            <View style={styles.centred}>
-                <MaterialIcons name="location-off" size={60} color="#EF4444" />
-                <Text style={styles.permText}>Location permission denied.</Text>
-                <Text style={styles.permSub}>Enable it in Settings to use the map.</Text>
-            </View>
-        );
-    }
-
-    const initialRegion: Region = location
-        ? { latitude: location.latitude, longitude: location.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 }
-        : { latitude: 20.5937, longitude: 78.9629, latitudeDelta: 12, longitudeDelta: 12 };
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Render
-    // ══════════════════════════════════════════════════════════════════════════
+    };
 
     return (
         <View style={styles.container}>
-            {/* ── Map ─────────────────────────────────────────────────────── */}
-            <MapView
-                ref={mapRef}
+            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+            {/* ── Main Map Interface ─────────────────────────────────────────── */}
+            <MapboxMapView
+                userLocation={userLocation}
+                userHeading={userHeading}
+                destination={destination}
+                routeCoords={routeCoords}
+                isRideActive={isRideActive}
+                members={members}
                 style={styles.map}
-                initialRegion={initialRegion}
-                onPress={onMapPress}
-                showsUserLocation={false}  // using custom user marker
-                showsMyLocationButton={false}
-                showsCompass={false}
-                toolbarEnabled={false}
-                mapType="none"  // required for custom tile URL
-            >
-                {/* OSM Tile Layer */}
-                <UrlTile
-                    urlTemplate={OSM_TILE_URL}
-                    maximumZ={19}
-                    flipY={false}
-                    tileSize={256}
-                // Attribution is required by OSM license
-                />
+            />
 
-                {/* Start marker (origin) */}
-                {startLocation && (
-                    <Marker
-                        coordinate={{ latitude: startLocation.latitude, longitude: startLocation.longitude }}
-                        pinColor="green"
-                        title="Start"
-                    />
-                )}
-
-                {/* User location marker */}
-                {location && (
-                    <Marker
-                        coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-                        anchor={{ x: 0.5, y: 0.5 }}
-                        flat
-                        rotation={heading}
-                    >
-                        <View style={styles.userDot}>
-                            <View style={styles.userDotInner} />
-                        </View>
-                    </Marker>
-                )}
-
-                {/* Destination marker */}
-                {destination && (
-                    <Marker
-                        coordinate={{ latitude: destination.latitude, longitude: destination.longitude }}
-                        pinColor="#EF4444"
-                        title="Destination"
-                    />
-                )}
-
-                {/* Route polyline */}
-                {routeCoords.length > 0 && (
-                    <Polyline
-                        coordinates={routeCoords}
-                        strokeColor="#10B981"
-                        strokeWidth={5}
-                        lineCap="round"
-                        lineJoin="round"
-                    />
-                )}
-
-                {/* Nearby POI markers */}
-                {nearbyPlaces.map((place) => (
-                    <Marker
-                        key={place.id}
-                        coordinate={{ latitude: place.latitude, longitude: place.longitude }}
-                        title={place.name}
-                        description={place.distance ? `${place.distance}m away` : undefined}
-                    >
-                        <View style={[styles.poiMarker, { backgroundColor: POI_COLORS[place.category] }]}>
-                            <MaterialIcons
-                                name={POI_ICONS[place.category] as any}
-                                size={14}
-                                color="white"
-                            />
-                        </View>
-                    </Marker>
-                ))}
-
-                {/* Group member markers */}
-                {members.map((member) => (
-                    <Marker
-                        key={member.id}
-                        coordinate={{ latitude: member.latitude ?? 0, longitude: member.longitude ?? 0 }}
-                        anchor={{ x: 0.5, y: 1 }}
-                        tracksViewChanges={false}
-                    >
-                        <RiderMarker
-                            member={member}
-                            isHost={member.role === 'host'}
-                        />
-                    </Marker>
-                ))}
-            </MapView>
-
-            {/* ── Top HUD ─────────────────────────────────────────────────── */}
-            <SafeAreaView style={styles.hudTop} pointerEvents="box-none">
-                {/* ETA / distance pill */}
-                {etaText !== '' && (
-                    <View style={styles.etaPill}>
-                        <MaterialIcons name="directions" size={16} color="#10B981" />
-                        <Text style={styles.etaText}>{etaText}</Text>
-                        <TouchableOpacity onPress={clearDestination} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <MaterialIcons name="close" size={16} color="#9CA3AF" />
-                        </TouchableOpacity>
+            {/* ── Top HUD: Search & Addresses ─────────────────────────────────── */}
+            <SafeAreaView style={styles.topHud} pointerEvents="box-none">
+                <View style={styles.searchBar}>
+                    <TouchableOpacity style={styles.backButton}>
+                        <MaterialIcons name="menu" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <View style={styles.searchInput}>
+                        <Text style={styles.searchText} numberOfLines={1}>
+                            {destination ? 'Routing to destination...' : 'Where to?'}
+                        </Text>
                     </View>
-                )}
+                    <TouchableOpacity style={styles.profileButton}>
+                        <View style={styles.avatarPlaceholder}>
+                            <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'U'}</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
 
-                {/* Group member counter */}
-                {members.length > 0 && (
-                    <View style={styles.groupPill}>
-                        <MaterialIcons name="people" size={14} color="#FFD700" />
-                        <Text style={styles.groupPillText}>{members.length} rider{members.length !== 1 ? 's' : ''} nearby</Text>
+                {destination && (
+                    <View style={styles.routePill}>
+                        <MaterialIcons name="navigation" size={16} color="#FACC15" />
+                        <Text style={styles.routePillText}>Navigation Active</Text>
                     </View>
                 )}
             </SafeAreaView>
 
-            {/* ── Right FABs ──────────────────────────────────────────────── */}
-            <View style={styles.rightFabs}>
-                {/* Recenter */}
-                <TouchableOpacity
-                    style={styles.fab}
-                    onPress={recenterToCurrentLocation}
-                >
-                    {isRecentering ? (
-                        <ActivityIndicator size="small" color="#FFD700" />
-                    ) : (
-                        <MaterialIcons name="my-location" size={22} color="#FFD700" />
-                    )}
+            {/* ── Right Side FABs ────────────────────────────────────────────── */}
+            <View style={styles.rightSideActions}>
+                <TouchableOpacity style={[styles.fab, styles.fabDanger]}>
+                    <MaterialIcons name="report-problem" size={24} color="#fff" />
                 </TouchableOpacity>
 
-                {/* POI toggles */}
-                {(['fuel', 'food', 'hospital'] as POICategory[]).map((cat) => (
-                    <TouchableOpacity
-                        key={cat}
-                        style={[
-                            styles.fab,
-                            activePOI === cat && { borderColor: POI_COLORS[cat], borderWidth: 2 },
-                        ]}
-                        onPress={() => togglePOI(cat)}
-                    >
-                        <MaterialIcons
-                            name={POI_ICONS[cat] as any}
-                            size={20}
-                            color={activePOI === cat ? POI_COLORS[cat] : '#9CA3AF'}
-                        />
-                    </TouchableOpacity>
-                ))}
+                <TouchableOpacity style={styles.fab} onPress={handleRecenter}>
+                    <MaterialIcons name="my-location" size={24} color="#3B82F6" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.fab}>
+                    <Ionicons name="chatbubble-ellipses" size={24} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.fab}>
+                    <FontAwesome5 name="users" size={18} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.fab}>
+                    <MaterialIcons name="settings" size={24} color="#fff" />
+                </TouchableOpacity>
             </View>
 
-            {/* ── Routing / POI loading indicator ─────────────────────────── */}
-            {(isRouting || loadingPOI) && (
-                <View style={styles.loadingBadge}>
-                    <ActivityIndicator size="small" color="#FFD700" />
-                    <Text style={styles.loadingText}>{isRouting ? 'Routing…' : 'Loading…'}</Text>
+            {/* ── Bottom Ride Card ───────────────────────────────────────────── */}
+            {destination && (
+                <View style={styles.bottomCardWrap}>
+                    <LinearGradient
+                        colors={['rgba(15,17,26,0)', 'rgba(15,17,26,0.95)', '#0F111A']}
+                        style={styles.cardGradient}
+                    />
+                    <View style={styles.bottomCard}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.dragHandle, isRideActive && { backgroundColor: '#EF4444' }]} />
+                        </View>
+
+                        <View style={styles.statRow}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statLabel}>TIME</Text>
+                                <Text style={styles.statValue}>{etaText}</Text>
+                            </View>
+                            <View style={styles.statDivider} />
+                            <View style={styles.statItem}>
+                                <Text style={styles.statLabel}>DISTANCE</Text>
+                                <Text style={styles.statValue}>{distanceText}</Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.startButton, isRideActive && styles.stopButton]}
+                            onPress={toggleRide}
+                        >
+                            <Text style={styles.startButtonText}>
+                                {isRideActive ? 'STOP RIDE' : 'START RIDE'}
+                            </Text>
+                            <MaterialIcons
+                                name={isRideActive ? "stop" : "arrow-forward"}
+                                size={20}
+                                color="#fff"
+                            />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             )}
 
-            {/* ── OSM Attribution (required by license) ───────────────────── */}
-            <View style={styles.attribution}>
-                <Text style={styles.attributionText}>© OpenStreetMap contributors</Text>
-            </View>
+            {/* ── Loading Overlay ────────────────────────────────────────────── */}
+            {loading && (
+                <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#FACC15" />
+                    <Text style={styles.loadingText}>Calculating route...</Text>
+                </View>
+            )}
         </View>
     );
 };
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#0F111A' },
-    map: { ...StyleSheet.absoluteFillObject },
-    centred: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F111A', padding: 30 },
-    permText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginTop: 16, textAlign: 'center' },
-    permSub: { color: '#9CA3AF', fontSize: 14, marginTop: 8, textAlign: 'center' },
+    map: { flex: 1 },
 
-    // User dot
-    userDot: {
-        width: 24, height: 24, borderRadius: 12,
-        backgroundColor: 'rgba(59,130,246,0.25)',
-        alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1.5, borderColor: '#3B82F6',
+    // Top HUD
+    topHud: {
+        position: 'absolute', top: 0, left: 0, right: 0,
+        zIndex: 10, paddingHorizontal: 20, paddingTop: 10,
     },
-    userDotInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#3B82F6' },
-
-    // POI marker
-    poiMarker: {
-        width: 28, height: 28, borderRadius: 14,
-        alignItems: 'center', justifyContent: 'center',
-        borderWidth: 2, borderColor: 'white',
-        elevation: 4,
+    searchBar: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: 'rgba(30,41,59,0.95)',
+        borderRadius: 16, padding: 12,
+        elevation: 8, shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3, shadowRadius: 10,
     },
-
-    // HUD
-    hudTop: {
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-        paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 0 : 12,
-        gap: 8,
+    backButton: { marginRight: 12 },
+    searchInput: { flex: 1 },
+    searchText: { color: '#9CA3AF', fontSize: 15, fontWeight: '500' },
+    profileButton: { marginLeft: 12 },
+    avatarPlaceholder: {
+        width: 32, height: 32, borderRadius: 16,
+        backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center',
     },
-    etaPill: {
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: 'rgba(15,17,26,0.88)',
-        borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
-        alignSelf: 'flex-start',
-        borderWidth: 1, borderColor: '#10B98130',
-    },
-    etaText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-    groupPill: {
+    avatarText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+    routePill: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
-        backgroundColor: 'rgba(15,17,26,0.88)',
-        borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
-        alignSelf: 'flex-start',
-        borderWidth: 1, borderColor: '#FFD70030',
+        backgroundColor: 'rgba(250, 204, 21, 0.2)',
+        paddingHorizontal: 12, paddingVertical: 6,
+        borderRadius: 20, alignSelf: 'center', marginTop: 12,
+        borderWidth: 1, borderColor: 'rgba(250, 204, 21, 0.4)',
     },
-    groupPillText: { color: '#FFD700', fontWeight: '600', fontSize: 12 },
+    routePillText: { color: '#FACC15', fontSize: 12, fontWeight: 'bold' },
 
     // FABs
-    rightFabs: {
-        position: 'absolute', right: 14, bottom: 100,
-        gap: 10, alignItems: 'center',
+    rightSideActions: {
+        position: 'absolute', right: 20, bottom: height * 0.3,
+        zIndex: 20, gap: 15,
     },
     fab: {
-        width: 48, height: 48, borderRadius: 24,
-        backgroundColor: 'rgba(22,25,37,0.92)',
+        width: 50, height: 50, borderRadius: 25,
+        backgroundColor: 'rgba(30,41,59,0.95)',
         alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1, borderColor: '#374151',
-        elevation: 5,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4, shadowRadius: 4,
+        elevation: 5, shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3, shadowRadius: 5,
+        borderWidth: 1, borderColor: '#334155',
     },
+    fabDanger: { backgroundColor: '#EF4444' },
 
-    // Loaders
-    loadingBadge: {
-        position: 'absolute', bottom: 100, left: 16,
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: 'rgba(15,17,26,0.9)',
-        borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
-        borderWidth: 1, borderColor: '#374151',
+    // Bottom Card
+    bottomCardWrap: {
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        zIndex: 30,
     },
-    loadingText: { color: '#9CA3AF', fontSize: 12 },
+    cardGradient: {
+        position: 'absolute', top: -100, left: 0, right: 0, height: 100,
+    },
+    bottomCard: {
+        backgroundColor: '#0F111A',
+        borderTopLeftRadius: 30, borderTopRightRadius: 30,
+        paddingHorizontal: 25, paddingBottom: Platform.OS === 'ios' ? 40 : 25,
+        paddingTop: 15, elevation: 20,
+    },
+    cardHeader: { alignItems: 'center', marginBottom: 20 },
+    dragHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#334155' },
+    statRow: {
+        flexDirection: 'row', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 25,
+    },
+    statItem: { flex: 1, alignItems: 'center' },
+    statDivider: { width: 1, height: 30, backgroundColor: '#334155' },
+    statLabel: { color: '#64748B', fontSize: 11, fontWeight: 'bold', marginBottom: 4 },
+    statValue: { color: '#fff', fontSize: 20, fontWeight: '900' },
+    startButton: {
+        backgroundColor: '#10B981',
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        paddingVertical: 18, borderRadius: 20, gap: 10,
+    },
+    stopButton: { backgroundColor: '#EF4444' },
+    startButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
 
-    // Attribution
-    attribution: {
-        position: 'absolute', bottom: 4, right: 8,
+    // Loading
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(15,17,26,0.7)',
+        alignItems: 'center', justifyContent: 'center', zIndex: 100,
     },
-    attributionText: { color: 'rgba(255,255,255,0.4)', fontSize: 9 },
+    loadingText: { color: '#fff', marginTop: 15, fontWeight: 'bold' }
 });
 
 export default MapScreen;

@@ -79,7 +79,7 @@ const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>SMART GARAGE</Text>
                     <Image
-                        source={require('../../assets/RidePulse-Logo.jpg')}
+                        source={require('../../assets/RidePulseLogo.jpg')}
                         style={styles.headerLogo}
                         resizeMode="cover"
                     />
@@ -96,7 +96,7 @@ const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
                         <View style={styles.uploadContainer}>
                             <TouchableOpacity style={styles.uploadCircle}>
                                 <Image
-                                    source={require('../../assets/RidePulse-Logo.jpg')}
+                                    source={require('../../assets/RidePulseLogo.jpg')}
                                     style={{ width: '100%', height: '100%', opacity: 0.8 }}
                                 />
                                 <View style={styles.uploadOverlay}>

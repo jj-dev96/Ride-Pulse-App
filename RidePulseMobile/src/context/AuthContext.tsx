@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Global Group Listener for "Toasts"
     useEffect(() => {
         if (user?.groupId) {
-            const unsub = onSnapshot(doc(db, 'groups', user.groupId), (snapshot) => {
+            const unsub = onSnapshot(doc(db, 'rides', user.groupId), (snapshot) => {
                 const data = snapshot.data() as { lastMessage?: { senderId: string; senderName: string; text: string } } | undefined;
                 if (data?.lastMessage && data.lastMessage.senderId !== user.id) {
                     Alert.alert(

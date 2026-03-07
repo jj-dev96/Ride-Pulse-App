@@ -92,7 +92,7 @@ export const RideService = {
     },
 
     // Get recently completed rides
-    getRideHistory: async (userId: string, limitCount: number = 5): Promise<DocumentData[]> => {
+    getRideHistory: async (userId: string, limitCount: number = 5): Promise<RideData[]> => {
         try {
             const q = query(
                 collection(db, 'rides'),
@@ -100,7 +100,7 @@ export const RideService = {
                 limit(50)
             );
             const querySnapshot = await getDocs(q);
-            let rides = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            let rides = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
 
             rides = rides.filter(r => r.status === 'completed');
 

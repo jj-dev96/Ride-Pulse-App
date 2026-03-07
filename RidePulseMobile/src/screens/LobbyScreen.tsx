@@ -18,6 +18,9 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { GroupService } from '../services/GroupService';
 import { AuthContext } from '../context/AuthContext';
 import { RootStackParamList, MainTabParamList, GroupMember, GroupData } from '../types';
+import { db } from '../config/firebase';
+import { doc, getDoc, updateDoc, deleteField } from 'firebase/firestore';
+import { getColorForUser } from '../services/GroupRideManager';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -52,6 +55,23 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
         setTimeout(() => setToast(null), 3000);
     };
 
+    // Auto-clear stale groupId on mount (e.g. after a completed ride)
+    useEffect(() => {
+        if (!user?.groupId) return;
+        (async () => {
+            try {
+                const rideRef = doc(db, 'rides', user.groupId!);
+                const rideSnap = await getDoc(rideRef);
+                if (!rideSnap.exists() || rideSnap.data()?.status === 'completed' || rideSnap.data()?.status === 'cancelled') {
+                    // Clear stale pointer so user can create/join a new ride
+                    await updateDoc(doc(db, 'users', user.id), { groupId: deleteField() }).catch(() => { });
+                }
+            } catch (e) {
+                console.warn('[Lobby] stale groupId check failed:', e);
+            }
+        })();
+    }, [user?.groupId]);
+
     // Real-time group and members subscription
     useEffect(() => {
         let unsubGroup: (() => void) | undefined;
@@ -60,6 +80,14 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
         if (currentGroup?.id) {
             unsubGroup = GroupService.subscribeToGroup(currentGroup.id, (data: GroupData | null) => {
                 if (data) {
+                    // If ride was completed or cancelled, clear local group state
+                    if (data.status === 'completed' || data.status === 'cancelled') {
+                        setCurrentGroup(null);
+                        setMembers([]);
+                        setJoinCode(['', '', '', '', '', '']);
+                        handleSwitchTab('JOIN');
+                        return;
+                    }
                     setCurrentGroup(data);
                 } else {
                     Alert.alert("Ride Closed", "This ride lobby has been closed.");
@@ -253,7 +281,7 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
                     <View style={styles.header}>
                         <View style={styles.circularLogoContainer}>
                             <Image
-                                source={require('../../assets/ride-pulse-logo-shield.png')}
+                                source={require('../../assets/ridepulselogoshield.png')}
                                 style={styles.circularLogo}
                                 resizeMode="cover"
                             />
@@ -427,38 +455,45 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
                                                     <Text style={styles.waitingText}>Waiting for members to join...</Text>
                                                 </View>
                                             ) : (
-                                                members.map((member) => (
-                                                    <LinearGradient
-                                                        key={member.id}
-                                                        colors={['#1F2937', '#161925']}
-                                                        style={[styles.riderCard, member.role === 'host' && styles.hostCard]}
-                                                    >
-                                                        {member.role === 'host' && <View style={styles.hostStripe} />}
-                                                        <View style={styles.riderContent}>
-                                                            <View style={styles.avatarContainer}>
-                                                                <View style={[styles.regularAvatar, member.role === 'host' && styles.hostAvatar]}>
-                                                                    {member.profileImage ? (
-                                                                        <Image source={{ uri: member.profileImage }} style={styles.avatarImg} />
-                                                                    ) : (
-                                                                        <Text style={{ color: 'white', fontWeight: 'bold' }}>
-                                                                            {member.name?.charAt(0).toUpperCase()}
-                                                                        </Text>
-                                                                    )}
+                                                members.map((member) => {
+                                                    const memberColor = (member as any).color || getColorForUser(member.id);
+                                                    return (
+                                                        <LinearGradient
+                                                            key={member.id}
+                                                            colors={['#1F2937', '#161925']}
+                                                            style={[styles.riderCard, member.role === 'host' && styles.hostCard]}
+                                                        >
+                                                            {/* Color stripe showing rider's unique map marker color */}
+                                                            <View style={[styles.hostStripe, { backgroundColor: memberColor }]} />
+                                                            <View style={styles.riderContent}>
+                                                                <View style={styles.avatarContainer}>
+                                                                    <View style={[styles.regularAvatar, { borderWidth: 2, borderColor: memberColor }]}>
+                                                                        {member.profileImage ? (
+                                                                            <Image source={{ uri: member.profileImage }} style={styles.avatarImg} />
+                                                                        ) : (
+                                                                            <Text style={{ color: 'white', fontWeight: 'bold' }}>
+                                                                                {member.name?.charAt(0).toUpperCase()}
+                                                                            </Text>
+                                                                        )}
+                                                                    </View>
+                                                                    <View style={[styles.onlineIndicator, { backgroundColor: member.isOnline ? '#10B981' : '#4B5563' }]} />
                                                                 </View>
-                                                                <View style={[styles.onlineIndicator, { backgroundColor: member.isOnline ? '#10B981' : '#4B5563' }]} />
-                                                            </View>
 
-                                                            <View style={styles.riderInfo}>
-                                                                <Text style={styles.riderName}>{member.name} {member.id === user?.id && '(You)'}</Text>
-                                                                <Text style={styles.bikeModel}>{member.vehicle || (member.role === 'host' ? 'Trip Leader' : 'Rider')}</Text>
-                                                            </View>
+                                                                <View style={styles.riderInfo}>
+                                                                    <Text style={styles.riderName}>{member.name} {member.id === user?.id && '(You)'}</Text>
+                                                                    <Text style={styles.bikeModel}>{member.vehicle || (member.role === 'host' ? 'Trip Leader' : 'Rider')}</Text>
+                                                                </View>
 
-                                                            {member.role === 'host' && (
-                                                                <FontAwesome5 name="crown" size={14} color="#FFD700" />
-                                                            )}
-                                                        </View>
-                                                    </LinearGradient>
-                                                ))
+                                                                {member.role === 'host' && (
+                                                                    <FontAwesome5 name="crown" size={14} color={memberColor} />
+                                                                )}
+
+                                                                {/* Colored dot showing map marker color */}
+                                                                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: memberColor, marginLeft: 6 }} />
+                                                            </View>
+                                                        </LinearGradient>
+                                                    );
+                                                })
                                             )}
                                         </ScrollView>
 

@@ -110,6 +110,47 @@ const MemberControlSheet: React.FC<MemberControlSheetProps> = ({ visible, onClos
                             </View>
                         ))}
                     </ScrollView>
+
+                    <View style={styles.footer}>
+                        {isHost ? (
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: '#EF4444' }]}
+                                onPress={() => {
+                                    Alert.alert("End Ride", "Terminate group ride for all members?", [
+                                        { text: "Cancel" },
+                                        {
+                                            text: "End Ride", onPress: async () => {
+                                                await GroupService.updateRideStatus(group.id, 'completed');
+                                                await GroupService.leaveGroup(group.id, resolvedUserId!);
+                                                onClose();
+                                            }
+                                        }
+                                    ]);
+                                }}
+                            >
+                                <MaterialIcons name="stop" size={20} color="white" />
+                                <Text style={styles.actionBtnText}>END GROUP RIDE</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: '#374151' }]}
+                                onPress={() => {
+                                    Alert.alert("Leave Ride", "Are you sure you want to leave this group?", [
+                                        { text: "Cancel" },
+                                        {
+                                            text: "Leave", onPress: async () => {
+                                                await GroupService.leaveGroup(group.id, resolvedUserId!);
+                                                onClose();
+                                            }
+                                        }
+                                    ]);
+                                }}
+                            >
+                                <MaterialIcons name="exit-to-app" size={20} color="white" />
+                                <Text style={styles.actionBtnText}>LEAVE RIDE</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
             </View>
         </Modal>
@@ -207,6 +248,26 @@ const styles = StyleSheet.create({
     removeBtn: {
         padding: 5,
     },
+    footer: {
+        marginTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#374151',
+        paddingTop: 20,
+    },
+    actionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        borderRadius: 12,
+        gap: 10,
+    },
+    actionBtnText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14,
+        letterSpacing: 1,
+    }
 });
 
 export default MemberControlSheet;

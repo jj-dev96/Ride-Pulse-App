@@ -94,6 +94,7 @@ export interface RideMember {
 export interface GroupMember {
     id: string;
     name: string;
+    username?: string;
     profileImage?: string | null;
     vehicle?: string | null;
     isOnline: boolean;
@@ -102,6 +103,18 @@ export interface GroupMember {
     longitude?: number;
     speed?: number;
     heading?: number;
+    color?: string;
+    timestamp?: unknown;
+}
+
+export interface GroupSOSAlert {
+    id: string;
+    triggeredBy: string;
+    username: string;
+    latitude: number;
+    longitude: number;
+    timestamp: unknown;
+    status: 'active' | 'resolved';
 }
 
 /** Group / lobby data from Firestore */
@@ -113,6 +126,8 @@ export interface GroupData {
     rideName?: string;
     startLocation?: string;
     destination?: string;
+    destinationCoords?: Coordinate;
+    routeCoords?: Coordinate[];
     rideType?: string;
     createdAt?: unknown;
     status: 'waiting' | 'active' | 'completed' | 'cancelled' | string;
@@ -132,6 +147,8 @@ export interface RideGroup {
     rideName: string;
     startLocation: string;
     destination: string;
+    destinationCoords?: Coordinate;
+    routeCoords?: Coordinate[];
     rideType: string;
     createdAt?: unknown;
     status: 'waiting' | 'active' | 'completed' | 'cancelled' | string;
@@ -147,6 +164,8 @@ export interface RideDetails {
     name?: string;
     startLocation?: string;
     destination?: string;
+    destinationCoords?: Coordinate;
+    routeCoords?: Coordinate[];
     rideType?: string;
 }
 
