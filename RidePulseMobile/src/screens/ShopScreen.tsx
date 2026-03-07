@@ -305,44 +305,15 @@ const ShopScreen: React.FC<Props> = () => {
                         colors={['#1F2937CC', '#161925CC']}
                         style={styles.bottomHubInner}
                     >
-                        <TouchableOpacity style={styles.hubBtn}>
-                            <Ionicons name="grid-outline" size={20} color="#FFD700" />
-                            <Text style={styles.hubBtnText}>Browse</Text>
-                        </TouchableOpacity>
-
                         <TouchableOpacity
-                            style={styles.hubBtn}
+                            style={[styles.hubBtn, { flex: 1 }]}
                             onPress={() => navigation.navigate('Wishlist')}
                         >
-                            <View>
-                                <Ionicons name="heart-outline" size={20} color="#9CA3AF" />
+                            <View style={{ alignItems: 'center' }}>
+                                <Ionicons name="heart-outline" size={24} color="#FFD700" />
                                 {wishlist.length > 0 && <View style={styles.hubBadge} />}
+                                <Text style={styles.hubBtnText}>Wishlist</Text>
                             </View>
-                            <Text style={styles.hubBtnTextInactive}>Wishlist</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.hubBtn, styles.hubBtnCenter]}
-                            onPress={() => navigation.navigate('Cart')}
-                        >
-                            <LinearGradient colors={['#FFD700', '#F59E0B']} style={styles.hubCartIcon}>
-                                <Ionicons name="cart" size={22} color="black" />
-                            </LinearGradient>
-                            {cartCount > 0 && (
-                                <View style={styles.hubCartBadge}>
-                                    <Text style={styles.hubCartBadgeText}>{cartCount}</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubBtn}>
-                            <Ionicons name="receipt-outline" size={20} color="#9CA3AF" />
-                            <Text style={styles.hubBtnTextInactive}>Orders</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.hubBtn}>
-                            <Ionicons name="shield-outline" size={20} color="#9CA3AF" />
-                            <Text style={styles.hubBtnTextInactive}>Safety</Text>
                         </TouchableOpacity>
                     </LinearGradient>
                 </View>
@@ -388,13 +359,8 @@ const styles = StyleSheet.create({
     bottomHub: { position: 'absolute', left: 20, right: 20, zIndex: 100 },
     bottomHubInner: { flexDirection: 'row', backgroundColor: 'rgba(31, 41, 55, 0.95)', borderRadius: 30, paddingVertical: 12, paddingHorizontal: 10, borderWidth: 1, borderColor: 'rgba(255, 215, 0, 0.2)', shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 15, elevation: 10, justifyContent: 'space-around', alignItems: 'center' },
     hubBtn: { alignItems: 'center' },
-    hubBtnCenter: { marginTop: -35 },
-    hubCartIcon: { width: 55, height: 55, borderRadius: 27.5, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#161925', shadowColor: '#FFD700', shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 },
     hubBtnText: { color: '#FFD700', fontSize: 10, fontWeight: 'bold', marginTop: 4 },
-    hubBtnTextInactive: { color: '#6B7280', fontSize: 10, marginTop: 4 },
     hubBadge: { position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFD700', borderWidth: 1, borderColor: '#1F2937' },
-    hubCartBadge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#FFD700', minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#161925' },
-    hubCartBadgeText: { color: 'black', fontSize: 11, fontWeight: '900' },
     fullLoader: { position: 'absolute', top: 300, left: 0, right: 0, alignItems: 'center' },
     loadingText: { color: '#9CA3AF', fontSize: 12, marginTop: 15, fontWeight: 'bold', letterSpacing: 1 },
     emptyContainer: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },

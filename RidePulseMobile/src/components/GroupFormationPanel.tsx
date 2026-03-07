@@ -33,7 +33,7 @@ export const GroupFormationPanel: React.FC<GroupFormationPanelProps> = ({ format
                 <View style={styles.pillIndicator}>
                     <MaterialIcons name="groups" size={16} color="#FFD700" />
                     <Text style={styles.headerText}>
-                        {formations.length} Riders • {leader?.username || 'Group'} leading
+                        {formations.length} {formations.length === 1 ? 'Rider' : 'Riders'} • {leader?.username || 'Group'} leading
                     </Text>
                     <MaterialIcons
                         name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
@@ -75,7 +75,7 @@ export const GroupFormationPanel: React.FC<GroupFormationPanelProps> = ({ format
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        top: 155, // Clear search bar completely
+        top: 210, // Clear search bar and suggestions completely
         left: 20,
         right: 20,
         backgroundColor: 'rgba(22, 25, 37, 0.95)',

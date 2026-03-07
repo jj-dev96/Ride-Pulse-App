@@ -12,9 +12,15 @@ interface MemberControlSheetProps {
     user?: { id: string;[key: string]: unknown } | null;
     groupId?: string;
     userId?: string;
+    onOpenChat?: () => void;
+    onOpenQuickMessages?: () => void;
 }
 
-const MemberControlSheet: React.FC<MemberControlSheetProps> = ({ visible, onClose, group: groupProp, user: userProp, groupId: groupIdProp, userId: userIdProp }) => {
+const MemberControlSheet: React.FC<MemberControlSheetProps> = ({
+    visible, onClose, group: groupProp, user: userProp,
+    groupId: groupIdProp, userId: userIdProp,
+    onOpenChat, onOpenQuickMessages
+}) => {
     const [group, setGroup] = useState<RideGroup | null>(groupProp || null);
 
     // If groupId is provided instead of group object, load group data
@@ -81,10 +87,22 @@ const MemberControlSheet: React.FC<MemberControlSheetProps> = ({ visible, onClos
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity style={styles.addMemberBtn} onPress={handleShare}>
-                        <MaterialIcons name="person-add" size={24} color="black" />
-                        <Text style={styles.addMemberText}>INVITE MIGHTY RIDERS</Text>
-                    </TouchableOpacity>
+                    <View style={styles.primaryActions}>
+                        <TouchableOpacity style={[styles.actionBox, { backgroundColor: '#FFD700' }]} onPress={handleShare}>
+                            <MaterialIcons name="person-add" size={24} color="black" />
+                            <Text style={styles.actionBoxText}>INVITE</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.actionBox, { backgroundColor: '#3B82F6' }]} onPress={() => { onClose(); onOpenChat?.(); }}>
+                            <MaterialIcons name="chat" size={24} color="white" />
+                            <Text style={[styles.actionBoxText, { color: 'white' }]}>CHAT</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.actionBox, { backgroundColor: '#8B5CF6' }]} onPress={() => { onClose(); onOpenQuickMessages?.(); }}>
+                            <MaterialIcons name="flash-on" size={24} color="white" />
+                            <Text style={[styles.actionBoxText, { color: 'white' }]}>ALERTS</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     <Text style={styles.sectionTitle}>ACTIVE MEMBERS ({group.members?.length || 0})</Text>
 
@@ -187,20 +205,29 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         letterSpacing: 1,
     },
-    addMemberBtn: {
-        backgroundColor: '#FFD700',
-        borderRadius: 12,
+    primaryActions: {
         flexDirection: 'row',
+        gap: 10,
+        marginBottom: 20,
+    },
+    actionBox: {
+        flex: 1,
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
-        marginBottom: 20,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
     },
-    addMemberText: {
+    actionBoxText: {
         color: 'black',
-        fontWeight: 'bold',
-        marginLeft: 8,
-        letterSpacing: 0.5,
+        fontWeight: '900',
+        fontSize: 10,
+        marginTop: 4,
+        letterSpacing: 1,
     },
     sectionTitle: {
         color: '#9CA3AF',

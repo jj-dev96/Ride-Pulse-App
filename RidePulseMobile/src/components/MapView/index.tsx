@@ -61,11 +61,17 @@ const UserPulseMarker: React.FC<{ heading?: number; isRideActive?: boolean }> = 
 
     return (
         <View style={markerStyles.userWrap}>
+            {/* Pulsing Aura */}
             <Animated.View style={[markerStyles.pulse, { transform: [{ scale: pulseAnim }] }]} />
-            <View style={[markerStyles.navArrowContainer, { transform: [{ rotate: `${heading}deg` }] }]}>
+
+            {/* Directional Arrow */}
+            <View style={[markerStyles.navArrowContainer, { transform: [{ rotate: `${heading || 0}deg` }] }]}>
                 <View style={markerStyles.navArrowMain} />
             </View>
+
+            {/* Solid Center Dot (Always Visible) */}
             <View style={markerStyles.userCoreDot} />
+            <View style={markerStyles.userCoreDotInner} />
         </View>
     );
 });
@@ -171,7 +177,10 @@ const MapboxMapView = React.forwardRef<MapView, MapViewProps>(({
             >
                 {/* ── OpenStreetMap Custom Tiles ────────────────── */}
                 <UrlTile
-                    urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"
+                    urlTemplate={isDarkTheme
+                        ? "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
+                        : "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"
+                    }
                     maximumZ={19}
                     flipY={false}
                     tileSize={256}
@@ -200,8 +209,13 @@ const MapboxMapView = React.forwardRef<MapView, MapViewProps>(({
                 )}
 
                 {/* ── User Marker ─────────────────────────────── */}
-                {userLocation && (
-                    <RNMarker coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}>
+                {userLocation && typeof userLocation.latitude === 'number' && (
+                    <RNMarker
+                        coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+                        anchor={{ x: 0.5, y: 0.5 }}
+                        zIndex={100}
+                        flat={true}
+                    >
                         <UserPulseMarker heading={userHeading} isRideActive={isRideActive} />
                     </RNMarker>
                 )}
@@ -241,7 +255,8 @@ const markerStyles = StyleSheet.create({
     pulse: { position: 'absolute', width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.5)' },
     navArrowContainer: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
     navArrowMain: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 20, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#3B82F6' },
-    userCoreDot: { position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+    userCoreDot: { position: 'absolute', width: 14, height: 14, borderRadius: 7, backgroundColor: '#3B82F6', borderWidth: 2, borderColor: '#fff' },
+    userCoreDotInner: { position: 'absolute', width: 4, height: 4, borderRadius: 2, backgroundColor: '#fff' },
     destWrap: { alignItems: 'center' },
     pinHead: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#EF4444', borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
     pinInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },

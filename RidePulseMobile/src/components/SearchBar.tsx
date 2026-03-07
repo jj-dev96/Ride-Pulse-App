@@ -104,63 +104,58 @@ const SearchBar: React.FC<SearchBarProps> = ({
             <MaterialIcons name="location-on" size={18} color="#FFD700" style={{ marginRight: 10 }} />
             <View style={styles.suggestionContent}>
                 <Text style={styles.suggestionName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.suggestionAddress} numberOfLines={1}>{item.fullAddress}</Text>
+                <Text style={[styles.suggestionName, !isDarkTheme && styles.suggestionNameLight]} numberOfLines={1}>{item.name}</Text>
+                <Text style={[styles.suggestionAddress, !isDarkTheme && styles.suggestionAddressLight]} numberOfLines={1}>{item.fullAddress}</Text>
             </View>
         </TouchableOpacity>
-    ), [handleSelectSuggestion]);
+    ), [handleSelectSuggestion, isDarkTheme]);
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, !isDarkTheme && styles.containerLight]}>
             {/* Source Input */}
-            <View style={styles.inputRow}>
-                <TouchableOpacity onPress={onUseCurrentLocation}>
+            <View style={[styles.inputRow, !isDarkTheme && styles.inputRowLight, locked && styles.inputRowLocked]}>
+                <TouchableOpacity onPress={onUseCurrentLocation} disabled={useCurrentLocation || locked}>
                     <MaterialIcons
-                        name={useCurrentLocation ? 'my-location' : 'location-searching'}
-                        size={20}
-                        color={useCurrentLocation ? '#3B82F6' : '#9CA3AF'}
+                        name={useCurrentLocation ? "my-location" : "location-searching"}
+                        size={18}
+                        color={useCurrentLocation ? '#3B82F6' : (isDarkTheme ? '#9CA3AF' : '#64748b')}
                         style={{ marginRight: 10 }}
                     />
                 </TouchableOpacity>
                 <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, !isDarkTheme && styles.textInputLight]}
                     placeholder="Starting point?"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={isDarkTheme ? "#9CA3AF" : "#64748b"}
                     value={useCurrentLocation ? currentLocationName : startQuery}
                     onChangeText={(t) => handleSearch(t, 'start')}
                     onFocus={() => setActiveInput('start')}
-                    editable={!useCurrentLocation}
+                    editable={!useCurrentLocation && !locked}
                 />
-                {!useCurrentLocation && (
+                {!useCurrentLocation && !locked && (
                     <TouchableOpacity onPress={onUseCurrentLocation} style={styles.gpsResetBtn}>
                         <MaterialIcons name="gps-fixed" size={18} color="#3B82F6" />
                     </TouchableOpacity>
                 )}
             </View>
 
-            <View style={styles.inputDivider} />
+            <View style={[styles.inputDivider, !isDarkTheme && styles.inputDividerLight]} />
 
             {/* Destination Input */}
-            <View style={[styles.inputRow, isDestLocked && styles.inputRowLocked]}>
-                <MaterialIcons
-                    name={isDestLocked ? "lock" : "place"}
-                    size={20}
-                    color={isDestLocked ? "#9CA3AF" : "#FFD700"}
-                    style={{ marginRight: 10 }}
+            <View style={[styles.inputRow, !isDarkTheme && styles.inputRowLight, locked && styles.inputRowLocked]}>
+                <MaterialIcons name="place" size={18} color="#EF4444" style={{ marginRight: 10 }} />
+                <TextInput
+                    style={[styles.textInput, !isDarkTheme && styles.textInputLight]}
+                    placeholder="Where to?"
+                    placeholderTextColor={isDarkTheme ? "#9CA3AF" : "#64748b"}
+                    value={destQuery}
+                    onChangeText={(t) => handleSearch(t, 'dest')}
+                    onFocus={() => setActiveInput('dest')}
+                    editable={!locked}
                 />
-                <View style={{ flex: 1 }}>
-                    {isDestLocked && <Text style={styles.lockedLabel}>GROUP DESTINATION</Text>}
-                    <TextInput
-                        style={[styles.textInput, isDestLocked && { opacity: 0.8 }]}
-                        placeholder={isDestLocked ? "Waiting for leader..." : "Where to?"}
-                        placeholderTextColor="#9CA3AF"
-                        value={destQuery}
-                        onChangeText={(t) => !isDestLocked && handleSearch(t, 'dest')}
-                        onFocus={() => !isDestLocked && setActiveInput('dest')}
-                        editable={!isDestLocked}
-                    />
-                </View>
-                {loading && <ActivityIndicator size="small" color="#FFD700" style={{ marginHorizontal: 5 }} />}
-                {!isDestLocked && destQuery.length > 0 && (
+                {loading && (
+                    <ActivityIndicator size="small" color="#3B82F6" style={{ marginLeft: 8 }} />
+                )}
+                {!locked && destQuery.length > 0 && (
                     <TouchableOpacity onPress={() => onDestQueryChange?.('')}>
                         <MaterialIcons name="close" size={20} color="#9CA3AF" />
                     </TouchableOpacity>
@@ -259,6 +254,30 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: -2,
         letterSpacing: 0.5,
+    },
+    // ── Light Theme Styles ──────────────────────────────────
+    containerLight: {
+        backgroundColor: '#ffffff',
+        borderColor: '#e2e8f0',
+    },
+    inputRowLight: {
+        backgroundColor: '#f1f5f9',
+    },
+    textInputLight: {
+        color: '#0f172a',
+    },
+    inputDividerLight: {
+        backgroundColor: '#e2e8f0',
+    },
+    suggestionsContainerLight: {
+        backgroundColor: '#ffffff',
+        borderColor: '#e2e8f0',
+    },
+    suggestionNameLight: {
+        color: '#0f172a',
+    },
+    suggestionAddressLight: {
+        color: '#64748b',
     },
 });
 

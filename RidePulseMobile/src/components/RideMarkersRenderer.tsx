@@ -1,5 +1,5 @@
-import React, { memo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React, { memo, useRef, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { Marker as RNMarker } from 'react-native-maps';
 import { GroupMember, GroupSOSAlert } from '../types';
 import { getColorForUser } from '../services/GroupRideManager';
@@ -20,7 +20,8 @@ const RiderTagMarker: React.FC<{
     member: GroupMember;
     isSOS?: boolean;
     isLeader?: boolean;
-}> = memo(({ member, isSOS, isLeader }) => {
+    showName?: boolean;
+}> = memo(({ member, isSOS, isLeader, showName }) => {
     // Per-rider color from Firestore, with hash fallback
     const riderColor = member.color || getColorForUser(member.id);
     const tagColor = isSOS ? '#FF3B30' : riderColor;
@@ -72,16 +73,18 @@ const RiderTagMarker: React.FC<{
                     </Text>
                 </View>
 
-                {/* Name text */}
-                <Text
-                    style={[
-                        styles.tagName,
-                        { fontSize: isLeader ? 13 : 11 },
-                    ]}
-                    numberOfLines={1}
-                >
-                    {displayName}
-                </Text>
+                {/* Name text - Show only if selected or SOS */}
+                {(showName || isSOS) && (
+                    <Text
+                        style={[
+                            styles.tagName,
+                            { fontSize: isLeader ? 13 : 10 },
+                        ]}
+                        numberOfLines={1}
+                    >
+                        {displayName}
+                    </Text>
+                )}
 
                 {/* SOS badge */}
                 {isSOS && (
@@ -111,6 +114,8 @@ export const RideMarkersRenderer: React.FC<RideMarkersRendererProps> = ({
     sosAlerts = [],
     leaderId,
 }) => {
+    const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
+
     // Show all members except ourselves
     const others = members.filter(m => m.id !== userId);
 
@@ -137,11 +142,13 @@ export const RideMarkersRenderer: React.FC<RideMarkersRendererProps> = ({
                         }}
                         tracksViewChanges={isSOS(member, sosAlerts)}
                         anchor={{ x: 0.5, y: 1 }}
+                        onPress={() => setSelectedRiderId(selectedRiderId === member.id ? null : member.id)}
                     >
                         <RiderTagMarker
                             member={member}
                             isSOS={hasSOS}
                             isLeader={isLeader}
+                            showName={selectedRiderId === member.id}
                         />
                     </RNMarker>
                 );
@@ -208,3 +215,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+export default RideMarkersRenderer;

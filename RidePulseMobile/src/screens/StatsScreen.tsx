@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity, Dimensions,
     StyleSheet, ActivityIndicator, RefreshControl
@@ -90,14 +90,31 @@ const StatsScreen: React.FC<Props> = () => {
         propsForBackgroundLines: { strokeDasharray: "" }
     };
 
-    const heatmapData = {
-        labels: ["Start", "15m", "30m", "45m", "End"],
-        datasets: [{
-            data: [40, 60, 55, 90, 80, 110, 65],
-            color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
-            strokeWidth: 2
-        }]
-    };
+    const heatmapData = useMemo(() => {
+        const telemetry = stats?.lastRide?.telemetry;
+        if (!telemetry || telemetry.length < 2) {
+            return {
+                labels: ["0%", "25%", "50%", "75%", "100%"],
+                datasets: [{
+                    data: [0, 0, 0, 0, 0],
+                    color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
+                    strokeWidth: 2
+                }]
+            };
+        }
+
+        const step = Math.max(1, Math.floor(telemetry.length / 8));
+        const sampled = telemetry.filter((_, i) => i % step === 0).slice(0, 8);
+
+        return {
+            labels: sampled.map((_, i) => `${Math.round((i / (sampled.length - 1)) * 100)}%`),
+            datasets: [{
+                data: sampled.map(t => t.speed),
+                color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
+                strokeWidth: 2
+            }]
+        };
+    }, [stats?.lastRide?.telemetry]);
 
     const renderHistory = () => (
         <View>
@@ -213,15 +230,15 @@ const StatsScreen: React.FC<Props> = () => {
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle}>Speed Heatmap</Text>
-                    <TouchableOpacity style={styles.filterBtn}>
+                    <View style={styles.filterBtn}>
                         <Text style={styles.filterBtnText}>Last Ride</Text>
-                    </TouchableOpacity>
+                    </View>
                 </View>
                 <View style={{ marginTop: 10 }}>
                     <LineChart
                         data={heatmapData}
                         width={width - 50}
-                        height={140}
+                        height={160}
                         chartConfig={{
                             ...chartConfig,
                             fillShadowGradientFrom: "#FFD700",
@@ -276,35 +293,33 @@ const StatsScreen: React.FC<Props> = () => {
     );
 
     const renderRoutes = () => {
-        const routes = [
-            { id: 'r1', name: 'Mulholland Drive', dist: '32 km', curves: 5, elev: '420m', img: '#1F2937' },
-            { id: 'r2', name: 'Angeles Crest', dist: '105 km', curves: 4, elev: '2200m', img: '#111827' },
-        ];
-
         return (
             <View>
-                <TouchableOpacity style={styles.addRouteBtn}>
+                <TouchableOpacity
+                    style={styles.addRouteBtn}
+                    onPress={() => navigation.navigate('Map')}
+                >
                     <MaterialIcons name="add" size={24} color="black" />
                     <Text style={styles.addRouteText}>PLAN NEW ROUTE</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.gridTitle}>FAVORITE ROUTES</Text>
+                <Text style={styles.gridTitle}>FREQUENT ROUTES</Text>
 
-                {routes.map((route) => (
-                    <View key={route.id} style={styles.routeCard}>
-                        <View style={[styles.routeImg, { backgroundColor: route.img }]}>
+                {history.map((ride, idx) => (
+                    <View key={ride.id || idx} style={styles.routeCard}>
+                        <View style={[styles.routeImg, { backgroundColor: '#1F2937' }]}>
                             <MaterialIcons name="map" size={40} color="#374151" />
                         </View>
                         <View style={styles.routeContent}>
-                            <Text style={styles.routeTitle}>{route.name}</Text>
+                            <Text style={styles.routeTitle}>{ride.endName || 'Unnamed Route'}</Text>
                             <View style={styles.routeStats}>
                                 <View style={styles.routeStatParam}>
                                     <MaterialIcons name="straighten" size={14} color="#9CA3AF" />
-                                    <Text style={styles.routeStatVal}>{route.dist}</Text>
+                                    <Text style={styles.routeStatVal}>{ride.distance?.toFixed(1)} km</Text>
                                 </View>
                                 <View style={styles.routeStatParam}>
-                                    <MaterialIcons name="terrain" size={14} color="#9CA3AF" />
-                                    <Text style={styles.routeStatVal}>{route.elev}</Text>
+                                    <MaterialIcons name="speed" size={14} color="#9CA3AF" />
+                                    <Text style={styles.routeStatVal}>{ride.averageSpeed?.toFixed(0)} avg</Text>
                                 </View>
                             </View>
                             <View style={styles.curveRating}>
@@ -313,13 +328,21 @@ const StatsScreen: React.FC<Props> = () => {
                                         key={starI}
                                         name="star"
                                         size={12}
-                                        color={starI < route.curves ? '#FFD700' : '#374151'}
+                                        color={starI < 4 ? '#FFD700' : '#374151'}
                                     />
                                 ))}
-                                <Text style={styles.curveLabel}>Curve Rating</Text>
+                                <Text style={styles.curveLabel}>Confidence</Text>
                             </View>
                         </View>
-                        <TouchableOpacity style={styles.goBtn}>
+                        <TouchableOpacity
+                            style={styles.goBtn}
+                            onPress={() => navigation.navigate('Map', {
+                                startCoords: ride.startLocation,
+                                destCoords: ride.endLocation,
+                                startName: ride.startName,
+                                destName: ride.endName
+                            })}
+                        >
                             <MaterialIcons name="navigation" size={24} color="white" />
                         </TouchableOpacity>
                     </View>

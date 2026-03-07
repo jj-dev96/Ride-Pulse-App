@@ -1,4 +1,5 @@
 import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
     Dimensions, Animated, PanResponder, StatusBar, Platform,
@@ -48,18 +49,20 @@ type Props = CompositeScreenProps<
     NativeStackScreenProps<RootStackParamList>
 >;
 
-const showToast = (msg: string): void => {
-    if (Platform.OS === 'android') {
-        ToastAndroid.show(msg, ToastAndroid.SHORT);
-    } else {
-        Alert.alert(msg);
-    }
-};
+// Toast helper removed from global scope to use component-level floating messages
 
 
 const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     const [isDarkTheme, setIsDarkTheme] = useState<boolean>(true);
     const { user } = useContext(AuthContext);
+
+    const showToast = (msg: string): void => {
+        showFloatingMessage({
+            senderName: 'SYSTEM',
+            text: msg,
+            timestamp: new Date().toISOString()
+        });
+    };
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [startLocationQuery, setStartLocationQuery] = useState<string>('');
     const [useCurrentLocation, setUseCurrentLocation] = useState<boolean>(true);
@@ -123,6 +126,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     const [rideStartTime, setRideStartTime] = useState<string>('');
     const [isRecentering, setIsRecentering] = useState<boolean>(false);
     const [nearbyDrivers, setNearbyDrivers] = useState<DriverLocation[]>([]);
+    const [telemetryData, setTelemetryData] = useState<{ speed: number; timestamp: number }[]>([]);
 
     // Multiplayer Advanced States
     const [multiplayerColor, setMultiplayerColor] = useState<string>('');
@@ -131,6 +135,9 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     const [sosAlerts, setSosAlerts] = useState<GroupSOSAlert[]>([]);
     const [showMultiplayerChat, setShowMultiplayerChat] = useState<boolean>(false);
     const [dismissedSosIds, setDismissedSosIds] = useState<Set<string>>(new Set());
+    const lastMsgId = useRef<string | null>(null);
+    const msgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const listenerAttachTime = useRef<number>(Date.now());
 
     // ── Leader / Role Logic ──────────────────────────────────────────────────
     const isLeader = useMemo(() => {
@@ -148,18 +155,35 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         return true;
     }, [activeGroup?.hostId, activeGroup?.leaderId, user?.id, joinedMembers]);
 
+    const leaderName = useMemo(() => {
+        if (!activeGroup) return 'Leader';
+        const rawHostId = activeGroup?.leaderId || activeGroup?.hostId;
+        const hostId = typeof rawHostId === 'string' ? rawHostId.trim() : null;
+        const leader = joinedMembers.find(m => m.id?.trim() === hostId);
+        return leader ? (leader.id === user?.id ? 'you' : leader.name.toLowerCase()) : 'leader';
+    }, [joinedMembers, activeGroup, user?.id]);
     // Message Listener for Floating Cards
     useEffect(() => {
         if (!activeGroup?.id) return;
+        listenerAttachTime.current = Date.now();
         const messagesRef = collection(db, 'rides', activeGroup.id, 'messages');
         const q = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
         const unsubscribeMsg = onSnapshot(q, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added") {
                     const data = change.doc.data();
-                    // Show all messages (including ours) for feedback
+                    const docId = change.doc.id;
+
+                    // Prevention 1: Ignore messages seen before
+                    if (lastMsgId.current === docId) return;
+                    lastMsgId.current = docId;
+
+                    // Prevention 2: Ignore messages that were sent BEFORE we opened the dashboard
                     const msgTime = new Date(data.timestamp).getTime();
-                    if (Date.now() - msgTime < 5000) {
+                    if (msgTime < listenerAttachTime.current - 1000) return;
+
+                    // Prevention 3: Filter recent enough
+                    if (Date.now() - msgTime < 10000) {
                         showFloatingMessage(data);
                     }
                 }
@@ -169,13 +193,14 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     }, [activeGroup?.id]);
 
     const showFloatingMessage = (msg: any) => {
+        if (msgTimer.current) clearTimeout(msgTimer.current);
         setActiveMessage(msg);
-        Animated.timing(messageFade, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-        setTimeout(() => {
-            Animated.timing(messageFade, { toValue: 0, duration: 500, useNativeDriver: true }).start(() => {
+        Animated.timing(messageFade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+        msgTimer.current = setTimeout(() => {
+            Animated.timing(messageFade, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => {
                 setActiveMessage(null);
             });
-        }, 10000);
+        }, 5000); // Reduced to 5 seconds
     };
 
     // Sync active group (Verified source of truth)
@@ -189,12 +214,17 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             if (group) {
                 unsubscribeGroup.current = GroupService.subscribeToGroup(group.id, (data: GroupData | null) => {
                     if (!data || data.status === 'completed' || data.status === 'cancelled') {
+                        // AUTO-TERMINATE RIDE FOR ALL MEMBERS
+                        setIsRideActive(false);
+                        AsyncStorage.setItem('SOLO_RIDE_ACTIVE', 'false').catch(() => { });
+
                         setActiveGroup(null);
                         setDestination(null);
                         setRouteCoords([]);
                         setSosAlerts([]);
                         setJoinedMembers([]);
                         unsubscribeGroup.current?.();
+                        showToast(data?.status === 'completed' ? "Mission Completed by Leader" : "Mission Cancelled by Leader");
                     } else {
                         setActiveGroup(data);
                     }
@@ -228,8 +258,14 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             if (activeGroup.eta) {
                 setEstimatedDuration(`${activeGroup.eta} min`);
             }
+
+            // AUTO-START RIDE FOR MEMBERS
+            if (activeGroup.status === 'active' && !isRideActive) {
+                setIsRideActive(true);
+                AsyncStorage.setItem('SOLO_RIDE_ACTIVE', 'true').catch(() => { });
+            }
         }
-    }, [activeGroup?.destinationCoordinates, activeGroup?.destinationCoords, activeGroup?.routeGeometry, activeGroup?.routeCoords, activeGroup?.id, isLeader, activeGroup?.distance, activeGroup?.eta, activeGroup?.status]);
+    }, [activeGroup?.destinationCoordinates, activeGroup?.destinationCoords, activeGroup?.routeGeometry, activeGroup?.routeCoords, activeGroup?.id, isLeader, activeGroup?.distance, activeGroup?.eta, activeGroup?.status, isRideActive]);
 
     const handleSendQuickMessage = (msg: string): void => {
         if (activeGroup) {
@@ -417,17 +453,24 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         });
     }, [location, user?.id]);
 
-    // Ride Timer & Tracking
+    // Map Tracking Lifecycle
+    useEffect(() => {
+        startLocationTracking();
+        return () => {
+            stopLocationTracking();
+            stopHeadingTracking();
+        };
+    }, []); // Start tracking on mount
+
+    // Ride Timer logic
     useEffect(() => {
         let interval: ReturnType<typeof setInterval> | undefined;
         if (isRideActive) {
             setRideStartTime(new Date().toISOString());
-            startLocationTracking();
             interval = setInterval(() => {
                 setRideDuration(prev => prev + 1);
             }, 1000);
         } else {
-            stopLocationTracking();
             setRideDuration(0);
             setRideSpeed(0);
             setRideDistance(0);
@@ -435,12 +478,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         }
         return () => {
             if (interval) clearInterval(interval);
-            stopLocationTracking();
-            stopHeadingTracking();
         };
     }, [isRideActive]);
 
     const startLocationTracking = async (): Promise<void> => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
         // Start Position Tracking
         locationSubscription.current = await Location.watchPositionAsync(
             { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 5 },
@@ -465,6 +509,12 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                         }
                         return [...prev, newCoords];
                     });
+
+                    // Update telemetry samples
+                    setTelemetryData(prev => [
+                        ...prev,
+                        { speed: currentSpeedKmh, timestamp: Date.now() }
+                    ]);
                 }
 
                 if (activeGroup?.id) {
@@ -587,7 +637,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                 slideAnim.setValue(gestureState.dx);
             }
         },
-        onPanResponderRelease: (evt, gestureState) => {
+        onPanResponderRelease: async (evt, gestureState) => {
             const isProfileComplete = !!user?.profile?.profileCompleted;
             if (!isProfileComplete) {
                 Alert.alert(
@@ -603,8 +653,34 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             }
             const maxSlide = trackWidth - 55;
             if (gestureState.dx > maxSlide * 0.5) {
-                Animated.timing(slideAnim, { toValue: maxSlide, duration: 100, useNativeDriver: true }).start(() => {
+                // If in a group, only leader can start the mission ride
+                if (activeGroup && !isLeader) {
+                    showToast("Waiting for Leader to start...");
+                    Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }).start();
+                    return;
+                }
+
+                Animated.timing(slideAnim, { toValue: maxSlide, duration: 100, useNativeDriver: true }).start(async () => {
                     setIsRideActive(true);
+
+                    // Leader starts group ride
+                    if (activeGroup && isLeader) {
+                        try {
+                            await GroupService.updateRideStatus(activeGroup.id, 'active');
+                            await GroupService.broadcastMessage(activeGroup.id, {
+                                senderId: user?.id || 'Leader',
+                                senderName: user?.name || 'Leader',
+                                text: "🚀 RIDE STARTED! Let's Go!",
+                                timestamp: new Date().toISOString()
+                            });
+                        } catch (err) {
+                            console.error("Leader start failed:", err);
+                        }
+                    }
+
+                    try {
+                        await AsyncStorage.setItem('SOLO_RIDE_ACTIVE', 'true');
+                    } catch { }
                     slideAnim.setValue(0);
                 });
             } else {
@@ -633,16 +709,20 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                     polyline: routeArray,
                     startedAt: rideStartTime,
                     endedAt: endTime,
-                    rideType: (route.params as any)?.returnTrip ? 'Return' : 'Outbound'
+                    rideType: (route.params as any)?.returnTrip ? 'Return' : 'Outbound',
+                    telemetry: telemetryData
                 };
                 if (user?.id) await RideService.logRide(user.id, rideData);
-                Alert.alert(
-                    "Ride Completed",
-                    `Distance: ${rideDistance.toFixed(1)} km\nDuration: ${formatTime(rideDuration)}\nAvg Speed: ${avgSpeed.toFixed(1)} km/h`
-                );
+
+                // REPLACED Alert.alert with Display Card
+                showFloatingMessage({
+                    senderName: "SYSTEM",
+                    text: `🏁 RIDE COMPLETED!\nDist: ${rideDistance.toFixed(1)} km | Time: ${formatTime(rideDuration)}`,
+                    timestamp: new Date().toISOString()
+                });
             } catch (error) {
                 console.error("Failed to log ride:", error);
-                showToast('Ride data saved locally, sync failed');
+                showToast('Ride data saved locally');
             }
         }
         if (activeGroup && user?.id) {
@@ -661,6 +741,9 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
         // Full local state reset
         setIsRideActive(false);
+        try {
+            await AsyncStorage.setItem('SOLO_RIDE_ACTIVE', 'false');
+        } catch { }
         setRouteCoords([]);
         setRouteSteps([]);
         setCurrentStepIndex(0);
@@ -673,6 +756,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         setJoinedMembers([]);
         setDismissedSosIds(new Set());
         setMultiplayerColor('');
+        setTelemetryData([]);
 
         // Navigate back to Lobby so users can create/join a new ride
         navigation.navigate('CenterLogo' as any);
@@ -899,121 +983,93 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
             {/* 2. Top UI Overlay (Search & Group Info) */}
             {!isRideActive && (
-                <SafeAreaView style={styles.topOverlay} pointerEvents="box-none">
-                    <SearchBar
-                        onSelectDestination={(place) => {
-                            setSearchQuery(place.name);
-                            setDestination({ latitude: place.latitude, longitude: place.longitude });
-                            let start = location;
-                            if (!useCurrentLocation && manualStartLocation) start = manualStartLocation;
-                            if (start) calculateDirectRoute(start, { latitude: place.latitude, longitude: place.longitude });
-                        }}
-                        onSelectStart={(place) => {
-                            setStartLocationQuery(place.name);
-                            setManualStartLocation({ latitude: place.latitude, longitude: place.longitude });
-                            setUseCurrentLocation(false);
-                            if (destination) calculateDirectRoute({ latitude: place.latitude, longitude: place.longitude }, destination);
-                        }}
-                        onUseCurrentLocation={resetToCurrentLocation}
-                        useCurrentLocation={useCurrentLocation}
-                        currentLocationName={currentLocationName}
-                        startQuery={startLocationQuery}
-                        destQuery={searchQuery}
-                        onStartQueryChange={setStartLocationQuery}
-                        onDestQueryChange={setSearchQuery}
-                        loading={loading}
-                        isDarkTheme={isDarkTheme}
-                        locked={!!(activeGroup && (activeGroup.status === 'active' || activeGroup.status === 'waiting') && user?.id && activeGroup.hostId !== user.id)}
-                    />
+                <View style={styles.topOverlay} pointerEvents="box-none">
+                    <SafeAreaView edges={['top']} pointerEvents="box-none">
+                        <SearchBar
+                            onSelectDestination={(place) => {
+                                setSearchQuery(place.name);
+                                setDestination({ latitude: place.latitude, longitude: place.longitude });
+                                let start = location;
+                                if (!useCurrentLocation && manualStartLocation) start = manualStartLocation;
+                                if (start) calculateDirectRoute(start, { latitude: place.latitude, longitude: place.longitude });
+                            }}
+                            onSelectStart={(place) => {
+                                setStartLocationQuery(place.name);
+                                setManualStartLocation({ latitude: place.latitude, longitude: place.longitude });
+                                setUseCurrentLocation(false);
+                                if (destination) calculateDirectRoute({ latitude: place.latitude, longitude: place.longitude }, destination);
+                            }}
+                            onUseCurrentLocation={resetToCurrentLocation}
+                            useCurrentLocation={useCurrentLocation}
+                            currentLocationName={currentLocationName}
+                            startQuery={startLocationQuery}
+                            destQuery={searchQuery}
+                            onStartQueryChange={setStartLocationQuery}
+                            onDestQueryChange={setSearchQuery}
+                            loading={loading}
+                            isDarkTheme={isDarkTheme}
+                            locked={!!(activeGroup && (activeGroup.status === 'active' || activeGroup.status === 'waiting') && user?.id && activeGroup.hostId !== user.id)}
+                        />
 
-                    {/* Group Status (Top Right) - Only show if formation panel is NOT visible */}
-                    {activeGroup && formations.length === 0 && (
-                        <View style={styles.topRightInfo}>
-                            <View style={styles.infoBadge}>
-                                <Text style={styles.groupNameText}>{activeGroup.name}</Text>
-                                <View style={styles.infoSubRow}>
-                                    <View style={styles.memberCountBox}>
-                                        <MaterialIcons name="people" size={12} color="#FFD700" />
-                                        <Text style={styles.memberCountText}>{activeGroup.members?.length || 1}</Text>
-                                    </View>
-                                    <Text style={styles.durationText}>{Math.floor(rideDuration / 60)}m</Text>
+
+                        {destination && estimatedDistance !== '' && (
+                            <View style={styles.routeSummaryPill}>
+                                <View style={styles.summaryItem}>
+                                    <Text style={styles.summaryLabel}>TIME</Text>
+                                    <Text style={styles.summaryValue}>{estimatedDuration}</Text>
+                                </View>
+                                <View style={[styles.summaryItem, { borderLeftWidth: 1, borderLeftColor: '#37415120' }]}>
+                                    <Text style={styles.summaryLabel}>DIST</Text>
+                                    <Text style={styles.summaryValue}>{estimatedDistance}</Text>
                                 </View>
                             </View>
-                        </View>
-                    )}
-
-
-
-                    {destination && estimatedDistance !== '' && (
-                        <View style={styles.routeSummaryPill}>
-                            <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>TIME</Text>
-                                <Text style={styles.summaryValue}>{estimatedDuration}</Text>
-                            </View>
-                            <View style={[styles.summaryItem, { borderLeftWidth: 1, borderLeftColor: '#37415120' }]}>
-                                <Text style={styles.summaryLabel}>DIST</Text>
-                                <Text style={styles.summaryValue}>{estimatedDistance}</Text>
-                            </View>
-                        </View>
-                    )}
-                </SafeAreaView>
+                        )}
+                    </SafeAreaView>
+                </View>
             )}
 
             {/* 3. Active Ride HUD Overlay */}
             {isRideActive && (
                 <SafeAreaView style={styles.rideOverlay} pointerEvents="box-none">
                     <View style={styles.rideStatsTop}>
-                        <View style={styles.statBox}>
-                            <Text style={styles.statLabel}>DURATION</Text>
-                            <Text style={styles.statValueBig}>{formatTime(rideDuration)}</Text>
+                        <View style={[styles.statBox, !isDarkTheme && styles.statBoxLight]}>
+                            <Text style={[styles.statLabel, !isDarkTheme && styles.statLabelLight]}>DURATION</Text>
+                            <Text style={[styles.statValueBig, !isDarkTheme && styles.statValueBigLight]}>{formatTime(rideDuration)}</Text>
                         </View>
-                        <View style={styles.statBox}>
-                            <Text style={styles.statLabel}>DISTANCE</Text>
-                            <Text style={styles.statValueBig}>{rideDistance.toFixed(1)} km</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.speedometerContainer}>
-                        <View style={styles.speedometerRing}>
-                            <Text style={styles.speedValue}>{rideSpeed}</Text>
-                            <Text style={styles.speedUnit}>KM/H</Text>
+                        <View style={[styles.statBox, !isDarkTheme && styles.statBoxLight]}>
+                            <Text style={[styles.statLabel, !isDarkTheme && styles.statLabelLight]}>DISTANCE</Text>
+                            <Text style={[styles.statValueBig, !isDarkTheme && styles.statValueBigLight]}>{rideDistance.toFixed(1)} km</Text>
                         </View>
                     </View>
 
                     <View style={styles.bottomRideControls}>
                         {routeSteps && routeSteps.length > 0 && (
-                            <View style={styles.navGuidanceBox}>
+                            <View style={[styles.navGuidanceBox, !isDarkTheme && styles.navGuidanceBoxLight]}>
                                 <MaterialIcons
                                     name={getIconForInstruction(routeSteps[currentStepIndex]?.instruction)}
                                     size={36}
-                                    color="white"
+                                    color={isDarkTheme ? "white" : "black"}
                                 />
                                 <View style={{ marginLeft: 15, flex: 1 }}>
-                                    <Text style={styles.navInstruction}>
+                                    <Text style={[styles.navInstruction, !isDarkTheme && styles.navInstructionLight]}>
                                         {routeSteps[currentStepIndex]?.instruction || "Follow Route"}
                                     </Text>
-                                    <Text style={styles.navDistance}>{routeSteps[currentStepIndex]?.name || ""}</Text>
+                                    <Text style={[styles.navDistance, !isDarkTheme && styles.navDistanceLight]}>{routeSteps[currentStepIndex]?.name || ""}</Text>
                                 </View>
                             </View>
                         )}
 
                         <View style={styles.rideActionRow}>
+                            <View style={[styles.compactSpeedometer, !isDarkTheme && styles.compactSpeedometerLight]}>
+                                <Text style={[styles.compactSpeedValue, !isDarkTheme && styles.compactSpeedValueLight]}>{rideSpeed}</Text>
+                                <Text style={styles.compactSpeedUnit}>KM/H</Text>
+                            </View>
+
                             <TouchableOpacity style={styles.stopRideButton} onPress={stopRide} activeOpacity={0.8}>
                                 <View style={styles.stopIconSquare} />
                                 <Text style={styles.stopRideText}>FINISH RIDE</Text>
                             </TouchableOpacity>
 
-
-
-                            {activeGroup && (
-                                <TouchableOpacity
-                                    style={[styles.rideQuickMessageBtn, { backgroundColor: '#3B82F6' }]}
-                                    onPress={() => setShowMultiplayerChat(prev => !prev)}
-                                >
-                                    <MaterialIcons name="chat" size={24} color="white" />
-                                    <Text style={styles.rideQuickMessageText}>GROUP</Text>
-                                </TouchableOpacity>
-                            )}
                         </View>
                     </View>
                 </SafeAreaView>
@@ -1022,7 +1078,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             {/* ── Multiplayer HUD Overlays ─────────────────── */}
             {activeGroup && (
                 <>
-                    <GroupFormationPanel formations={formations} />
+                    {/* GroupFormationPanel removed from top as requested */}
 
                     {showMultiplayerChat && (
                         <GroupChatOverlay
@@ -1067,7 +1123,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             )}
 
             {/* 5. Main Action FABs */}
-            <View style={[styles.rightButtons, isRideActive && { bottom: 280 }]}>
+            <View style={[styles.rightButtons, isRideActive && { bottom: 220 }]}>
                 {/* SOS button — only in group ride mode */}
                 {activeGroup && (
                     <TouchableOpacity style={[styles.fab, styles.emergencyFab]} onPress={triggerSOS}>
@@ -1075,22 +1131,25 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                     </TouchableOpacity>
                 )}
 
+
+                {activeGroup && (
+                    <TouchableOpacity
+                        style={[styles.groupPillFab, !isDarkTheme && styles.fabLight]}
+                        onPress={() => setShowMemberControl(true)}
+                    >
+                        <View style={styles.groupPillIcon}>
+                            <MaterialIcons name="people" size={24} color="#FFD700" />
+                        </View>
+                        <Text style={[styles.groupPillText, !isDarkTheme && styles.groupPillTextLight]}>
+                            {joinedMembers.length} {joinedMembers.length === 1 ? 'Rider' : 'Riders'} • {leaderName} leading
+                        </Text>
+                        <MaterialIcons name="keyboard-arrow-down" size={20} color={isDarkTheme ? "#9CA3AF" : "#64748b"} />
+                    </TouchableOpacity>
+                )}
+
                 <TouchableOpacity style={styles.fab} onPress={recenterMap} disabled={isRecentering}>
                     {isRecentering ? <ActivityIndicator size="small" color="#FFD700" /> : <MaterialIcons name="my-location" size={24} color="#FFD700" />}
                 </TouchableOpacity>
-
-                {/* Only show chat FAB when in a group but NOT in an active ride (chat moved to HUD during ride) */}
-                {activeGroup && !isRideActive && (
-                    <TouchableOpacity style={styles.fab} onPress={() => setShowQuickMessages(true)}>
-                        <MaterialIcons name="chat" size={24} color="#FFD700" />
-                    </TouchableOpacity>
-                )}
-
-                {activeGroup && (
-                    <TouchableOpacity style={styles.fab} onPress={() => setShowMemberControl(true)}>
-                        <MaterialIcons name="people" size={24} color="#FFD700" />
-                    </TouchableOpacity>
-                )}
 
                 <TouchableOpacity style={[styles.fab, !isDarkTheme && styles.fabLight]} onPress={() => setIsDarkTheme(!isDarkTheme)}>
                     <MaterialIcons name={isDarkTheme ? "wb-sunny" : "nights-stay"} size={22} color={isDarkTheme ? "#FFD700" : "#0F172A"} />
@@ -1099,16 +1158,20 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
             {/* 6. Slide-to-Start Control */}
             {!isRideActive && (
-                <View style={styles.bottomBar}>
+                <View style={[styles.bottomBar, !isDarkTheme && styles.bottomBarLight]}>
                     <View
-                        style={styles.slideTrack}
+                        style={[styles.slideTrack, !isDarkTheme && styles.slideTrackLight]}
                         onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
                         {...panResponder.panHandlers}
                     >
                         <Animated.View style={[styles.slideThumb, { transform: [{ translateX: slideAnim }] }]}>
                             <MaterialIcons name="play-arrow" size={28} color="black" />
                         </Animated.View>
-                        <Text style={styles.slideText}>{activeGroup ? 'SLIDE TO START GROUP RIDE' : 'SLIDE TO START RIDE'}</Text>
+                        <Text style={[styles.slideText, !isDarkTheme && styles.slideTextLight]}>
+                            {activeGroup
+                                ? (isLeader ? 'SLIDE TO START MISSION' : 'WAITING FOR LEADER...')
+                                : 'SLIDE TO START RIDE'}
+                        </Text>
                     </View>
                 </View>
             )}
@@ -1151,6 +1214,8 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                     onClose={() => setShowMemberControl(false)}
                     groupId={activeGroup.id}
                     userId={user?.id || ''}
+                    onOpenChat={() => setShowMultiplayerChat(true)}
+                    onOpenQuickMessages={() => setShowQuickMessages(true)}
                 />
             )}
         </View>
@@ -1165,7 +1230,7 @@ const styles = StyleSheet.create({
     inputDivider: { height: 1, backgroundColor: '#374151', marginVertical: 8, marginHorizontal: 10, opacity: 0.5 },
     gpsResetBtn: { padding: 4, backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: 6 },
 
-    topOverlay: { position: 'absolute', top: 40, left: 0, right: 0, zIndex: 10, pointerEvents: 'box-none' },
+    topOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, pointerEvents: 'box-none' },
     searchContainer: { margin: 15, backgroundColor: 'rgba(15,17,26,0.95)', borderRadius: 16, padding: 10, borderWidth: 1, borderColor: '#1F2937' },
     inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
     textInput: { flex: 1, color: 'white', fontSize: 14, fontWeight: '500' },
@@ -1173,18 +1238,18 @@ const styles = StyleSheet.create({
     suggestionItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#1F2937' },
     suggestionText: { color: 'white', flex: 1, fontSize: 13 },
 
-    topRightInfo: { position: 'absolute', top: 180, right: 15, zIndex: 10 },
+    topRightInfo: { position: 'absolute', top: 240, right: 15, zIndex: 10 },
     infoBadge: { backgroundColor: 'rgba(15,17,26,0.9)', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#FFD70030' },
+    infoBadgeLight: { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#FFD70030' },
     groupNameText: { color: '#FFD700', fontSize: 11, fontWeight: 'bold' },
     infoSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5, gap: 10 },
     memberCountBox: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     memberCountText: { color: '#FFD700', fontSize: 11, fontWeight: 'bold' },
     durationText: { color: '#9CA3AF', fontSize: 11 },
+    durationTextLight: { color: '#64748b' },
 
     offlineBanner: { position: 'absolute', bottom: 200, left: 20, right: 20, backgroundColor: '#EF4444', flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 8, zIndex: 50 },
     offlineText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
-
-
 
     routeSummaryPill: { flexDirection: 'row', backgroundColor: '#FFD700', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 12, alignSelf: 'center', marginTop: 20, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6 },
     summaryItem: { paddingHorizontal: 15, alignItems: 'center' },
@@ -1194,62 +1259,76 @@ const styles = StyleSheet.create({
     rideOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, pointerEvents: 'box-none', justifyContent: 'space-between', paddingHorizontal: 20 },
     rideStatsTop: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
     statBox: { backgroundColor: 'rgba(15,17,26,0.9)', borderRadius: 16, padding: 15, alignItems: 'center', minWidth: 130, borderWidth: 1, borderColor: '#1F2937' },
+    statBoxLight: { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#e2e8f0' },
     statLabel: { color: '#9CA3AF', fontSize: 10, fontWeight: '900', marginBottom: 4, letterSpacing: 1 },
+    statLabelLight: { color: '#64748b' },
     statValueBig: { color: 'white', fontSize: 24, fontWeight: 'bold' },
+    statValueBigLight: { color: '#0f172a' },
 
-    speedometerContainer: { position: 'absolute', bottom: 200, alignSelf: 'center', zIndex: 5 },
-    speedometerRing: { width: 150, height: 150, borderRadius: 75, borderWidth: 0, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-    speedValue: { color: 'black', fontSize: 56, fontWeight: 'bold', fontStyle: 'italic' },
-    speedUnit: { color: 'black', fontSize: 14, fontWeight: '900', letterSpacing: 3, marginTop: -5 },
+    compactSpeedometer: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFD700', elevation: 8 },
+    compactSpeedometerLight: { backgroundColor: '#ffffff', borderColor: '#FFD700' },
+    compactSpeedValue: { color: '#FFD700', fontSize: 18, fontWeight: 'bold' },
+    compactSpeedValueLight: { color: '#0f172a' },
+    compactSpeedUnit: { color: '#9CA3AF', fontSize: 8, fontWeight: '900', marginTop: -2 },
 
     navGuidanceBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15,17,26,0.95)', borderRadius: 16, padding: 16, marginBottom: 15, borderWidth: 1, borderColor: '#1F2937' },
+    navGuidanceBoxLight: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#cbd5e1' },
     navInstruction: { color: 'white', fontSize: 15, fontWeight: 'bold' },
+    navInstructionLight: { color: '#0f172a' },
     navDistance: { color: '#9CA3AF', fontSize: 12, marginTop: 4 },
+    navDistanceLight: { color: '#64748b' },
 
     bottomRideControls: { width: '100%', paddingRight: 85, marginBottom: 80 },
     rideActionRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
     stopRideButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EF4444', borderRadius: 16, padding: 16, elevation: 8 },
     rideQuickMessageBtn: { width: 70, height: 60, backgroundColor: '#1F2937', borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', elevation: 8 },
-    sendBtn: {
-        width: 32,
-        height: 32,
-        backgroundColor: '#FFD700',
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    quickMsgsRow: {
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(55, 65, 81, 0.3)',
-    },
-    quickMsgPill: {
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-        marginRight: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(59, 130, 246, 0.3)',
-    },
-    quickMsgText: {
-        color: '#93C5FD',
-        fontSize: 11,
-        fontWeight: 'bold',
-    },
     rideQuickMessageText: { color: 'white', fontSize: 10, fontWeight: '900', marginTop: 2 },
     stopIconSquare: { width: 14, height: 14, backgroundColor: 'white', borderRadius: 2, marginRight: 12 },
     stopRideText: { color: 'white', fontWeight: '900', fontSize: 14, letterSpacing: 2 },
 
-    rightButtons: { position: 'absolute', right: 20, bottom: 180, gap: 15, alignItems: 'center', zIndex: 100 },
+    rightButtons: { position: 'absolute', right: 20, bottom: 100, gap: 12, alignItems: 'flex-end', zIndex: 100 },
     fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(22,25,37,0.95)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', elevation: 8 },
     fabLight: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#cbd5e1' },
     emergencyFab: { backgroundColor: '#7F1D1D', borderColor: '#EF4444' },
 
+    groupPillFab: {
+        height: 56,
+        paddingLeft: 10,
+        paddingRight: 16,
+        borderRadius: 28,
+        backgroundColor: 'rgba(22,25,37,0.95)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#374151',
+        elevation: 8,
+        gap: 12
+    },
+    groupPillIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#1F2937',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    groupPillText: {
+        color: '#FFD700',
+        fontSize: 13,
+        fontWeight: 'bold',
+        letterSpacing: 0.5
+    },
+    groupPillTextLight: {
+        color: '#0f172a'
+    },
+
     bottomBar: { position: 'absolute', bottom: 70, left: 0, right: 0, padding: 20, paddingBottom: 30, backgroundColor: 'rgba(15,17,26,0.9)', borderTopWidth: 1, borderTopColor: '#1F2937' },
+    bottomBarLight: { backgroundColor: 'rgba(255,255,255,0.9)', borderTopColor: '#e2e8f0' },
     slideTrack: { height: 64, borderRadius: 32, backgroundColor: '#1F2937', borderWidth: 1, borderColor: '#FFD70050', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+    slideTrackLight: { backgroundColor: '#e2e8f0', borderColor: '#FFD70030' },
     slideThumb: { position: 'absolute', left: 4, width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFD700', alignItems: 'center', justifyContent: 'center', elevation: 6 },
     slideText: { color: '#9CA3AF', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+    slideTextLight: { color: '#64748b' },
 
     sosOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
     sosInner: { alignItems: 'center', paddingHorizontal: 40 },
@@ -1260,7 +1339,7 @@ const styles = StyleSheet.create({
     sosTriggeredText: { color: 'white', fontSize: 38, fontWeight: '900', marginTop: 20, letterSpacing: 1 },
     sosTriggeredSub: { color: 'rgba(255,255,255,0.7)', fontSize: 15, textAlign: 'center', marginTop: 12, lineHeight: 22 },
 
-    floatingMessageCard: { position: 'absolute', top: 220, left: 20, right: 20, backgroundColor: '#FFD700', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', elevation: 12, zIndex: 2000 },
+    floatingMessageCard: { position: 'absolute', top: 300, left: 20, right: 20, backgroundColor: '#FFD700', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', elevation: 12, zIndex: 2000 },
     messageIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
     messageSender: { color: 'black', fontWeight: 'bold', fontSize: 12, opacity: 0.6, textTransform: 'uppercase' },
     messageText: { color: 'black', fontWeight: '900', fontSize: 17, marginTop: 2 },

@@ -280,6 +280,7 @@ export interface RideData {
     rideType?: string;
     totalDistance?: number;
     totalTime?: number;
+    telemetry?: { speed: number; timestamp: number }[];
     [key: string]: unknown;
 }
 

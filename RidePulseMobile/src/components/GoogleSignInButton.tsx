@@ -32,16 +32,10 @@ import { auth } from '../config/firebase';
 // REQUIRED: Complete auth session so WebBrowser redirects work on Android
 WebBrowser.maybeCompleteAuthSession();
 
-// ── Client IDs ─────────────────────────────────────────────────────────────────
-// client_type 3 = web client (used for Expo Go and bare workflow)
-// You only have one client ID from google-services.json — it's a web client.
-const WEB_CLIENT_ID =
-    '861623260957-cprhvegl89rp4626a17am1737iluvrju.apps.googleusercontent.com';
-
-// For a real native Android build you'll need a separate OAuth client (type 1).
-// For Expo Go / development builds, the web client ID is used on both platforms.
-const ANDROID_CLIENT_ID = WEB_CLIENT_ID;
-const IOS_CLIENT_ID = WEB_CLIENT_ID; // replace with iOS client if you have one
+// ── Client IDs (Recommended: Move to .env for production) ───────────────
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '861623260957-cprhvegl89rp4626a17am1737iluvrju.apps.googleusercontent.com';
+const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
+const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -62,13 +56,9 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
 
     // ── Auth request ──────────────────────────────────────────────────────────
     const [request, response, promptAsync] = Google.useAuthRequest({
-        // For Expo Managed Workflow the 'web' client ID drives the OAuth flow.
-        // Expo uses its own redirect URI (auth.expo.io) so a web client must be
-        // configured in the Google Cloud Console with that redirect URI added.
         webClientId: WEB_CLIENT_ID,
         androidClientId: ANDROID_CLIENT_ID,
         iosClientId: IOS_CLIENT_ID,
-        // Request offline access so we receive an id_token
         scopes: ['profile', 'email'],
     });
 

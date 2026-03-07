@@ -5,6 +5,7 @@ import {
     Platform, UIManager, Dimensions, KeyboardAvoidingView,
     TextInputKeyPressEventData, NativeSyntheticEvent
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,11 +50,24 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
     const [permission, requestPermission] = useCameraPermissions();
     const inputRefs = useRef<TextInput[]>([]);
     const previousMemberCount = useRef<number>(0);
+    const [soloRideActiveGlobal, setSoloRideActiveGlobal] = useState<boolean>(false);
 
     const showToast = (message: string): void => {
         setToast(message);
         setTimeout(() => setToast(null), 3000);
     };
+
+    // Check for active solo ride globally
+    useEffect(() => {
+        const checkSoloRide = async () => {
+            const active = await AsyncStorage.getItem('SOLO_RIDE_ACTIVE');
+            setSoloRideActiveGlobal(active === 'true');
+        };
+        checkSoloRide();
+        // Check periodically while screen is focused or on mount
+        const interval = setInterval(checkSoloRide, 3000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Auto-clear stale groupId on mount (e.g. after a completed ride)
     useEffect(() => {
@@ -88,9 +102,14 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
                         handleSwitchTab('JOIN');
                         return;
                     }
+                    if (data.status === 'active') {
+                        // Auto-start for everyone!
+                        navigation.navigate('Main', { screen: 'Map' } as any);
+                    }
                     setCurrentGroup(data);
-                } else {
-                    Alert.alert("Ride Closed", "This ride lobby has been closed.");
+                } else if (currentGroup?.id) {
+                    // Only show if it wasn't a clean exit
+                    showToast("⚠️ Lobby session ended.");
                     setCurrentGroup(null);
                 }
             });
@@ -148,6 +167,11 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
 
     const handleCreateLobby = async (): Promise<void> => {
         if (!user) return;
+        const isSolo = await AsyncStorage.getItem('SOLO_RIDE_ACTIVE');
+        if (isSolo === 'true') {
+            showToast("⚠️ Solo Ride Active. Please finish it first.");
+            return;
+        }
         setLoading(true);
         try {
             const rideDetails = {
@@ -174,6 +198,13 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
             return;
         }
         if (!user) return;
+
+        const isSolo = await AsyncStorage.getItem('SOLO_RIDE_ACTIVE');
+        if (isSolo === 'true') {
+            showToast("⚠️ Solo Ride Active.");
+            return;
+        }
+
         setLoading(true);
         try {
             const groupData = await GroupService.joinGroup(code, user);
@@ -181,7 +212,7 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
             handleSwitchTab('HOSTING');
         } catch (error: unknown) {
             const err = error as { message?: string };
-            Alert.alert("Error", "Could not join lobby: " + err.message);
+            showToast("❌ Could not join: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -192,6 +223,13 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
         const isHost = currentGroup.hostId === user.id;
         if (isHost) {
             await GroupService.updateRideStatus(currentGroup.id, 'active');
+            // Broadcast start message so others see the "display card"
+            await GroupService.broadcastMessage(currentGroup.id, {
+                senderId: user.id || 'Leader',
+                senderName: user.name || 'Leader',
+                text: "🚀 RIDE STARTED! Let's Go!",
+                timestamp: new Date().toISOString()
+            }).catch(() => { });
         }
         navigation.navigate('Main', { screen: 'Map' } as any);
     };
@@ -217,15 +255,19 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
         if (data && data.length === 6) {
             const chars = data.split('');
             setJoinCode(chars);
-            Alert.alert("Code Found", `Join Ride ${data}?`, [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Join', onPress: () => joinGroupDirect(data) }
-            ]);
+            joinGroupDirect(data);
         }
     };
 
     const joinGroupDirect = async (id: string): Promise<void> => {
         if (!user) return;
+
+        const isSolo = await AsyncStorage.getItem('SOLO_RIDE_ACTIVE');
+        if (isSolo === 'true') {
+            showToast("⚠️ Solo Ride Active.");
+            return;
+        }
+
         setLoading(true);
         try {
             const groupData = await GroupService.joinGroup(id, user);
@@ -347,14 +389,16 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
                                     </View>
 
                                     <TouchableOpacity
-                                        style={styles.connectButton}
+                                        style={[styles.connectButton, soloRideActiveGlobal && { backgroundColor: '#374151' }]}
                                         onPress={handleJoinLobby}
-                                        disabled={loading}
+                                        disabled={loading || soloRideActiveGlobal}
                                     >
                                         {loading ? <ActivityIndicator color="black" /> : (
                                             <>
-                                                <Text style={styles.connectButtonText}>CONNECT TO LOBBY</Text>
-                                                <MaterialIcons name="login" size={20} color="black" />
+                                                <Text style={[styles.connectButtonText, soloRideActiveGlobal && { color: '#9CA3AF' }]}>
+                                                    {soloRideActiveGlobal ? 'RIDE IN PROGRESS' : 'CONNECT TO LOBBY'}
+                                                </Text>
+                                                <MaterialIcons name="login" size={20} color={soloRideActiveGlobal ? '#9CA3AF' : 'black'} />
                                             </>
                                         )}
                                     </TouchableOpacity>
@@ -380,12 +424,14 @@ const LobbyScreen: React.FC<Props> = ({ navigation }) => {
                                         <Text style={styles.createTitle}>Host a Group Ride</Text>
                                         <Text style={styles.createSubtitle}>Create a ride group to track your pack in real-time.</Text>
                                         <TouchableOpacity
-                                            style={styles.createBtn}
+                                            style={[styles.createBtn, soloRideActiveGlobal && { backgroundColor: '#374151' }]}
                                             onPress={handleCreateLobby}
-                                            disabled={loading}
+                                            disabled={loading || soloRideActiveGlobal}
                                         >
                                             {loading ? <ActivityIndicator color="black" /> : (
-                                                <Text style={styles.createBtnText}>START NEW LOBBY</Text>
+                                                <Text style={[styles.createBtnText, soloRideActiveGlobal && { color: '#9CA3AF' }]}>
+                                                    {soloRideActiveGlobal ? 'RIDE IN PROGRESS' : 'START NEW LOBBY'}
+                                                </Text>
                                             )}
                                         </TouchableOpacity>
                                     </View>
