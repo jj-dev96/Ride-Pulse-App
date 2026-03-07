@@ -10,9 +10,11 @@ import {
     where,
     getDocs,
     serverTimestamp,
+    deleteField,
     Unsubscribe
 } from 'firebase/firestore';
 import { AppUser, RideDetails, RideGroup, RideMember, GroupData } from '../types';
+import { RIDER_PALETTE } from './GroupRideManager';
 
 const generateGroupId = (): string => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -46,19 +48,24 @@ export const GroupService = {
 
             const rideData = {
                 id: groupId,
+                rideId: groupId,        // As per spec
                 hostId: user.id,
+                leaderId: user.id,      // As per spec
                 hostName: user.name,
+                username: user.name,
                 rideName: rideDetails.name || `${user.name}'s Ride`,
                 startLocation: rideDetails.startLocation || 'My Location',
                 destination: rideDetails.destination || 'TBD',
                 rideType: rideDetails.rideType || 'Outbound',
                 createdAt: serverTimestamp(),
-                status: 'waiting' as const
+                status: 'waiting' as const,
+                rideStatus: 'waiting'    // As per spec
             };
 
             await setDoc(doc(db, 'rides', groupId), rideData);
 
             // Add host as first member in subcollection
+            const color = RIDER_PALETTE[0]; // Host always red
             const memberRef = doc(db, 'rides', groupId, 'members', user.id);
             await setDoc(memberRef, {
                 id: user.id,
@@ -67,8 +74,12 @@ export const GroupService = {
                 vehicle: user.vehicle || null,
                 isOnline: true,
                 role: 'host',
+                color,
                 joinedAt: serverTimestamp()
             });
+
+            // Link group ID to user profile for persistent state
+            await updateDoc(doc(db, 'users', user.id), { groupId });
 
             return groupId;
         } catch (error) {
@@ -95,6 +106,11 @@ export const GroupService = {
             const memberSnap = await getDoc(memberRef);
 
             if (!memberSnap.exists()) {
+                const colorsCol = collection(db, 'rides', groupId, 'members');
+                const membersSnap = await getDocs(colorsCol);
+                const takenColors = membersSnap.docs.map(d => d.data().color).filter(Boolean);
+                const color = RIDER_PALETTE.find(c => !takenColors.includes(c)) || RIDER_PALETTE[0];
+
                 await setDoc(memberRef, {
                     id: user.id,
                     name: user.name,
@@ -102,11 +118,15 @@ export const GroupService = {
                     vehicle: user.vehicle || null,
                     isOnline: true,
                     role: 'member',
+                    color,
                     joinedAt: serverTimestamp()
                 });
             } else {
                 await updateDoc(memberRef, { isOnline: true });
             }
+
+            // Link group ID to user profile for persistent state
+            await updateDoc(doc(db, 'users', user.id), { groupId });
 
             return rideSnap.data() as Record<string, unknown>;
         } catch (error) {
@@ -120,6 +140,10 @@ export const GroupService = {
         try {
             const memberRef = doc(db, 'rides', groupId, 'members', userId);
             await updateDoc(memberRef, { isOnline: false });
+
+            // CRITICAL: Clear groupId from user profile to prevent stale session on reload
+            const userRef = doc(db, 'users', userId);
+            await updateDoc(userRef, { groupId: null });
         } catch (error) {
             console.error("Error leaving ride:", error);
         }
@@ -155,19 +179,89 @@ export const GroupService = {
         }
     },
 
+    /**
+     * Complete a ride: marks status as "completed", clears every participant's
+     * groupId so they can immediately create or join a new ride.
+     */
+    completeRide: async (groupId: string): Promise<void> => {
+        try {
+            // 1. Mark ride document as completed
+            const rideRef = doc(db, 'rides', groupId);
+            await updateDoc(rideRef, {
+                status: 'completed',
+                rideStatus: 'completed',
+                completedAt: serverTimestamp()
+            });
+
+            // 2. Clear groupId from every participant's user document
+            const membersSnap = await getDocs(collection(db, 'rides', groupId, 'members'));
+            const clearPromises = membersSnap.docs.map(memberDoc => {
+                const userId = memberDoc.id;
+                const userRef = doc(db, 'users', userId);
+                return updateDoc(userRef, { groupId: deleteField() }).catch(err =>
+                    console.warn(`[completeRide] Failed to clear groupId for ${userId}:`, err)
+                );
+            });
+            await Promise.all(clearPromises);
+
+            // 3. Mark all members as offline
+            const offlinePromises = membersSnap.docs.map(memberDoc => {
+                const memberRef = doc(db, 'rides', groupId, 'members', memberDoc.id);
+                return updateDoc(memberRef, { isOnline: false }).catch(() => { });
+            });
+            await Promise.all(offlinePromises);
+        } catch (error) {
+            console.error("Error completing ride:", error);
+            throw error;
+        }
+    },
+
     // Get the active group for a user
     getUserActiveGroup: async (userId: string): Promise<GroupData | null> => {
         try {
-            const ridesRef = collection(db, 'rides');
-            const q = query(ridesRef, where('status', 'in', ['waiting', 'active']));
-            const snapshot = await getDocs(q);
-            for (const docSnap of snapshot.docs) {
-                const memberRef = doc(db, 'rides', docSnap.id, 'members', userId);
-                const memberSnap = await getDoc(memberRef);
-                if (memberSnap.exists() && memberSnap.data().isOnline) {
-                    return { id: docSnap.id, ...docSnap.data() } as GroupData;
+            // 1. Check user doc for current groupId first
+            const userRef = doc(db, 'users', userId);
+            const userSnap = await getDoc(userRef);
+            const currentGid = userSnap.data()?.groupId;
+
+            if (currentGid) {
+                const rideRef = doc(db, 'rides', currentGid);
+                const rideSnap = await getDoc(rideRef);
+
+                if (rideSnap.exists()) {
+                    const rideData = rideSnap.data();
+
+                    // Staleness check: if group is in 'waiting' for > 4 hours, consider it abandoned
+                    const createdAt = rideData.createdAt?.toDate ? rideData.createdAt.toDate() : (rideData.createdAt ? new Date(rideData.createdAt) : new Date());
+                    const isStale = rideData.status === 'waiting' && (Date.now() - createdAt.getTime() > 4 * 60 * 60 * 1000);
+
+                    const isActive = (rideData.status === 'waiting' || rideData.status === 'active' || rideData.rideStatus === 'active') && !isStale;
+
+                    if (isActive) {
+                        // IMPORTANT: verify the user is actually in the members subcollection
+                        const memberRef = doc(db, 'rides', currentGid, 'members', userId);
+                        const memberSnap = await getDoc(memberRef);
+
+                        if (memberSnap.exists()) {
+                            return { id: rideSnap.id, ...rideData } as GroupData;
+                        }
+
+                        // User is NOT a member — stale groupId, clean it up
+                        console.warn(`[getUserActiveGroup] User ${userId} has groupId=${currentGid} but is not in members. Clearing.`);
+                        await updateDoc(userRef, { groupId: deleteField() }).catch(() => { });
+                        return null;
+                    }
+
+                    // Ride exists but is completed, cancelled or stale — auto-clear stale groupId
+                    console.log(`[getUserActiveGroup] Cleaning up inactive/stale group: ${currentGid}`);
+                    await updateDoc(userRef, { groupId: deleteField() }).catch(() => { });
+                } else {
+                    // Ride doc doesn't exist at all — clear the dangling pointer
+                    await updateDoc(userRef, { groupId: deleteField() }).catch(() => { });
                 }
             }
+
+            // If we reach here the user has no valid group — make sure groupId is clean
             return null;
         } catch (error) {
             console.error("Error getting active group:", error);
@@ -221,4 +315,29 @@ export const GroupService = {
             console.error("Error broadcasting message:", error);
         }
     },
+
+    // Update ride destination & route for all members
+    updateRideDestination: async (
+        groupId: string,
+        destination: string,
+        coords: { latitude: number; longitude: number },
+        routeCoords?: any[],
+        distance?: string,
+        eta?: string
+    ): Promise<void> => {
+        try {
+            const rideRef = doc(db, 'rides', groupId);
+            await updateDoc(rideRef, {
+                destination,
+                destinationCoords: coords,
+                destinationCoordinates: coords, // As per spec
+                routeCoords: routeCoords || [],
+                routeGeometry: routeCoords || [], // As per spec
+                distance: distance || '',
+                eta: eta || ''
+            });
+        } catch (error) {
+            console.error("Error updating ride destination:", error);
+        }
+    }
 };

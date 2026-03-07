@@ -2,29 +2,43 @@ import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
     Dimensions, Animated, PanResponder, StatusBar, Platform,
-    Alert, ToastAndroid, Modal, ActivityIndicator
+    Alert, ToastAndroid, Modal, ActivityIndicator, FlatList, KeyboardAvoidingView, ScrollView
 } from 'react-native';
-import MapplsMapView from '../components/MapplsMapView';
+import MapboxMapView from '../components/MapView';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { AuthContext } from '../context/AuthContext';
+import { RideMessage } from '../services/RideChatService';
 import LottieView from 'lottie-react-native';
 import NetInfo from '@react-native-community/netinfo';
 import {
     geocodeAddress, getRoute, getDistance, cacheLocation,
     getCachedLocation, searchPlaces, reverseGeocode
-} from '../services/MapService';
+} from '../services/mapService';
+import { subscribeToNearbyDrivers, DriverLocation } from '../services/rideMatchingService';
+import { LocationService, LocationUpdate } from '../services/locationService';
 import QuickMessageSheet from '../components/QuickMessageSheet';
 import MemberControlSheet from '../components/MemberControlSheet';
 import { RideService } from '../services/RideService';
 import { GroupService } from '../services/GroupService';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import SearchBar from '../components/SearchBar';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { db } from '../config/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { RootStackParamList, MainTabParamList, LocationCoords, GroupData, GroupMember, PlaceSuggestion, RideData } from '../types';
+import { RootStackParamList, MainTabParamList, LocationCoords, GroupData, GroupMember, PlaceSuggestion, RideData, GroupSOSAlert } from '../types';
+import { RideSessionManager } from '../services/RideSessionManager';
+import { RideLocationSync } from '../services/RideLocationSync';
+import { FormationService, RiderFormation } from '../services/FormationService';
+import { RideChatService } from '../services/RideChatService';
+import { SOSAlertService } from '../services/SOSAlertService';
+import { LeaderRouteService } from '../services/LeaderRouteService';
+import { RideMarkersRenderer } from '../components/RideMarkersRenderer';
+import { GroupFormationPanel } from '../components/GroupFormationPanel';
+import { GroupChatOverlay } from '../components/GroupChatOverlay';
+import { GroupSOSAlert as GroupSOSAlertCard } from '../components/GroupSOSAlert';
 
 const { width, height } = Dimensions.get('window');
 const GEOFENCE_RADIUS = 500;
@@ -42,7 +56,8 @@ const showToast = (msg: string): void => {
     }
 };
 
-const DashboardScreen: React.FC<Props> = ({ navigation }) => {
+
+const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     const [isDarkTheme, setIsDarkTheme] = useState<boolean>(true);
     const { user } = useContext(AuthContext);
     const [searchQuery, setSearchQuery] = useState<string>('');
@@ -54,6 +69,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     const [isConnected, setIsConnected] = useState<boolean>(true);
     const [currentLocationName, setCurrentLocationName] = useState<string>("Current Location");
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+    const quickMsgs = ["Stopping for fuel", "Brake check", "Slow down", "Speed up", "Need help", "Regroup"];
     const [travelMode] = useState<'drive'>('drive');
     const [estimatedDistance, setEstimatedDistance] = useState<string>('');
     const [estimatedDuration, setEstimatedDuration] = useState<string>('');
@@ -85,7 +101,8 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     const [sosCountdown, setSosCountdown] = useState<number>(10);
     const [sosTriggered, setSosTriggered] = useState<boolean>(false);
     const sosTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const [groupData, setGroupData] = useState<GroupData | null>(null);
+    // Unified group state - only verified groups allowed
+    const [activeGroup, setActiveGroup] = useState<GroupData | null>(null);
     const [joinedMembers, setJoinedMembers] = useState<GroupMember[]>([]);
 
     const [location, setLocation] = useState<LocationCoords | null>(null);
@@ -95,8 +112,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     const headingSubscription = useRef<Location.LocationSubscription | null>(null);
     const [destination, setDestination] = useState<LocationCoords | null>(null);
     const [routeCoords, setRouteCoords] = useState<LocationCoords[]>([]);
-    const [activeGroup, setActiveGroup] = useState<GroupData | null>(null);
-    const unsubscribeGroup = useRef<(() => void) | null>(null);
+    const unsubscribeGroup = useRef<(() => void) | null>(null); // Restored this line
     const [showQuickMessages, setShowQuickMessages] = useState<boolean>(false);
     const [showMemberControl, setShowMemberControl] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
@@ -106,6 +122,31 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     const [activeInput, setActiveInput] = useState<'start' | 'dest' | null>(null);
     const [rideStartTime, setRideStartTime] = useState<string>('');
     const [isRecentering, setIsRecentering] = useState<boolean>(false);
+    const [nearbyDrivers, setNearbyDrivers] = useState<DriverLocation[]>([]);
+
+    // Multiplayer Advanced States
+    const [multiplayerColor, setMultiplayerColor] = useState<string>('');
+    const [formations, setFormations] = useState<RiderFormation[]>([]);
+    const [groupMessages, setGroupMessages] = useState<RideMessage[]>([]);
+    const [sosAlerts, setSosAlerts] = useState<GroupSOSAlert[]>([]);
+    const [showMultiplayerChat, setShowMultiplayerChat] = useState<boolean>(false);
+    const [dismissedSosIds, setDismissedSosIds] = useState<Set<string>>(new Set());
+
+    // ── Leader / Role Logic ──────────────────────────────────────────────────
+    const isLeader = useMemo(() => {
+        const uid = user?.id?.trim();
+        const rawHostId = activeGroup?.leaderId || activeGroup?.hostId;
+        const hostId = typeof rawHostId === 'string' ? rawHostId.trim() : null;
+
+        if (!activeGroup) return true;
+        if (hostId && uid) return hostId === uid;
+
+        // Fallback for member roster
+        const me = joinedMembers.find(m => m.id?.trim() === uid);
+        if (me) return me.role === 'host' || me.role === 'leader';
+
+        return true;
+    }, [activeGroup?.hostId, activeGroup?.leaderId, user?.id, joinedMembers]);
 
     // Message Listener for Floating Cards
     useEffect(() => {
@@ -137,19 +178,58 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
         }, 10000);
     };
 
-    // Sync active group
+    // Sync active group (Verified source of truth)
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setActiveGroup(null);
+            return;
+        }
         (async () => {
             const group = await GroupService.getUserActiveGroup(user.id);
             if (group) {
-                unsubscribeGroup.current = GroupService.subscribeToGroup(group.id, (data: GroupData) => {
-                    setActiveGroup(data);
+                unsubscribeGroup.current = GroupService.subscribeToGroup(group.id, (data: GroupData | null) => {
+                    if (!data || data.status === 'completed' || data.status === 'cancelled') {
+                        setActiveGroup(null);
+                        setDestination(null);
+                        setRouteCoords([]);
+                        setSosAlerts([]);
+                        setJoinedMembers([]);
+                        unsubscribeGroup.current?.();
+                    } else {
+                        setActiveGroup(data);
+                    }
                 });
+            } else {
+                setActiveGroup(null);
+                setJoinedMembers([]);
             }
         })();
         return () => { if (unsubscribeGroup.current) unsubscribeGroup.current(); };
-    }, [user]);
+    }, [user?.id, user?.groupId]); // React to groupId changes!
+
+    // Sync destination and route from leader (Only for Non-Leaders in active groups)
+    useEffect(() => {
+        if (activeGroup && !isLeader && (activeGroup.status === 'active' || activeGroup.status === 'waiting')) {
+            const destCoords = activeGroup.destinationCoordinates || activeGroup.destinationCoords;
+            const geom = activeGroup.routeGeometry || activeGroup.routeCoords;
+
+            if (destCoords) {
+                setDestination(destCoords as LocationCoords);
+            }
+            if (geom) {
+                setRouteCoords(geom as LocationCoords[]);
+            }
+            if (activeGroup.destination && activeGroup.destination !== 'TBD') {
+                setSearchQuery(activeGroup.destination);
+            }
+            if (activeGroup.distance) {
+                setEstimatedDistance(`${activeGroup.distance} km`);
+            }
+            if (activeGroup.eta) {
+                setEstimatedDuration(`${activeGroup.eta} min`);
+            }
+        }
+    }, [activeGroup?.destinationCoordinates, activeGroup?.destinationCoords, activeGroup?.routeGeometry, activeGroup?.routeCoords, activeGroup?.id, isLeader, activeGroup?.distance, activeGroup?.eta, activeGroup?.status]);
 
     const handleSendQuickMessage = (msg: string): void => {
         if (activeGroup) {
@@ -166,6 +246,68 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
+    // ── Multiplayer Advanced Features (Only for Verified Groups) ─────────────
+    useEffect(() => {
+        // IMPORTANT: Only run if activeGroup is verified and belongs to this user
+        if (!activeGroup?.id || !user?.id) return;
+
+        // 1. Start Broadcast
+        RideLocationSync.startLocationBroadcasting(activeGroup.id, user.id, user.name || 'Rider', multiplayerColor || '#FF3B30');
+
+        // 2. Subscribe to Members
+        const unsubMembers = onSnapshot(collection(db, 'rides', activeGroup.id, 'members'), (snap) => {
+            const members = snap.docs.map(d => ({ id: d.id, ...d.data() } as GroupMember));
+            setJoinedMembers(members);
+
+            // 3. Update Formation
+            const rawHostId = activeGroup.leaderId || activeGroup.hostId || members[0]?.id;
+            const hostId = typeof rawHostId === 'string' ? rawHostId : (rawHostId as any)?.toString();
+            if (hostId) {
+                setFormations(FormationService.calculateFormation(members, hostId));
+            }
+        });
+
+        // 4. Listen for Messages
+        const unsubChat = RideChatService.listenToChat(activeGroup.id, (msgs) => setGroupMessages(msgs as any));
+
+        // 5. Listen for SOS Alerts
+        const unsubSOS = SOSAlertService.listenForSOS(activeGroup.id, (alerts) => {
+            setSosAlerts(alerts.filter(alert => !dismissedSosIds.has(alert.id)));
+        });
+
+        return () => {
+            unsubMembers();
+            unsubChat();
+            unsubSOS();
+            RideLocationSync.stopLocationBroadcasting();
+        };
+    }, [activeGroup?.id, user?.id, multiplayerColor, dismissedSosIds]); // Added dismissedSosIds to dependency array
+
+    // ── Group Auto Map Zoom (Debounced) ──────────────────────────────────────
+    const lastZoomTime = useRef<number>(0);
+    useEffect(() => {
+        const gid = activeGroup?.id || user?.groupId;
+        if (gid && joinedMembers.length > 0 && mapRef.current) {
+            const now = Date.now();
+            if (now - lastZoomTime.current < 5000) return; // Feature 11: Debounce camera updates (5s)
+
+            const coords = joinedMembers
+                .filter(m => m.latitude && m.longitude)
+                .map(m => ({ latitude: m.latitude!, longitude: m.longitude! }));
+
+            if (location) coords.push(location);
+            if (destination) coords.push(destination);
+
+            if (coords.length > 1) {
+                (mapRef.current as any).fitToCoordinates?.(coords, {
+                    edgePadding: { top: 150, right: 80, bottom: 280, left: 80 },
+                    animated: true,
+                });
+                lastZoomTime.current = now;
+            }
+        }
+    }, [joinedMembers, isRideActive, destination, location]);
+
     // Connectivity Monitoring
     useEffect(() => {
         const unsubscribe = NetInfo.addEventListener(state => {
@@ -176,7 +318,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 
     // Handle Return Trip Params
     useEffect(() => {
-        const params = navigation.getState().routes.find(r => r.name === 'Map')?.params as any;
+        const params = route.params as any;
         if (params?.returnTrip && params?.startCoords && params?.destCoords) {
             setDestination(params.destCoords);
             setManualStartLocation(params.startCoords);
@@ -184,20 +326,20 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
             setSearchQuery(params.destName || "");
             setStartLocationQuery(params.startName || "");
             (async () => {
-                const route = await getRoute(params.startCoords, params.destCoords, travelMode);
-                if (route?.coordinates) {
-                    setRouteCoords(route.coordinates);
-                    setRouteSteps(route.steps || []);
-                    setRideDistance(route.distance / 1000);
+                const routeResult = await getRoute(params.startCoords, params.destCoords, travelMode);
+                if (routeResult?.coordinates) {
+                    setRouteCoords(routeResult.coordinates);
+                    setRouteSteps(routeResult.steps || []);
+                    setRideDistance(routeResult.distance / 1000);
                     // Update estimates
-                    const km = (route.distance / 1000).toFixed(1);
-                    const mins = Math.ceil(route.duration / 60);
+                    const km = (routeResult.distance / 1000).toFixed(1);
+                    const mins = Math.ceil(routeResult.duration / 60);
                     setEstimatedDistance(`${km} km`);
                     setEstimatedDuration(`${mins} min`);
                 }
             })();
         }
-    }, [navigation.getState(), travelMode]);
+    }, [route.params, travelMode]);
 
     const lastReverseGeocodeRef = useRef<number>(0);
 
@@ -249,6 +391,31 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     useEffect(() => {
         recenterMap();
     }, []);
+
+    // Subscribe to nearby drivers
+    useEffect(() => {
+        if (!location) return;
+        const unsubscribe = subscribeToNearbyDrivers(
+            location,
+            10, // 10km radius
+            (drivers) => setNearbyDrivers(drivers)
+        );
+        return () => unsubscribe();
+    }, [location?.latitude, location?.longitude]);
+
+    // Store location to Firestore continuously
+    useEffect(() => {
+        if (!user?.id || !location) return;
+        LocationService.storeLocationInFirestore(user.id, {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            speed: (location as any).speed ?? 0,
+            heading: (location as any).heading ?? 0,
+            altitude: (location as any).altitude ?? 0,
+            accuracy: (location as any).accuracy ?? 0,
+            timestamp: Date.now(),
+        });
+    }, [location, user?.id]);
 
     // Ride Timer & Tracking
     useEffect(() => {
@@ -319,16 +486,8 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
-    // Sub to group
-    useEffect(() => {
-        if (user?.groupId) {
-            const unsub = GroupService.subscribeToGroup(user.groupId, (data: GroupData) => {
-                setGroupData(data);
-                if (data?.members) setJoinedMembers(data.members);
-            });
-            return unsub;
-        }
-    }, [user?.groupId]);
+    // Unified group state is now handled by the main sync effect at line 182.
+    // Redundant subscription removed to prevent inconsistent state from stale user.groupId.
 
     const stopLocationTracking = (): void => {
         if (locationSubscription.current) {
@@ -361,24 +520,16 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 
                         try {
                             const currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-                            if (activeGroup) {
-                                // Add to alerts subcollection
-                                await addDoc(collection(db, "rides", activeGroup.id, "alerts"), {
-                                    riderId: user?.id,
-                                    riderName: user?.name,
-                                    location: currentLoc.coords,
-                                    rideId: activeGroup.id,
-                                    createdAt: serverTimestamp(),
-                                    type: "SOS"
-                                });
+                            if (activeGroup && user) {
+                                // Use centralized SOS service
+                                await SOSAlertService.broadcastSOS(
+                                    activeGroup.id,
+                                    user.id,
+                                    user.name || 'Unknown Rider',
+                                    { latitude: currentLoc.coords.latitude, longitude: currentLoc.coords.longitude }
+                                );
 
-                                await GroupService.broadcastMessage(activeGroup.id, {
-                                    senderId: user?.id || '',
-                                    senderName: user?.name || '',
-                                    text: `🆘 SOS EMERGENCY ALERT: ${user?.name} needs help!`,
-                                    timestamp: new Date().toISOString()
-                                });
-                                showToast('SOS sent to group!');
+                                showToast('🆘 SOS BROADCAST ACTIVE!');
                             }
                         } catch (e) {
                             console.error("SOS Trigger Error", e);
@@ -395,6 +546,10 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
         setSosTriggered(false);
         setSosCountdown(10);
         if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+
+        if (activeGroup && user) {
+            SOSAlertService.cancelSOS(activeGroup.id, user.id);
+        }
     };
 
     useEffect(() => {
@@ -478,7 +633,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                     polyline: routeArray,
                     startedAt: rideStartTime,
                     endedAt: endTime,
-                    rideType: (navigation.getState().routes.find(r => r.name === 'Map')?.params as any)?.returnTrip ? 'Return' : 'Outbound'
+                    rideType: (route.params as any)?.returnTrip ? 'Return' : 'Outbound'
                 };
                 if (user?.id) await RideService.logRide(user.id, rideData);
                 Alert.alert(
@@ -490,18 +645,43 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 showToast('Ride data saved locally, sync failed');
             }
         }
+        if (activeGroup && user?.id) {
+            try {
+                if (isLeader) {
+                    // Leader completes the ride — clears groupId for ALL participants
+                    await GroupService.completeRide(activeGroup.id);
+                } else {
+                    // Non-leader just leaves the group
+                    await GroupService.leaveGroup(activeGroup.id, user.id);
+                }
+            } catch (err) {
+                console.error("End group session failed:", err);
+            }
+        }
+
+        // Full local state reset
         setIsRideActive(false);
         setRouteCoords([]);
         setRouteSteps([]);
         setCurrentStepIndex(0);
         setDestination(null);
         setHasArrived(false);
+        setSosAlerts([]);
+        setActiveGroup(null);
+        setFormations([]);
+        setGroupMessages([]);
+        setJoinedMembers([]);
+        setDismissedSosIds(new Set());
+        setMultiplayerColor('');
+
+        // Navigate back to Lobby so users can create/join a new ride
+        navigation.navigate('CenterLogo' as any);
     };
 
     const broadcastMessage = async (text: string): Promise<void> => {
-        if (!groupData?.id) return;
+        if (!activeGroup?.id) return;
         try {
-            await GroupService.broadcastMessage(groupData.id, {
+            await GroupService.broadcastMessage(activeGroup.id, {
                 senderId: user?.id || '',
                 senderName: user?.name || '',
                 text,
@@ -546,6 +726,18 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 const mins = Math.ceil(route.duration / 60);
                 setEstimatedDistance(`${km} km`);
                 setEstimatedDuration(`${mins} min`);
+
+                // Broadcast to group if leader
+                if (activeGroup && isLeader) {
+                    LeaderRouteService.shareRouteWithGroup(
+                        activeGroup.id,
+                        searchQuery || end.latitude.toString(),
+                        { latitude: end.latitude, longitude: end.longitude },
+                        route.coordinates,
+                        km,
+                        mins.toString()
+                    );
+                }
             }
         } catch (err) {
             console.warn('Route error:', err);
@@ -673,7 +865,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
             <StatusBar barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
 
             {/* 1. Main Map Layer */}
-            <MapplsMapView
+            <MapboxMapView
                 style={styles.map}
                 location={useCurrentLocation ? location : manualStartLocation || location}
                 userLocation={location}
@@ -683,8 +875,19 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 isRideActive={isRideActive}
                 geofenceRadius={GEOFENCE_RADIUS}
                 members={joinedMembers}
+                nearbyDrivers={nearbyDrivers}
                 isDarkTheme={isDarkTheme}
-            />
+            >
+                {/* Advanced Multiplayer Renderer */}
+                {activeGroup && (
+                    <RideMarkersRenderer
+                        members={joinedMembers}
+                        userId={user?.id || ''}
+                        sosAlerts={sosAlerts}
+                        leaderId={(activeGroup?.leaderId as string) || (activeGroup as any)?.hostId || undefined}
+                    />
+                )}
+            </MapboxMapView>
 
             {/* Offline/No Connection Banner */}
             {!isConnected && (
@@ -697,72 +900,34 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
             {/* 2. Top UI Overlay (Search & Group Info) */}
             {!isRideActive && (
                 <SafeAreaView style={styles.topOverlay} pointerEvents="box-none">
-                    <View style={styles.searchContainer}>
-                        {/* Source Input */}
-                        <View style={styles.inputRow}>
-                            <TouchableOpacity onPress={() => setUseCurrentLocation(!useCurrentLocation)}>
-                                <MaterialIcons
-                                    name={useCurrentLocation ? "my-location" : "location-searching"}
-                                    size={20}
-                                    color={useCurrentLocation ? "#3B82F6" : "#9CA3AF"}
-                                    style={{ marginRight: 10 }}
-                                />
-                            </TouchableOpacity>
-                            <TextInput
-                                style={styles.textInput}
-                                placeholder="Starting point?"
-                                placeholderTextColor="#9CA3AF"
-                                value={useCurrentLocation ? "My Location" : startLocationQuery}
-                                onChangeText={(t) => onSearchTextChange(t, 'start')}
-                                onFocus={handleStartLocationFocus}
-                            />
-                            {!useCurrentLocation && (
-                                <TouchableOpacity onPress={() => setUseCurrentLocation(true)} style={styles.gpsResetBtn}>
-                                    <MaterialIcons name="gps-fixed" size={18} color="#3B82F6" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                    <SearchBar
+                        onSelectDestination={(place) => {
+                            setSearchQuery(place.name);
+                            setDestination({ latitude: place.latitude, longitude: place.longitude });
+                            let start = location;
+                            if (!useCurrentLocation && manualStartLocation) start = manualStartLocation;
+                            if (start) calculateDirectRoute(start, { latitude: place.latitude, longitude: place.longitude });
+                        }}
+                        onSelectStart={(place) => {
+                            setStartLocationQuery(place.name);
+                            setManualStartLocation({ latitude: place.latitude, longitude: place.longitude });
+                            setUseCurrentLocation(false);
+                            if (destination) calculateDirectRoute({ latitude: place.latitude, longitude: place.longitude }, destination);
+                        }}
+                        onUseCurrentLocation={resetToCurrentLocation}
+                        useCurrentLocation={useCurrentLocation}
+                        currentLocationName={currentLocationName}
+                        startQuery={startLocationQuery}
+                        destQuery={searchQuery}
+                        onStartQueryChange={setStartLocationQuery}
+                        onDestQueryChange={setSearchQuery}
+                        loading={loading}
+                        isDarkTheme={isDarkTheme}
+                        locked={!!(activeGroup && (activeGroup.status === 'active' || activeGroup.status === 'waiting') && user?.id && activeGroup.hostId !== user.id)}
+                    />
 
-                        <View style={styles.inputDivider} />
-
-                        {/* Destination Input */}
-                        <View style={styles.inputRow}>
-                            <MaterialIcons name="place" size={20} color="#FFD700" style={{ marginRight: 10 }} />
-                            <TextInput
-                                style={styles.textInput}
-                                placeholder="Where to ride?"
-                                placeholderTextColor="#9CA3AF"
-                                value={searchQuery}
-                                onChangeText={(t) => onSearchTextChange(t, 'dest')}
-                                onFocus={() => setActiveInput('dest')}
-                            />
-                            {loading && <ActivityIndicator size="small" color="#FFD700" style={{ marginHorizontal: 5 }} />}
-                            {searchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                    <MaterialIcons name="close" size={20} color="#9CA3AF" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        {/* Search Suggestions List */}
-                        {suggestions.length > 0 && (
-                            <View style={styles.suggestionsContainer}>
-                                {suggestions.map((item) => (
-                                    <TouchableOpacity
-                                        key={item.id}
-                                        style={styles.suggestionItem}
-                                        onPress={() => selectSuggestion(item)}
-                                    >
-                                        <MaterialIcons name="location-on" size={18} color="#FFD700" style={{ marginRight: 10 }} />
-                                        <Text style={styles.suggestionText} numberOfLines={1}>{item.name}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Group Status (Top Right) */}
-                    {activeGroup && (
+                    {/* Group Status (Top Right) - Only show if formation panel is NOT visible */}
+                    {activeGroup && formations.length === 0 && (
                         <View style={styles.topRightInfo}>
                             <View style={styles.infoBadge}>
                                 <Text style={styles.groupNameText}>{activeGroup.name}</Text>
@@ -838,13 +1003,52 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                                 <Text style={styles.stopRideText}>FINISH RIDE</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.rideQuickMessageBtn} onPress={() => setShowQuickMessages(true)}>
+
+
+                            <TouchableOpacity
+                                style={[styles.rideQuickMessageBtn, activeGroup && { backgroundColor: '#3B82F6' }]}
+                                onPress={() => activeGroup ? setShowMultiplayerChat(prev => !prev) : setShowQuickMessages(prev => !prev)}
+                            >
                                 <MaterialIcons name="chat" size={24} color="white" />
-                                <Text style={styles.rideQuickMessageText}>MSG</Text>
+                                <Text style={styles.rideQuickMessageText}>{activeGroup ? 'GROUP' : 'MSG'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </SafeAreaView>
+            )}
+
+            {/* ── Multiplayer HUD Overlays ─────────────────── */}
+            {activeGroup && (
+                <>
+                    <GroupFormationPanel formations={formations} />
+
+                    {showMultiplayerChat && (
+                        <GroupChatOverlay
+                            messages={groupMessages}
+                            onSendMessage={(msg) => RideChatService.sendMessage(activeGroup.id, user.id, user.name || 'Rider', msg)}
+                            onClose={() => setShowMultiplayerChat(false)}
+                            quickMessages={quickMsgs}
+                        />
+                    )}
+
+                    {sosAlerts.filter(a => !dismissedSosIds.has(a.id)).map(alert => (
+                        <GroupSOSAlertCard
+                            key={alert.id}
+                            alert={alert}
+                            onDismiss={() => {
+                                setDismissedSosIds(prev => {
+                                    const next = new Set(prev);
+                                    next.add(alert.id);
+                                    return next;
+                                });
+                            }}
+                            onNavigate={() => {
+                                setDestination({ latitude: alert.latitude, longitude: alert.longitude });
+                                setSearchQuery(`SOS: ${alert.username}`);
+                            }}
+                        />
+                    ))}
+                </>
             )}
 
             {/* 4. Team Chat Broadcasts */}
@@ -862,16 +1066,19 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 
             {/* 5. Main Action FABs */}
             <View style={[styles.rightButtons, isRideActive && { bottom: 280 }]}>
-                <TouchableOpacity style={[styles.fab, styles.emergencyFab]} onPress={triggerSOS}>
-                    <MaterialIcons name="report-problem" size={28} color="white" />
-                </TouchableOpacity>
+                {/* SOS button — only in group ride mode */}
+                {activeGroup && (
+                    <TouchableOpacity style={[styles.fab, styles.emergencyFab]} onPress={triggerSOS}>
+                        <MaterialIcons name="report-problem" size={28} color="white" />
+                    </TouchableOpacity>
+                )}
 
                 <TouchableOpacity style={styles.fab} onPress={recenterMap} disabled={isRecentering}>
                     {isRecentering ? <ActivityIndicator size="small" color="#FFD700" /> : <MaterialIcons name="my-location" size={24} color="#FFD700" />}
                 </TouchableOpacity>
 
-                {/* Only show chat FAB when NOT in a ride (it moved to HUD) */}
-                {!isRideActive && (
+                {/* Only show chat FAB when in a group but NOT in an active ride (chat moved to HUD during ride) */}
+                {activeGroup && !isRideActive && (
                     <TouchableOpacity style={styles.fab} onPress={() => setShowQuickMessages(true)}>
                         <MaterialIcons name="chat" size={24} color="#FFD700" />
                     </TouchableOpacity>
@@ -899,7 +1106,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                         <Animated.View style={[styles.slideThumb, { transform: [{ translateX: slideAnim }] }]}>
                             <MaterialIcons name="play-arrow" size={28} color="black" />
                         </Animated.View>
-                        <Text style={styles.slideText}>SLIDE TO START BICYCLE RIDE</Text>
+                        <Text style={styles.slideText}>{activeGroup ? 'SLIDE TO START GROUP RIDE' : 'SLIDE TO START RIDE'}</Text>
                     </View>
                 </View>
             )}
@@ -956,7 +1163,7 @@ const styles = StyleSheet.create({
     inputDivider: { height: 1, backgroundColor: '#374151', marginVertical: 8, marginHorizontal: 10, opacity: 0.5 },
     gpsResetBtn: { padding: 4, backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: 6 },
 
-    topOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, pointerEvents: 'box-none' },
+    topOverlay: { position: 'absolute', top: 40, left: 0, right: 0, zIndex: 10, pointerEvents: 'box-none' },
     searchContainer: { margin: 15, backgroundColor: 'rgba(15,17,26,0.95)', borderRadius: 16, padding: 10, borderWidth: 1, borderColor: '#1F2937' },
     inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
     textInput: { flex: 1, color: 'white', fontSize: 14, fontWeight: '500' },
@@ -964,7 +1171,7 @@ const styles = StyleSheet.create({
     suggestionItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#1F2937' },
     suggestionText: { color: 'white', flex: 1, fontSize: 13 },
 
-    topRightInfo: { position: 'absolute', top: 120, right: 15, zIndex: 10 },
+    topRightInfo: { position: 'absolute', top: 180, right: 15, zIndex: 10 },
     infoBadge: { backgroundColor: 'rgba(15,17,26,0.9)', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#FFD70030' },
     groupNameText: { color: '#FFD700', fontSize: 11, fontWeight: 'bold' },
     infoSubRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5, gap: 10 },
@@ -972,7 +1179,7 @@ const styles = StyleSheet.create({
     memberCountText: { color: '#FFD700', fontSize: 11, fontWeight: 'bold' },
     durationText: { color: '#9CA3AF', fontSize: 11 },
 
-    offlineBanner: { position: 'absolute', top: 60, left: 20, right: 20, backgroundColor: '#EF4444', flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 8, zIndex: 50 },
+    offlineBanner: { position: 'absolute', bottom: 200, left: 20, right: 20, backgroundColor: '#EF4444', flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 8, zIndex: 50 },
     offlineText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
 
 
@@ -989,24 +1196,51 @@ const styles = StyleSheet.create({
     statValueBig: { color: 'white', fontSize: 24, fontWeight: 'bold' },
 
     speedometerContainer: { position: 'absolute', bottom: 200, alignSelf: 'center', zIndex: 5 },
-    speedometerRing: { width: 150, height: 150, borderRadius: 75, borderWidth: 4, borderColor: '#FFD70040', backgroundColor: 'rgba(15,17,26,0.8)', alignItems: 'center', justifyContent: 'center' },
-    speedValue: { color: 'white', fontSize: 56, fontWeight: 'bold', fontStyle: 'italic' },
-    speedUnit: { color: '#FFD700', fontSize: 14, fontWeight: '900', letterSpacing: 3, marginTop: -5 },
+    speedometerRing: { width: 150, height: 150, borderRadius: 75, borderWidth: 0, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+    speedValue: { color: 'black', fontSize: 56, fontWeight: 'bold', fontStyle: 'italic' },
+    speedUnit: { color: 'black', fontSize: 14, fontWeight: '900', letterSpacing: 3, marginTop: -5 },
 
-    navGuidanceBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15,17,26,0.95)', borderRadius: 16, padding: 18, marginBottom: 15, borderWidth: 1, borderColor: '#1F2937' },
+    navGuidanceBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15,17,26,0.95)', borderRadius: 16, padding: 16, marginBottom: 15, borderWidth: 1, borderColor: '#1F2937' },
     navInstruction: { color: 'white', fontSize: 15, fontWeight: 'bold' },
     navDistance: { color: '#9CA3AF', fontSize: 12, marginTop: 4 },
 
-    bottomRideControls: { width: '100%', paddingRight: 75, marginBottom: 80 },
-    rideActionRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-    stopRideButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EF4444', borderRadius: 18, padding: 18, elevation: 8 },
-    rideQuickMessageBtn: { width: 75, height: 60, backgroundColor: '#1F2937', borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', elevation: 8 },
+    bottomRideControls: { width: '100%', paddingRight: 85, marginBottom: 80 },
+    rideActionRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    stopRideButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EF4444', borderRadius: 16, padding: 16, elevation: 8 },
+    rideQuickMessageBtn: { width: 70, height: 60, backgroundColor: '#1F2937', borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', elevation: 8 },
+    sendBtn: {
+        width: 32,
+        height: 32,
+        backgroundColor: '#FFD700',
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    quickMsgsRow: {
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(55, 65, 81, 0.3)',
+    },
+    quickMsgPill: {
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(59, 130, 246, 0.3)',
+    },
+    quickMsgText: {
+        color: '#93C5FD',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
     rideQuickMessageText: { color: 'white', fontSize: 10, fontWeight: '900', marginTop: 2 },
     stopIconSquare: { width: 14, height: 14, backgroundColor: 'white', borderRadius: 2, marginRight: 12 },
     stopRideText: { color: 'white', fontWeight: '900', fontSize: 14, letterSpacing: 2 },
 
-    rightButtons: { position: 'absolute', right: 15, bottom: 180, gap: 12, alignItems: 'center', zIndex: 100 },
-    fab: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(22,25,37,0.95)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', elevation: 8 },
+    rightButtons: { position: 'absolute', right: 20, bottom: 180, gap: 15, alignItems: 'center', zIndex: 100 },
+    fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(22,25,37,0.95)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', elevation: 8 },
     fabLight: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#cbd5e1' },
     emergencyFab: { backgroundColor: '#7F1D1D', borderColor: '#EF4444' },
 
@@ -1024,7 +1258,7 @@ const styles = StyleSheet.create({
     sosTriggeredText: { color: 'white', fontSize: 38, fontWeight: '900', marginTop: 20, letterSpacing: 1 },
     sosTriggeredSub: { color: 'rgba(255,255,255,0.7)', fontSize: 15, textAlign: 'center', marginTop: 12, lineHeight: 22 },
 
-    floatingMessageCard: { position: 'absolute', top: 100, left: 20, right: 20, backgroundColor: '#FFD700', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', elevation: 12, zIndex: 2000 },
+    floatingMessageCard: { position: 'absolute', top: 220, left: 20, right: 20, backgroundColor: '#FFD700', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', elevation: 12, zIndex: 2000 },
     messageIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
     messageSender: { color: 'black', fontWeight: 'bold', fontSize: 12, opacity: 0.6, textTransform: 'uppercase' },
     messageText: { color: 'black', fontWeight: '900', fontSize: 17, marginTop: 2 },
