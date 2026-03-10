@@ -30,8 +30,10 @@ jobs:
         working-directory: ./RidePulseMobile
         run: npm install --legacy-peer-deps
 
-      # In an Expo project, sometimes we need to ensure prebuild is run,
-      # but if the android folder is committed, we can build right away.
+      - name: Generate Native Folders (Prebuild)
+        working-directory: ./RidePulseMobile
+        run: npx expo prebuild --platform android
+
       - name: Generate Android App
         working-directory: ./RidePulseMobile/android
         # Adding execute permission to gradlew in case it's lost
