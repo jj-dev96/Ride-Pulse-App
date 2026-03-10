@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./RidePulseMobile
-        run: npm ci
+        run: npm install
 
       # In an Expo project, sometimes we need to ensure prebuild is run,
       # but if the android folder is committed, we can build right away.
