@@ -54,7 +54,22 @@ type Props = CompositeScreenProps<
 
 const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     const [isDarkTheme, setIsDarkTheme] = useState<boolean>(true);
+    const [hasManuallyToggled, setHasManuallyToggled] = useState<boolean>(false);
     const { user } = useContext(AuthContext);
+
+    // ── Auto-Theme Logic ─────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!hasManuallyToggled) {
+            const hour = new Date().getHours();
+            const isNight = hour < 6 || hour >= 18; // Night between 6 PM and 6 AM
+            setIsDarkTheme(isNight);
+        }
+    }, [hasManuallyToggled]);
+
+    const toggleTheme = () => {
+        setIsDarkTheme(!isDarkTheme);
+        setHasManuallyToggled(true);
+    };
 
     const showToast = (msg: string): void => {
         showFloatingMessage({
@@ -1011,6 +1026,20 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                             locked={!!(activeGroup && (activeGroup.status === 'active' || activeGroup.status === 'waiting') && user?.id && activeGroup.hostId !== user.id)}
                         />
 
+                        {/* Theme Toggle Button - Top Right Floating */}
+                        <TouchableOpacity
+                            style={[styles.themePill, !isDarkTheme && styles.themePillLight]}
+                            onPress={toggleTheme}
+                        >
+                            <MaterialIcons
+                                name={isDarkTheme ? "nights-stay" : "wb-sunny"}
+                                size={18}
+                                color={isDarkTheme ? "#FFD700" : "#0F172A"}
+                            />
+                            <Text style={[styles.themePillText, !isDarkTheme && styles.themePillTextLight]}>
+                                {isDarkTheme ? "NIGHT" : "DAY"}
+                            </Text>
+                        </TouchableOpacity>
 
                         {destination && estimatedDistance !== '' && (
                             <View style={styles.routeSummaryPill}>
@@ -1113,7 +1142,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             {activeMessage && (
                 <Animated.View style={[styles.floatingMessageCard, { opacity: messageFade }]}>
                     <View style={styles.messageIcon}>
-                        <MaterialIcons name="chat" size={20} color="black" />
+                        <MaterialIcons name="chat" size={20} color="#FFD700" />
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.messageSender}>{activeMessage.senderName || 'Rider'}</Text>
@@ -1124,35 +1153,20 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
             {/* 5. Main Action FABs */}
             <View style={[styles.rightButtons, isRideActive && { bottom: 220 }]}>
-                {/* SOS button — only in group ride mode */}
-                {activeGroup && (
-                    <TouchableOpacity style={[styles.fab, styles.emergencyFab]} onPress={triggerSOS}>
-                        <MaterialIcons name="report-problem" size={28} color="white" />
-                    </TouchableOpacity>
-                )}
-
-
                 {activeGroup && (
                     <TouchableOpacity
-                        style={[styles.groupPillFab, !isDarkTheme && styles.fabLight]}
+                        style={[styles.fab, !isDarkTheme && styles.fabLight, { position: 'relative' }]}
                         onPress={() => setShowMemberControl(true)}
                     >
-                        <View style={styles.groupPillIcon}>
-                            <MaterialIcons name="people" size={24} color="#FFD700" />
+                        <MaterialIcons name="groups" size={28} color="#FFD700" />
+                        <View style={styles.fabBadge}>
+                            <Text style={styles.fabBadgeText}>{joinedMembers.length}</Text>
                         </View>
-                        <Text style={[styles.groupPillText, !isDarkTheme && styles.groupPillTextLight]}>
-                            {joinedMembers.length} {joinedMembers.length === 1 ? 'Rider' : 'Riders'} • {leaderName} leading
-                        </Text>
-                        <MaterialIcons name="keyboard-arrow-down" size={20} color={isDarkTheme ? "#9CA3AF" : "#64748b"} />
                     </TouchableOpacity>
                 )}
 
                 <TouchableOpacity style={styles.fab} onPress={recenterMap} disabled={isRecentering}>
                     {isRecentering ? <ActivityIndicator size="small" color="#FFD700" /> : <MaterialIcons name="my-location" size={24} color="#FFD700" />}
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.fab, !isDarkTheme && styles.fabLight]} onPress={() => setIsDarkTheme(!isDarkTheme)}>
-                    <MaterialIcons name={isDarkTheme ? "wb-sunny" : "nights-stay"} size={22} color={isDarkTheme ? "#FFD700" : "#0F172A"} />
                 </TouchableOpacity>
             </View>
 
@@ -1216,6 +1230,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                     userId={user?.id || ''}
                     onOpenChat={() => setShowMultiplayerChat(true)}
                     onOpenQuickMessages={() => setShowQuickMessages(true)}
+                    onTriggerSOS={triggerSOS}
                 />
             )}
         </View>
@@ -1286,41 +1301,11 @@ const styles = StyleSheet.create({
     stopIconSquare: { width: 14, height: 14, backgroundColor: 'white', borderRadius: 2, marginRight: 12 },
     stopRideText: { color: 'white', fontWeight: '900', fontSize: 14, letterSpacing: 2 },
 
-    rightButtons: { position: 'absolute', right: 20, bottom: 100, gap: 12, alignItems: 'flex-end', zIndex: 100 },
+    rightButtons: { position: 'absolute', right: 20, bottom: 195, gap: 12, alignItems: 'flex-end', zIndex: 100 },
     fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(22,25,37,0.95)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#374151', elevation: 8 },
     fabLight: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#cbd5e1' },
-    emergencyFab: { backgroundColor: '#7F1D1D', borderColor: '#EF4444' },
-
-    groupPillFab: {
-        height: 56,
-        paddingLeft: 10,
-        paddingRight: 16,
-        borderRadius: 28,
-        backgroundColor: 'rgba(22,25,37,0.95)',
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#374151',
-        elevation: 8,
-        gap: 12
-    },
-    groupPillIcon: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        backgroundColor: '#1F2937',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    groupPillText: {
-        color: '#FFD700',
-        fontSize: 13,
-        fontWeight: 'bold',
-        letterSpacing: 0.5
-    },
-    groupPillTextLight: {
-        color: '#0f172a'
-    },
+    fabBadge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#EF4444', minWidth: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1F2937' },
+    fabBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
 
     bottomBar: { position: 'absolute', bottom: 70, left: 0, right: 0, padding: 20, paddingBottom: 30, backgroundColor: 'rgba(15,17,26,0.9)', borderTopWidth: 1, borderTopColor: '#1F2937' },
     bottomBarLight: { backgroundColor: 'rgba(255,255,255,0.9)', borderTopColor: '#e2e8f0' },
@@ -1339,10 +1324,30 @@ const styles = StyleSheet.create({
     sosTriggeredText: { color: 'white', fontSize: 38, fontWeight: '900', marginTop: 20, letterSpacing: 1 },
     sosTriggeredSub: { color: 'rgba(255,255,255,0.7)', fontSize: 15, textAlign: 'center', marginTop: 12, lineHeight: 22 },
 
-    floatingMessageCard: { position: 'absolute', top: 300, left: 20, right: 20, backgroundColor: '#FFD700', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', elevation: 12, zIndex: 2000 },
-    messageIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
-    messageSender: { color: 'black', fontWeight: 'bold', fontSize: 12, opacity: 0.6, textTransform: 'uppercase' },
-    messageText: { color: 'black', fontWeight: '900', fontSize: 17, marginTop: 2 },
+    floatingMessageCard: { position: 'absolute', top: 120, left: 20, right: 20, backgroundColor: 'rgba(31, 41, 55, 0.95)', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FFD70050', elevation: 12, zIndex: 2000 },
+    messageIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,215,0,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
+    messageSender: { color: '#9CA3AF', fontWeight: 'bold', fontSize: 12, opacity: 0.8, textTransform: 'uppercase' },
+    messageText: { color: 'white', fontWeight: '900', fontSize: 16, marginTop: 4 },
+
+    themePill: {
+        position: 'absolute',
+        top: 240, // Below Search Bar
+        right: 15,
+        backgroundColor: 'rgba(15,17,26,0.9)',
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: '#1F2937',
+        elevation: 10,
+        zIndex: 100,
+    },
+    themePillLight: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#cbd5e1' },
+    themePillText: { color: '#FFD700', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+    themePillTextLight: { color: '#0F172A' },
 });
 
 export default DashboardScreen;

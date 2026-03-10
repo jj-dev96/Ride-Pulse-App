@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity, Dimensions,
-    StyleSheet, ActivityIndicator, RefreshControl
+    StyleSheet, ActivityIndicator, RefreshControl, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -181,7 +181,18 @@ const StatsScreen: React.FC<Props> = () => {
                                     <MaterialIcons name="replay" size={16} color="black" />
                                     <Text style={styles.returnButtonText}>Return Trip</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.analyticsButton}>
+                                <TouchableOpacity
+                                    style={styles.analyticsButton}
+                                    onPress={() => {
+                                        const dateStr = (ride.timestamp as any)?.toDate ? (ride.timestamp as any).toDate().toLocaleString() : 'Recent';
+                                        const members = ride.groupMembers as string[] | undefined;
+                                        const participantStr = members && members.length > 0 ? members.join(', ') : 'Solo Ride';
+                                        Alert.alert(
+                                            "Ride Details",
+                                            `Date: ${dateStr}\nParticipants: ${participantStr}\nDistance: ${ride.distance?.toFixed(1)} km\nDuration: ${Math.floor(ride.duration / 60)}m ${ride.duration % 60}s\nAvg Speed: ${ride.averageSpeed?.toFixed(1)} km/h`
+                                        );
+                                    }}
+                                >
                                     <Text style={styles.analyticsButtonText}>Details</Text>
                                 </TouchableOpacity>
                             </View>

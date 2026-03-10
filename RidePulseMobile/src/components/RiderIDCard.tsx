@@ -164,9 +164,9 @@ const RiderIDCard: React.FC<RiderIDCardProps> = ({ visible, onClose, user, onCom
                                 </View>
 
                                 <View style={styles.detailRow}>
-                                    <Text style={styles.label}>AGE | DOB</Text>
+                                    <Text style={styles.label}>AGE | DOB | BLOOD</Text>
                                     <Text style={styles.value}>
-                                        {profile.age || "??"} | {profile.dob || "??"}
+                                        {profile.age || "??"} | {profile.dob || "??"} | {profile.bloodType || "???"}
                                     </Text>
                                 </View>
 

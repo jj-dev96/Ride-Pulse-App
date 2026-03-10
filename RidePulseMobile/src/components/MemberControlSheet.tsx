@@ -14,12 +14,13 @@ interface MemberControlSheetProps {
     userId?: string;
     onOpenChat?: () => void;
     onOpenQuickMessages?: () => void;
+    onTriggerSOS?: () => void;
 }
 
 const MemberControlSheet: React.FC<MemberControlSheetProps> = ({
     visible, onClose, group: groupProp, user: userProp,
     groupId: groupIdProp, userId: userIdProp,
-    onOpenChat, onOpenQuickMessages
+    onOpenChat, onOpenQuickMessages, onTriggerSOS
 }) => {
     const [group, setGroup] = useState<RideGroup | null>(groupProp || null);
 
@@ -88,6 +89,11 @@ const MemberControlSheet: React.FC<MemberControlSheetProps> = ({
                     </View>
 
                     <View style={styles.primaryActions}>
+                        <TouchableOpacity style={[styles.actionBox, { backgroundColor: '#EF4444' }]} onPress={() => { onClose(); onTriggerSOS?.(); }}>
+                            <MaterialIcons name="report-problem" size={24} color="white" />
+                            <Text style={[styles.actionBoxText, { color: 'white' }]}>SOS</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity style={[styles.actionBox, { backgroundColor: '#FFD700' }]} onPress={handleShare}>
                             <MaterialIcons name="person-add" size={24} color="black" />
                             <Text style={styles.actionBoxText}>INVITE</Text>
@@ -207,11 +213,13 @@ const styles = StyleSheet.create({
     },
     primaryActions: {
         flexDirection: 'row',
-        gap: 10,
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
         marginBottom: 20,
     },
     actionBox: {
-        flex: 1,
+        width: '48%',
+        marginBottom: 10,
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
@@ -225,9 +233,9 @@ const styles = StyleSheet.create({
     actionBoxText: {
         color: 'black',
         fontWeight: '900',
-        fontSize: 10,
-        marginTop: 4,
-        letterSpacing: 1,
+        fontSize: 11,
+        marginTop: 6,
+        letterSpacing: 1.2,
     },
     sectionTitle: {
         color: '#9CA3AF',
@@ -247,13 +255,15 @@ const styles = StyleSheet.create({
         borderBottomColor: '#374151',
     },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#374151',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#1F2937',
+        borderWidth: 1,
+        borderColor: '#FFD700',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 15,
     },
     avatarText: {
         color: 'white',
@@ -270,7 +280,9 @@ const styles = StyleSheet.create({
     },
     memberStatus: {
         color: '#10B981',
-        fontSize: 12,
+        fontSize: 11,
+        fontWeight: 'bold',
+        marginTop: 2,
     },
     removeBtn: {
         padding: 5,

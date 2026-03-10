@@ -12,6 +12,7 @@ export interface UserProfile {
     profileImage?: string;
     age?: string | number;
     dob?: string;
+    bloodType?: string;
 }
 
 export interface AppUser {

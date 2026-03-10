@@ -36,6 +36,7 @@ const ProfileSetupScreen: React.FC = () => {
     const [vehicleNumber, setVehicleNumber] = useState<string>('');
     const [vehicleName, setVehicleName] = useState<string>('');
     const [vehicleModel, setVehicleModel] = useState<string>('');
+    const [bloodType, setBloodType] = useState<string>('');
     const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
     // Populate form if user profile already exists
@@ -48,6 +49,7 @@ const ProfileSetupScreen: React.FC = () => {
             if (user.profile.vehicleNumber) setVehicleNumber(user.profile.vehicleNumber);
             if (user.profile.vehicleName) setVehicleName(user.profile.vehicleName);
             if (user.profile.vehicleModel) setVehicleModel(user.profile.vehicleModel);
+            if (user.profile.bloodType) setBloodType(user.profile.bloodType);
 
             if (user.profile.profileCompleted) {
                 setIsEditMode(true);
@@ -55,12 +57,32 @@ const ProfileSetupScreen: React.FC = () => {
         }
     }, [user]);
 
+    // Helper validation functions
+    const isNumeric = (val: string) => /^\d+$/.test(val);
+    const isValidLicense = (val: string) => /^[A-Z0-9\-]+$/.test(val); // Simple alphanumeric + dash
+    const isValidVehicleNumber = (val: string) => /^[A-Z0-9\-]+$/.test(val); // Simple alphanumeric + dash
+
     const handleSaveProfile = async (): Promise<void> => {
         if (!fullName || !age || !licenseNumber || !vehicleNumber || !vehicleModel) {
             Alert.alert("Profile Incomplete", "Please fill all required fields: Full Name, Age, License Number, Vehicle Model and Vehicle Number.");
             return;
         }
-
+        if (!isNumeric(age) || parseInt(age) < 16 || parseInt(age) > 100) {
+            Alert.alert("Invalid Age", "Please enter a valid age between 16 and 100.");
+            return;
+        }
+        if (dob && !/^\d{2}-\d{2}-\d{4}$/.test(dob)) {
+            Alert.alert("Invalid DOB", "Date of Birth must be in DD-MM-YYYY format.");
+            return;
+        }
+        if (!isValidLicense(licenseNumber)) {
+            Alert.alert("Invalid License Number", "License number should be alphanumeric (A-Z, 0-9, -).");
+            return;
+        }
+        if (!isValidVehicleNumber(vehicleNumber)) {
+            Alert.alert("Invalid Vehicle Number", "Vehicle number should be alphanumeric (A-Z, 0-9, -).");
+            return;
+        }
         if (!user?.id) return;
 
         setLoading(true);
@@ -73,6 +95,7 @@ const ProfileSetupScreen: React.FC = () => {
                 vehicleNumber,
                 vehicleName,
                 vehicleModel,
+                bloodType,
                 profileCompleted: true,
             };
 
@@ -200,6 +223,18 @@ const ProfileSetupScreen: React.FC = () => {
                                 placeholderTextColor="#6B7280"
                                 value={licenseNumber}
                                 onChangeText={setLicenseNumber}
+                                autoCapitalize="characters"
+                            />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <MaterialIcons name="invert-colors" size={20} color="#9CA3AF" />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Blood Type (e.g., A+)"
+                                placeholderTextColor="#6B7280"
+                                value={bloodType}
+                                onChangeText={setBloodType}
                                 autoCapitalize="characters"
                             />
                         </View>

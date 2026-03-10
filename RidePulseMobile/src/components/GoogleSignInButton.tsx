@@ -23,6 +23,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import {
     GoogleAuthProvider,
     signInWithCredential,
@@ -60,6 +61,11 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         androidClientId: ANDROID_CLIENT_ID,
         iosClientId: IOS_CLIENT_ID,
         scopes: ['profile', 'email'],
+        // Explicitly provide redirectUri to avoid 400 error due to mismatch
+        redirectUri: makeRedirectUri({
+            scheme: 'ridepulse',
+            preferLocalhost: false,
+        }),
     });
 
     // ── Handle OAuth response ─────────────────────────────────────────────────
@@ -131,6 +137,8 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
                 return 'Network error. Check your internet connection and try again.';
             case 'auth/user-disabled':
                 return 'This account has been disabled. Contact support.';
+            case '400':
+                return 'Invalid request to Google. Please check your device time, network, and try again.';
             default:
                 return fallback || 'Google Sign-In failed. Please try again.';
         }

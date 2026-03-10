@@ -1,0 +1,53 @@
+﻿[
+  {
+    "id": "4f7ae1c0-7560-43e8-9f3a-b7ee197c273c",
+    "status": "ERRORED",
+    "platform": "ANDROID",
+    "error": {
+      "errorCode": "EAS_BUILD_UNKNOWN_GRADLE_ERROR",
+      "message": "Gradle build failed with unknown error. See logs for the \"Run gradlew\" phase for more information."
+    },
+    "artifacts": {},
+    "fingerprint": {
+      "id": "019cd11c-adbb-772b-ab6e-bf0192d4b7cc",
+      "hash": "d11c4223c8fe59a71118cd111e4962a8741613ed"
+    },
+    "initiatingActor": {
+      "id": "1459e924-ee71-4148-9d0c-9e20807b6332",
+      "displayName": "riderpulse"
+    },
+    "logFiles": [
+      "https://job-logs.eascdn.net/production/4f7ae1c0-7560-43e8-9f3a-b7ee197c273c/1773045250482-ac8d2722-c5c2-4dd1-85cc-e539af0482a3.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260309%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260309T085510Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=6e3ebdd8c246cd1b06bf7e7d639d786e6d894bd34246469d6ead7d05e0b298e6cde721afed7d0fd549420ca8ce9147ac312245cfa3efd194db46d38a9439bbbbb53a106788c27c371bf4ba1d5264cd9021369236858024669bb850b68075410022319bd39e290cd6bd1c326f49313db87b7b17690af4a6ececa58e75c28416acce1e39819e8766ebc01a69b83178be83801e5f5fa3987fbce38d926997887ac5b7f713d1c0ff7fe7c9cb7b56c5596b568dc2ed3eb2455ba44fbd60d0ded90a6c44d301e60a7f97072cebfd7cc4ec62eb7a5d17055bbb7ec020b14c6a3a2ad46337f94538d5cd39471546c429eb1e0c68185f1800a70d9d0250e7fa1982ca9180",
+      "https://job-logs.eascdn.net/production/4f7ae1c0-7560-43e8-9f3a-b7ee197c273c/1773045255333-799c76b6-d409-4116-bae7-b8df0a38aca1.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260309%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260309T085510Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=aec3bbc7c86af905fd45d4acc7b694493a28951ac4896940381cca195ffc40d415dafcf879c752a146eff1ed41d5818fa4313172e8ad18031dc43240d01c75955bb5552872543aaded596d25e39e6d343dfdef281baba41a7b214aa2eccb6b1a50fb6f5a78d730bc72666b2c579a2e8b0683b24def01afab77f532a458a9d0f4bd6ee80f0a35547b375219ff68e3986746070776f53be9ad2c357c0c2e70d91edf94653d0e040c2e4693c2c48b6c11db9cbc3cae972899da49b1862feee09d2f3c6ff358fdea2d71d0ff14264d453bef941144aa60f9896f16cf5cdb493a853647c026bd371fa2e60d9905f5978d1d95f24895be56d3743158357a7d6f41809b",
+      "https://job-logs.eascdn.net/production/4f7ae1c0-7560-43e8-9f3a-b7ee197c273c/1773045255601-bf84fbba-3903-4705-8a4f-24938f78acc4.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260309%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260309T085510Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=3bb78b80f3e605829efabf3724a3275bacb407fb9c06e7fa060e429119bf3c785a3b54812e08b6e1215d806fcac7949054c8aa338a78c00cf43304ee2f863444a0dc5c844558d2c54143d15c853dcda301ea9c2acb553f372a113050636e5a98a755343b7ed3154d3e017491f256ff96ac79be012862cbf316f82c0f18de0fe141828b162fb85d2686d37cd7fa34f20f6978b8be1f8df89f0965306c23a595e3cdfca09585b94d6bac1940ad97da84afb9b39b0985cc05482c8b2c0d8b301d68e9da6ef5c3b2a204b81293dd15ded291fc98aebf99f6c67367627105adbf9755127fe4415e8af2a1a1f23a6a9894f1d32441ead2091e060fdfcafb390aa078a9",
+      "https://job-logs.eascdn.net/production/4f7ae1c0-7560-43e8-9f3a-b7ee197c273c/1773045255798-2110f530-d32c-4335-8fcf-a7a5acd77e72.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260309%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260309T085510Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=5838cb8c661198ac48be80bb31a9e93c25944c3a42900a55c8f92b8630afcabe39a1ac1e75695c54fe415604223edf923c3b54cb4d6246ed7e2d15cbee053b8721580494f28f4ec42d0f2833d936eba4d2760af5356d234f26f237d1cb62c6e2a68e2082fe004c03379d274c81fdb3b0bc31078701a3362081229bee648a26153da0877c1cb9b9627ede140f658f63104c77571434bfd969869f41765bcdf18ea903448989340f9f5d918e1502e4e4a90b632929cf2b862990c816b869e1531cee3a0e8946bf1a11c37e9282c72364e8c81558fdb332962faaf3512bded486c2a4ac8db391011628213c57ec0a700f20a090a82c0997652c824ea3c1212f1f44"
+    ],
+    "project": {
+      "id": "81b07839-261c-4468-b292-20185a1c6544",
+      "name": "RidePulseMobile",
+      "slug": "RidePulseMobile",
+      "ownerAccount": {
+        "id": "661b86a4-40a1-4517-b9f9-59968c8c8826",
+        "name": "riderpulse"
+      }
+    },
+    "distribution": "INTERNAL",
+    "buildProfile": "preview",
+    "sdkVersion": "54.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "1",
+    "gitCommitHash": "b0d6678cb5490343e0818fbc55f1518eef46815c",
+    "gitCommitMessage": "feat: the changes for the day",
+    "priority": "NORMAL",
+    "createdAt": "2026-03-09T08:34:10.222Z",
+    "updatedAt": "2026-03-09T08:38:44.163Z",
+    "completedAt": "2026-03-09T08:38:36.555Z",
+    "expirationDate": "2026-03-23T08:34:10.287Z",
+    "isForIosSimulator": false,
+    "metrics": {
+      "buildWaitTime": 145,
+      "buildQueueTime": 48476,
+      "buildDuration": 209427
+    }
+  }
+]

@@ -55,10 +55,96 @@ type Props = BottomTabScreenProps<MainTabParamList, 'Shop'>;
 type RootNav = NativeStackNavigationProp<RootStackParamList>;
 
 const INITIAL_PRODUCTS: Product[] = [
-    { id: 'h1', name: 'MT Hummer Helmet - Red', category: 'helmets', price: 5250, stock: 12, description: 'Aerodynamic shell with multi-density EPS and Pinlock vision.', rating: 4.8, imageUrl: 'https://m.media-amazon.com/images/I/61k2cOqN0LL._AC_SL1500_.jpg' },
-    { id: 'j1', name: 'Rynox Stealth EVO V3', category: 'jackets', price: 13450, stock: 5, description: 'Heavy-duty 600D cordura with KNOX level 2 armor.', rating: 4.9, imageUrl: 'https://rynoxgear.com/cdn/shop/files/StealthEvoJacket4.0_PhantomEdition_BlackandWhite.jpg?v=1733306381&width=1000' },
-    { id: 'g1', name: 'TVS Racing Pro Gloves', category: 'gloves', price: 2499, stock: 20, description: 'Carbon fiber knuckle protection with pre-curved fingers.', rating: 4.5, imageUrl: 'https://m.media-amazon.com/images/I/71Xm0p58F+L._AC_SL1500_.jpg' },
-    { id: 'e1', name: 'Sena 50R Intercom', category: 'electronics', price: 28500, stock: 3, description: 'Mesh 2.0 technology with Sound by Harman Kardon.', rating: 5.0, imageUrl: 'https://m.media-amazon.com/images/I/61IqLnt6oLL._AC_SL1000_.jpg' }
+    {
+        id: 'h1',
+        name: 'MT Hummer Helmet - Red',
+        category: 'helmets',
+        price: 5250,
+        stock: 12,
+        description: 'Aerodynamic shell with multi-density EPS and Pinlock vision.',
+        rating: 4.8,
+        imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'h2',
+        name: 'AGV Pista GP RR - Carbon',
+        category: 'helmets',
+        price: 135000,
+        stock: 2,
+        description: 'The ultimate track helmet, 100% carbon fiber. Aerodynamic perfection.',
+        rating: 5.0,
+        imageUrl: 'https://images.unsplash.com/photo-1583244242630-335cfa3265da?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'j1',
+        name: 'Rynox Stealth EVO V3',
+        category: 'jackets',
+        price: 13450,
+        stock: 5,
+        description: 'Heavy-duty 600D cordura with KNOX level 2 armor.',
+        rating: 4.9,
+        imageUrl: 'https://images.unsplash.com/photo-1520975954732-57dd22299614?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'j2',
+        name: 'Alpinestars GP Plus R V3',
+        category: 'jackets',
+        price: 48999,
+        stock: 4,
+        description: 'Premium bovine leather jacket with Nucleon Flex armor.',
+        rating: 4.8,
+        imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'g1',
+        name: 'TVS Racing Pro Gloves',
+        category: 'gloves',
+        price: 2499,
+        stock: 20,
+        description: 'Carbon fiber knuckle protection with pre-curved fingers.',
+        rating: 4.5,
+        imageUrl: 'https://images.unsplash.com/photo-1510414842594-a6186905a141?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'b1',
+        name: 'TCX RT-Race Pro Air',
+        category: 'boots',
+        price: 32500,
+        stock: 6,
+        description: 'High-performance racing boots with D.F.C. system.',
+        rating: 4.7,
+        imageUrl: 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'e1',
+        name: 'Sena 50R Intercom',
+        category: 'electronics',
+        price: 28500,
+        stock: 3,
+        description: 'Mesh 2.0 technology with Sound by Harman Kardon.',
+        rating: 5.0,
+        imageUrl: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'a1',
+        name: 'Quad Lock Vibration Dampener',
+        category: 'accessories',
+        price: 2199,
+        stock: 50,
+        description: 'Protect your smartphone camera with precision damping.',
+        rating: 4.9,
+        imageUrl: 'https://images.unsplash.com/photo-1588607316921-2c064972e796?auto=format&fit=crop&w=500&q=80'
+    },
+    {
+        id: 'l1',
+        name: 'Kriega US-20 Drypack',
+        category: 'luggage',
+        price: 12500,
+        stock: 8,
+        description: '100% waterproof tail pack with versatile mounting.',
+        rating: 4.9,
+        imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=500&q=80'
+    }
 ];
 
 const ShopScreen: React.FC<Props> = () => {
@@ -95,7 +181,24 @@ const ShopScreen: React.FC<Props> = () => {
     const fetchProducts = async (): Promise<void> => {
         setLoading(true);
         try {
-            const items = await ShopService.getProducts(activeCategory, searchQuery);
+            let items = await ShopService.getProducts(activeCategory, searchQuery);
+
+            // Auto-update items with broken URLs
+            let needsUpdate = false;
+            items = items.map(item => {
+                const initial = INITIAL_PRODUCTS.find(p => p.id === item.id);
+                if (initial && item.imageUrl !== initial.imageUrl) {
+                    needsUpdate = true;
+                    return { ...item, imageUrl: initial.imageUrl };
+                }
+                return item;
+            });
+
+            if (needsUpdate) {
+                // Silently update the DB in the background to fix the broken image URLs
+                ShopService.seedProducts(items).catch(console.error);
+            }
+
             if (items.length === 0 && activeCategory === 'all' && !searchQuery) {
                 await ShopService.seedProducts(INITIAL_PRODUCTS);
                 setProducts(INITIAL_PRODUCTS);

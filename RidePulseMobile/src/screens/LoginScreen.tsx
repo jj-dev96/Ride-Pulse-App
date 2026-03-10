@@ -47,9 +47,33 @@ const LoginScreen: React.FC<Props> = () => {
         }
     };
 
+    // Email format validation - More strict as requested
+    const isValidEmail = (email: string): boolean => {
+        // Robust regex for email validation
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) return false;
+
+        // Additional checks for "real" email characteristics
+        const [localPart, domainPart] = email.split('@');
+
+        // Ensure local part isn't too short or just numbers (often used in fake patterns)
+        if (localPart.length < 2) return false;
+
+        // Ensure domain has at least one dot and a TLD of 2+ chars
+        const domainParts = domainPart.split('.');
+        if (domainParts.length < 2) return false;
+        if (domainParts[domainParts.length - 1].length < 2) return false;
+
+        return true;
+    };
+
     const handleSubmit = async (): Promise<void> => {
         if (!email || !password) {
             Alert.alert('Missing Info', 'Please fill in all fields');
+            return;
+        }
+        if (!isValidEmail(email)) {
+            Alert.alert('Invalid Email', 'Please enter a valid email address.');
             return;
         }
         if (password.length < 6) {
@@ -104,7 +128,7 @@ const LoginScreen: React.FC<Props> = () => {
                     {/* Header Section */}
                     <View style={styles.header}>
                         <ImageBackground
-                            source={require('../../assets/darkmapbg.png')}
+                            source={require('../../assets/darkmapbg.jpg')}
                             style={styles.mapBackground}
                             imageStyle={{ opacity: 0.6, borderRadius: 20 }}
                         >

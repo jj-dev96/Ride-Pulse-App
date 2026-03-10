@@ -1,0 +1,40 @@
+﻿[
+  {
+    "id": "3d88df70-4e43-4a0f-8cf0-3fd98de49616",
+    "status": "NEW",
+    "platform": "ANDROID",
+    "artifacts": {},
+    "fingerprint": {
+      "id": "019cd1d1-9370-7e08-bc7a-4779dec5ea28",
+      "hash": "656d8aba577ed7fec50ee99aa8a8c0333156bef3"
+    },
+    "initiatingActor": {
+      "id": "1459e924-ee71-4148-9d0c-9e20807b6332",
+      "displayName": "riderpulse"
+    },
+    "logFiles": [
+      "https://job-logs.eascdn.net/production/3d88df70-4e43-4a0f-8cf0-3fd98de49616/1773046959931-e337c19d-0b65-4e19-b5eb-edb1f3c0f263.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260309%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260309T090353Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=6cce90e23c4ad4737909f0864a8ab57672e11fb8a5293c7b574a33b80806da9c9bd3766775157500beffb37d3aee9abc8be4e22b976aeaededabf976635a6cd2ebc9c8ee1ae3178a4a9e2826be72d789c4f64db778200bc8bf943efb3bf02afa2b59309dac745afbd8bed23a3a4179cfb296f2fb22f12cc5f7ae7776482f0e2c9d2cee085432b199a45841085a9a62822e81c042b1aea3520a0b1b9fd76dd7cec36a963658919a51bcbb699399655fdd31ce0934cdd278568e94bad9449baea8f81fbff48ab8997bfced88eed242869b48ee2816dc8bf87a4a16894055d8355100a7927cae307d6bd310674da484213c48f803c391258ec965f960e204b4ec9e"
+    ],
+    "project": {
+      "id": "81b07839-261c-4468-b292-20185a1c6544",
+      "name": "RidePulseMobile",
+      "slug": "RidePulseMobile",
+      "ownerAccount": {
+        "id": "661b86a4-40a1-4517-b9f9-59968c8c8826",
+        "name": "riderpulse"
+      }
+    },
+    "distribution": "INTERNAL",
+    "buildProfile": "preview",
+    "sdkVersion": "54.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "1",
+    "gitCommitHash": "b0d6678cb5490343e0818fbc55f1518eef46815c",
+    "gitCommitMessage": "feat: the changes for the day",
+    "priority": "NORMAL",
+    "createdAt": "2026-03-09T09:02:39.693Z",
+    "updatedAt": "2026-03-09T09:02:40.099Z",
+    "expirationDate": "2026-03-23T09:02:39.725Z",
+    "isForIosSimulator": false
+  }
+]

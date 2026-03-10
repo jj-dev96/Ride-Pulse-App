@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
-    TextInput, Dimensions, Modal, FlatList, Alert, ListRenderItemInfo
+    TextInput, Dimensions, Modal, FlatList, Alert, ListRenderItemInfo, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { AuthContext } from '../context/AuthContext';
+import { db } from '../config/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -43,12 +46,37 @@ const BIKES: BikesDatabase = {
 type Props = NativeStackScreenProps<RootStackParamList, 'SmartGarage'>;
 
 const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
-    const [selectedMake, setSelectedMake] = useState<string>('Yamaha');
-    const [selectedModel, setSelectedModel] = useState<BikeModel>(BIKES['Yamaha'][0]);
+    const { user, setUser } = React.useContext(AuthContext);
+    const [loading, setLoading] = useState(false);
+
+    // Initialise states from user profile or defaults
+    const [selectedMake, setSelectedMake] = useState<string>(
+        user?.profile?.vehicleName?.split(' ')[0] || 'Yamaha'
+    );
+    const [selectedModel, setSelectedModel] = useState<BikeModel>(() => {
+        const make = user?.profile?.vehicleName?.split(' ')[0] || 'Yamaha';
+        const modelName = user?.profile?.vehicleModel || '';
+        const found = BIKES[make]?.find(m => m.model === modelName);
+        return found || BIKES[make]?.[0] || BIKES['Yamaha'][0];
+    });
+
+    const [bloodType, setBloodType] = useState<string>(user?.profile?.bloodType || 'A+');
+    const [licenseNo, setLicenseNo] = useState<string>(user?.profile?.licenseNumber || '');
+    const [fullName, setFullName] = useState<string>(user?.profile?.fullName || user?.name || '');
+
     const [showMakeModal, setShowMakeModal] = useState<boolean>(false);
     const [showModelModal, setShowModelModal] = useState<boolean>(false);
 
     const bars: number[] = [10, 20, 30, 45, 60, 75, 80, 85, 90, 85, 80, 75, 60, 50, 40, 30, 25, 20, 15, 10];
+
+    // Sync state if user profile changes from elsewhere
+    React.useEffect(() => {
+        if (user?.profile) {
+            if (user.profile.bloodType) setBloodType(user.profile.bloodType);
+            if (user.profile.licenseNumber) setLicenseNo(user.profile.licenseNumber);
+            if (user.profile.fullName) setFullName(user.profile.fullName);
+        }
+    }, [user?.profile]);
 
     const handleMakeSelect = (make: string): void => {
         setSelectedMake(make);
@@ -61,12 +89,44 @@ const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
         setShowModelModal(false);
     };
 
-    const handleSave = (): void => {
-        Alert.alert(
-            "Neuro-Link Established",
-            `Configuration saved for ${selectedMake} ${selectedModel.model}.`,
-            [{ text: "OK" }]
-        );
+    const handleSave = async (): Promise<void> => {
+        if (!user) return;
+        setLoading(true);
+        try {
+            const updates = {
+                'profile.bloodType': bloodType,
+                'profile.licenseNumber': licenseNo,
+                'profile.fullName': fullName,
+                'profile.vehicleName': selectedMake,
+                'profile.vehicleModel': selectedModel.model,
+            };
+
+            await updateDoc(doc(db, 'users', user.id), updates);
+
+            // Update local context
+            setUser({
+                ...user,
+                profile: {
+                    ...user.profile,
+                    bloodType,
+                    licenseNumber: licenseNo,
+                    fullName,
+                    vehicleName: selectedMake,
+                    vehicleModel: selectedModel.model,
+                }
+            });
+
+            Alert.alert(
+                "Garage Updated",
+                "Your machine and identity profile has been synchronised with the network.",
+                [{ text: "OK" }]
+            );
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Sync Error", "Failed to save configuration to the neural link.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -96,7 +156,7 @@ const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
                         <View style={styles.uploadContainer}>
                             <TouchableOpacity style={styles.uploadCircle}>
                                 <Image
-                                    source={require('../../assets/RidePulseLogo.jpg')}
+                                    source={user?.profile?.profileImage ? { uri: user.profile.profileImage } : require('../../assets/RidePulseLogo.jpg')}
                                     style={{ width: '100%', height: '100%', opacity: 0.8 }}
                                 />
                                 <View style={styles.uploadOverlay}>
@@ -106,12 +166,31 @@ const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
                             <View style={styles.photoRing} />
                         </View>
 
+                        <View style={styles.inputGroupFull}>
+                            <Text style={styles.label}>FULL NAME</Text>
+                            <View style={styles.textInputContainer}>
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder="Enter full name"
+                                    placeholderTextColor="#4B5563"
+                                    value={fullName}
+                                    onChangeText={setFullName}
+                                />
+                            </View>
+                        </View>
+
                         <View style={styles.formRow}>
                             <View style={styles.inputGroupSmall}>
                                 <Text style={styles.label}>BLOOD TYPE</Text>
                                 <View style={styles.dropdownInput}>
-                                    <Text style={styles.inputText}>A+</Text>
-                                    <MaterialIcons name="keyboard-arrow-down" size={20} color="#6B7280" />
+                                    <TextInput
+                                        style={styles.inputText}
+                                        value={bloodType}
+                                        onChangeText={setBloodType}
+                                        autoCapitalize="characters"
+                                        maxLength={3}
+                                    />
+                                    <MaterialIcons name="edit" size={14} color="#6B7280" />
                                 </View>
                             </View>
                             <View style={styles.inputGroupLarge}>
@@ -121,7 +200,9 @@ const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
                                         style={styles.textInput}
                                         placeholder="XX-00-XX-0000"
                                         placeholderTextColor="#4B5563"
-                                        defaultValue="RP-2024-X99"
+                                        value={licenseNo}
+                                        onChangeText={setLicenseNo}
+                                        autoCapitalize="characters"
                                     />
                                 </View>
                             </View>
@@ -206,15 +287,21 @@ const SmartGarageScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
 
                 {/* Footer Action */}
-                <TouchableOpacity style={styles.initButton} onPress={handleSave}>
+                <TouchableOpacity style={styles.initButton} onPress={handleSave} disabled={loading}>
                     <LinearGradient
                         colors={['#FFD700', '#F59E0B']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.gradientButton}
                     >
-                        <Text style={styles.initButtonText}>SAVE CONFIGURATION</Text>
-                        <MaterialIcons name="save" size={16} color="black" />
+                        {loading ? (
+                            <ActivityIndicator color="black" />
+                        ) : (
+                            <>
+                                <Text style={styles.initButtonText}>SAVE CONFIGURATION</Text>
+                                <MaterialIcons name="save" size={16} color="black" />
+                            </>
+                        )}
                     </LinearGradient>
                 </TouchableOpacity>
             </SafeAreaView>

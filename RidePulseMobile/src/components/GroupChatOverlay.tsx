@@ -98,14 +98,13 @@ const styles = StyleSheet.create({
         zIndex: 100,
     },
     container: {
-        backgroundColor: 'rgba(22, 25, 37, 0.95)',
-        borderRadius: 16,
+        backgroundColor: 'rgba(22, 25, 37, 0.4)',
+        borderRadius: 20,
         padding: 16,
         height: 250,
         borderWidth: 1,
-        borderColor: 'rgba(55, 65, 81, 0.5)',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        elevation: 10,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        elevation: 0,
     },
     header: {
         flexDirection: 'row',
@@ -145,9 +144,11 @@ const styles = StyleSheet.create({
     inputRow: {
         flexDirection: 'row',
         marginTop: 10,
-        backgroundColor: 'rgba(31, 41, 55, 0.8)',
+        backgroundColor: 'rgba(31, 41, 55, 0.5)',
         borderRadius: 20,
         paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
         alignItems: 'center',
     },
     input: {
