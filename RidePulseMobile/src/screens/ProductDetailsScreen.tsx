@@ -8,6 +8,7 @@ import {
     ScrollView,
     Dimensions,
     Alert,
+    Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome, MaterialIcons } from '@expo/vector-icons';
@@ -46,7 +47,10 @@ const ProductDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
             <LinearGradient colors={['#0F111A', '#161925']} style={StyleSheet.absoluteFill} />
 
             <View style={styles.imageHeader}>
-                <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
+                <Image
+                    source={typeof product.imageUrl === 'number' ? product.imageUrl : { uri: product.imageUrl as string }}
+                    style={styles.productImage}
+                />
                 <TouchableOpacity
                     style={[styles.headerBtn, { top: insets.top + 10, left: 20 }]}
                     onPress={() => navigation.goBack()}
@@ -120,15 +124,23 @@ const ProductDetailsScreen: React.FC<Props> = ({ route, navigation }) => {
             <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
                 <TouchableOpacity
                     style={[styles.cartBtn, adding && { opacity: 0.7 }]}
-                    onPress={handleAddToCart}
+                    onPress={() => {
+                        if (product.url) {
+                            Linking.openURL(product.url as string);
+                        } else {
+                            handleAddToCart();
+                        }
+                    }}
                     disabled={adding}
                 >
                     <LinearGradient
                         colors={['#FFD700', '#F59E0B']}
                         style={styles.cartGradient}
                     >
-                        <Ionicons name="add" size={24} color="black" />
-                        <Text style={styles.cartText}>{adding ? 'ADDING...' : 'ACQUIRE GEAR'}</Text>
+                        <Ionicons name={product.url ? "exit-outline" : "add"} size={24} color="black" />
+                        <Text style={styles.cartText}>
+                            {adding ? 'ADDING...' : (product.url ? 'VIEW ON AMAZON' : 'ACQUIRE GEAR')}
+                        </Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>

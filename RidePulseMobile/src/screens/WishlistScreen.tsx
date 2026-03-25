@@ -51,7 +51,10 @@ const WishlistScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.productCard}
             onPress={() => navigation.navigate('ProductDetails', { product: item })}
         >
-            <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+            <Image
+                source={typeof item.imageUrl === 'number' ? item.imageUrl : { uri: item.imageUrl as string }}
+                style={styles.productImage}
+            />
             <View style={styles.productInfo}>
                 <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.productPrice}>₹{item.price.toLocaleString()}</Text>

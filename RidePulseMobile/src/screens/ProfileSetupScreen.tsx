@@ -11,6 +11,7 @@ import {
     Alert,
     ActivityIndicator,
     StatusBar,
+    Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -38,6 +39,37 @@ const ProfileSetupScreen: React.FC = () => {
     const [vehicleModel, setVehicleModel] = useState<string>('');
     const [bloodType, setBloodType] = useState<string>('');
     const [isEditMode, setIsEditMode] = useState<boolean>(false);
+    const [showDateModal, setShowDateModal] = useState<boolean>(false);
+
+    // Date picker temp state
+    const [pickerYear, setPickerYear] = useState<number>(new Date().getFullYear() - 20);
+    const [pickerMonth, setPickerMonth] = useState<number>(new Date().getMonth());
+    const [pickerDay, setPickerDay] = useState<number>(new Date().getDate());
+
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    const getDaysInMonth = (year: number, month: number) =>
+        new Date(year, month + 1, 0).getDate();
+
+    const openDatePicker = () => {
+        // Pre-populate picker if dob already set
+        if (dob && /^\d{2}-\d{2}-\d{4}$/.test(dob)) {
+            const [dd, mm, yyyy] = dob.split('-').map(Number);
+            setPickerDay(dd);
+            setPickerMonth(mm - 1);
+            setPickerYear(yyyy);
+        }
+        setShowDateModal(true);
+    };
+
+    const confirmDate = () => {
+        const maxDay = getDaysInMonth(pickerYear, pickerMonth);
+        const safeDay = Math.min(pickerDay, maxDay);
+        const dd = String(safeDay).padStart(2, '0');
+        const mm = String(pickerMonth + 1).padStart(2, '0');
+        setDob(`${dd}-${mm}-${pickerYear}`);
+        setShowDateModal(false);
+    };
 
     // Populate form if user profile already exists
     useEffect(() => {
@@ -142,8 +174,6 @@ const ProfileSetupScreen: React.FC = () => {
                 {
                     text: "Do it later",
                     onPress: async () => {
-                        // Persist skip flag both in local state AND Firestore
-                        // so the navigator doesn't loop back even after app restart
                         if (user) {
                             setUser({ ...user, skipProfileSetup: true });
                             try {
@@ -156,6 +186,11 @@ const ProfileSetupScreen: React.FC = () => {
                                 console.error('Error persisting skip flag:', err);
                             }
                         }
+                        // Navigate to Main so the screen actually closes
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'Main' }],
+                        });
                     }
                 }
             ]
@@ -204,13 +239,16 @@ const ProfileSetupScreen: React.FC = () => {
                                 />
                             </View>
                             <View style={[styles.inputContainer, styles.flex1, { marginLeft: 8 }]}>
-                                <MaterialIcons name="date-range" size={20} color="#9CA3AF" />
+                                <TouchableOpacity onPress={openDatePicker} style={styles.dateIconBtn}>
+                                    <MaterialIcons name="date-range" size={20} color="#FFD700" />
+                                </TouchableOpacity>
                                 <TextInput
                                     style={styles.input}
                                     placeholder="DOB (DD-MM-YYYY)"
                                     placeholderTextColor="#6B7280"
                                     value={dob}
                                     onChangeText={setDob}
+                                    keyboardType="numeric"
                                 />
                             </View>
                         </View>
@@ -298,6 +336,63 @@ const ProfileSetupScreen: React.FC = () => {
                     </TouchableOpacity>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Date Picker Modal */}
+            <Modal visible={showDateModal} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>Select Date of Birth</Text>
+
+                        {/* Day / Month / Year Row */}
+                        <View style={styles.pickerRow}>
+                            {/* Day */}
+                            <View style={styles.pickerCol}>
+                                <Text style={styles.pickerLabel}>Day</Text>
+                                <TouchableOpacity style={styles.pickerArrow} onPress={() => setPickerDay(d => Math.max(1, d - 1))}>
+                                    <MaterialIcons name="keyboard-arrow-up" size={22} color="#FFD700" />
+                                </TouchableOpacity>
+                                <Text style={styles.pickerValue}>{String(pickerDay).padStart(2,'0')}</Text>
+                                <TouchableOpacity style={styles.pickerArrow} onPress={() => setPickerDay(d => Math.min(getDaysInMonth(pickerYear, pickerMonth), d + 1))}>
+                                    <MaterialIcons name="keyboard-arrow-down" size={22} color="#FFD700" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Month */}
+                            <View style={styles.pickerCol}>
+                                <Text style={styles.pickerLabel}>Month</Text>
+                                <TouchableOpacity style={styles.pickerArrow} onPress={() => setPickerMonth(m => m === 0 ? 11 : m - 1)}>
+                                    <MaterialIcons name="keyboard-arrow-up" size={22} color="#FFD700" />
+                                </TouchableOpacity>
+                                <Text style={styles.pickerValue}>{MONTHS[pickerMonth]}</Text>
+                                <TouchableOpacity style={styles.pickerArrow} onPress={() => setPickerMonth(m => m === 11 ? 0 : m + 1)}>
+                                    <MaterialIcons name="keyboard-arrow-down" size={22} color="#FFD700" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Year */}
+                            <View style={styles.pickerCol}>
+                                <Text style={styles.pickerLabel}>Year</Text>
+                                <TouchableOpacity style={styles.pickerArrow} onPress={() => setPickerYear(y => y - 1)}>
+                                    <MaterialIcons name="keyboard-arrow-up" size={22} color="#FFD700" />
+                                </TouchableOpacity>
+                                <Text style={styles.pickerValue}>{pickerYear}</Text>
+                                <TouchableOpacity style={styles.pickerArrow} onPress={() => setPickerYear(y => Math.min(new Date().getFullYear() - 16, y + 1))}>
+                                    <MaterialIcons name="keyboard-arrow-down" size={22} color="#FFD700" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={styles.modalBtnRow}>
+                            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDateModal(false)}>
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmDate}>
+                                <Text style={styles.modalConfirmText}>Confirm</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -364,6 +459,83 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         textDecorationLine: 'underline',
+    },
+    dateIconBtn: {
+        padding: 2,
+    },
+    // Date Picker Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'flex-end',
+    },
+    modalCard: {
+        backgroundColor: '#161925',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 28,
+        borderWidth: 1,
+        borderColor: '#1F2937',
+    },
+    modalTitle: {
+        color: '#FFD700',
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 24,
+    },
+    pickerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 28,
+    },
+    pickerCol: {
+        alignItems: 'center',
+        minWidth: 80,
+    },
+    pickerLabel: {
+        color: '#9CA3AF',
+        fontSize: 12,
+        marginBottom: 8,
+        letterSpacing: 1,
+    },
+    pickerArrow: {
+        padding: 6,
+    },
+    pickerValue: {
+        color: '#FFFFFF',
+        fontSize: 26,
+        fontWeight: 'bold',
+        marginVertical: 4,
+    },
+    modalBtnRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    modalCancelBtn: {
+        flex: 1,
+        borderRadius: 12,
+        paddingVertical: 14,
+        borderWidth: 1,
+        borderColor: '#374151',
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        color: '#9CA3AF',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+    modalConfirmBtn: {
+        flex: 1,
+        borderRadius: 12,
+        paddingVertical: 14,
+        backgroundColor: '#FFD700',
+        alignItems: 'center',
+    },
+    modalConfirmText: {
+        color: '#000000',
+        fontWeight: 'bold',
+        fontSize: 15,
     },
 });
 

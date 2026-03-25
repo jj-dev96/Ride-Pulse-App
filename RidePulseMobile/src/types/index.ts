@@ -50,6 +50,7 @@ export interface AuthContextValue {
     loginAnonymously: () => Promise<AuthResult>;
     logout: () => Promise<void>;
     updateProfileStatus: (data: Record<string, unknown>) => Promise<AuthResult>;
+    resetPassword: (email: string) => Promise<AuthResult>;
 }
 
 // ─── Theme Context ────────────────────────────────────────────────────────────
@@ -239,6 +240,7 @@ export interface Product {
     stock?: number;
     rating?: number;
     reviewCount?: number;
+    url?: string;
     [key: string]: unknown;
 }
 

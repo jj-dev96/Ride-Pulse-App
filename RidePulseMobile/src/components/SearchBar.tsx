@@ -129,7 +129,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     value={useCurrentLocation ? currentLocationName : startQuery}
                     onChangeText={(t) => handleSearch(t, 'start')}
                     onFocus={() => setActiveInput('start')}
-                    editable={!useCurrentLocation && !locked}
+                    editable={!locked}
                 />
                 {!useCurrentLocation && !locked && (
                     <TouchableOpacity onPress={onUseCurrentLocation} style={styles.gpsResetBtn}>

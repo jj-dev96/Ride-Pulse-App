@@ -1,39 +1,29 @@
 {
-    "project_info": {
-        "project_number": "861623260957",
-        "project_id": "ridepulse-6e912",
-        "storage_bucket": "ridepulse-6e912.firebasestorage.app"
-    },
-    "client": [
-        {
-            "client_info": {
-                "mobilesdk_app_id": "1:861623260957:android:24e665425ac237d75833f4",
-                "android_client_info": {
-                    "package_name": "com.ridepulse"
-                }
-            },
-            "oauth_client": [
-                {
-                    "client_id": "861623260957-cprhvegl89rp4626a17am1737iluvrju.apps.googleusercontent.com",
-                    "client_type": 3
-                }
-            ],
-            "api_key": [
-                {
-                    "current_key": "AIzaSyC1Krp-eACRRNvc5LmSYhYxbbGU377SzXY"
-                }
-            ],
-            "services": {
-                "appinvite_service": {
-                    "other_platform_oauth_client": [
-                        {
-                            "client_id": "861623260957-cprhvegl89rp4626a17am1737iluvrju.apps.googleusercontent.com",
-                            "client_type": 3
-                        }
-                    ]
-                }
-            }
+  "project_info": {
+    "project_number": "835323615898",
+    "project_id": "rider-e9b8f",
+    "storage_bucket": "rider-e9b8f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:835323615898:android:d429c37af268a3231add23",
+        "android_client_info": {
+          "package_name": "com.ridebuddy"
         }
-    ],
-    "configuration_version": "1"
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDr8KEqVcfo5xJTtG-oXrUCk9LgTuZ81ow"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
 }

@@ -14,6 +14,7 @@ import {
     Platform,
     UIManager,
     ListRenderItemInfo,
+    Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5, Ionicons, FontAwesome } from '@expo/vector-icons';
@@ -38,17 +39,17 @@ interface Category {
 }
 
 const CATEGORIES: Category[] = [
-    { id: 'all', name: 'All Gear', icon: 'shopping-bag' },
-    { id: 'helmets', name: 'Helmets', icon: 'user-secret' },
+    { id: 'all', name: 'All Gear', icon: 'th-large' },
+    { id: 'helmets', name: 'Helmets', icon: 'mandalorian' },
     { id: 'gloves', name: 'Gloves', icon: 'hand-paper' },
     { id: 'jackets', name: 'Jackets', icon: 'user-shield' },
     { id: 'boots', name: 'Boots', icon: 'shoe-prints' },
     { id: 'guards', name: 'Guards', icon: 'shield-alt' },
-    { id: 'electronics', name: 'Electronics', icon: 'camera' },
-    { id: 'accessories', name: 'Accessories', icon: 'mobile-alt' },
-    { id: 'luggage', name: 'Luggage', icon: 'briefcase' },
+    { id: 'electronics', name: 'Electronics', icon: 'microchip' },
+    { id: 'luggage', name: 'Luggage', icon: 'suitcase-rolling' },
     { id: 'lights', name: 'LED Lights', icon: 'lightbulb' },
-    { id: 'tools', name: 'Tools', icon: 'wrench' },
+    { id: 'tools', name: 'Tools', icon: 'tools' },
+    { id: 'accessories', name: 'Accessories', icon: 'toolbox' },
 ];
 
 type Props = BottomTabScreenProps<MainTabParamList, 'Shop'>;
@@ -56,94 +57,316 @@ type RootNav = NativeStackNavigationProp<RootStackParamList>;
 
 const INITIAL_PRODUCTS: Product[] = [
     {
-        id: 'h1',
-        name: 'MT Hummer Helmet - Red',
-        category: 'helmets',
-        price: 5250,
-        stock: 12,
-        description: 'Aerodynamic shell with multi-density EPS and Pinlock vision.',
-        rating: 4.8,
-        imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-        id: 'h2',
-        name: 'AGV Pista GP RR - Carbon',
-        category: 'helmets',
-        price: 135000,
-        stock: 2,
-        description: 'The ultimate track helmet, 100% carbon fiber. Aerodynamic perfection.',
-        rating: 5.0,
-        imageUrl: 'https://images.unsplash.com/photo-1583244242630-335cfa3265da?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-        id: 'j1',
-        name: 'Rynox Stealth EVO V3',
-        category: 'jackets',
-        price: 13450,
-        stock: 5,
-        description: 'Heavy-duty 600D cordura with KNOX level 2 armor.',
-        rating: 4.9,
-        imageUrl: 'https://images.unsplash.com/photo-1520975954732-57dd22299614?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-        id: 'j2',
-        name: 'Alpinestars GP Plus R V3',
-        category: 'jackets',
-        price: 48999,
-        stock: 4,
-        description: 'Premium bovine leather jacket with Nucleon Flex armor.',
-        rating: 4.8,
-        imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-        id: 'g1',
-        name: 'TVS Racing Pro Gloves',
-        category: 'gloves',
-        price: 2499,
-        stock: 20,
-        description: 'Carbon fiber knuckle protection with pre-curved fingers.',
-        rating: 4.5,
-        imageUrl: 'https://images.unsplash.com/photo-1510414842594-a6186905a141?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-        id: 'b1',
-        name: 'TCX RT-Race Pro Air',
-        category: 'boots',
-        price: 32500,
-        stock: 6,
-        description: 'High-performance racing boots with D.F.C. system.',
-        rating: 4.7,
-        imageUrl: 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-        id: 'e1',
-        name: 'Sena 50R Intercom',
-        category: 'electronics',
-        price: 28500,
-        stock: 3,
-        description: 'Mesh 2.0 technology with Sound by Harman Kardon.',
-        rating: 5.0,
-        imageUrl: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=500&q=80'
-    },
-    {
-        id: 'a1',
-        name: 'Quad Lock Vibration Dampener',
+        id: 'amz_mask',
+        name: 'Boldfit Balaclava Mask',
         category: 'accessories',
-        price: 2199,
-        stock: 50,
-        description: 'Protect your smartphone camera with precision damping.',
-        rating: 4.9,
-        imageUrl: 'https://images.unsplash.com/photo-1588607316921-2c064972e796?auto=format&fit=crop&w=500&q=80'
+        price: 225,
+        imageUrl: require('../assets/Shop/mask.jpg'),
+        url: 'https://www.amazon.in/gp/aw/d/B0BRY84H2H/'
     },
     {
-        id: 'l1',
-        name: 'Kriega US-20 Drypack',
+        id: 'amz_gloves',
+        name: 'TVS Racing Riding Gloves',
+        category: 'gloves',
+        price: 1294,
+        imageUrl: require('../assets/Shop/gloves.webp'),
+        url: 'https://www.amazon.in/TVS-All-Weather-Protection-Touchscreen-Anti-Fatigue/dp/B0FH76HCHQ/'
+    },
+    {
+        id: 'amz_armsleeves',
+        name: 'Boldfit Arm Sleeves',
+        category: 'accessories',
+        price: 199,
+        imageUrl: require('../assets/Shop/Arm sleves.webp'),
+        url: 'https://www.amazon.in/Boldfit-Sleeves-Protection-Running-Riding/dp/B0CNKNMSBL/'
+    },
+    {
+        id: 'amz_holder',
+        name: 'Portronics Mobile Holder',
+        category: 'accessories',
+        price: 299,
+        imageUrl: require('../assets/Shop/Mobile holder.webp'),
+        url: 'https://www.amazon.in/Portronics-Rotational-Bicycle-Motorcycle-Compatible/dp/B0CNYNX7LF/'
+    },
+    {
+        id: 'amz_brush',
+        name: 'AllExtreme Chain Cleaner Brush',
+        category: 'tools',
+        price: 149,
+        imageUrl: require('../assets/Shop/Chain cleaner.webp'),
+        url: 'https://www.amazon.in/AllExtreme-%E2%80%8ECYL-06-T-Multi-Purpose-Bristles-Motorcycles/dp/B076DC73XF/'
+    },
+    {
+        id: 'amz_goggles',
+        name: 'SARTE Riding Goggles',
+        category: 'helmets',
+        price: 485,
+        imageUrl: require('../assets/Shop/Riding goggles.webp'),
+        url: 'https://www.amazon.in/SARTE-Motorcycle-Goggles-Anti-Scratch-Motorcross/dp/B0CFB3SBP3/'
+    },
+    {
+        id: 'amz_cleaner',
+        name: 'ShineXPro Helmet Cleaner',
+        category: 'tools',
+        price: 265,
+        imageUrl: require('../assets/Shop/Helmet cleaner.webp'),
+        url: 'https://www.amazon.in/ShineXPro-Cleaner-Microfiber-Anti-Bacterial-Cleaning/dp/B0FCS7NW5K/'
+    },
+    {
+        id: 'amz_tailbag',
+        name: 'Axor Tail Bag (40L)',
         category: 'luggage',
-        price: 12500,
-        stock: 8,
-        description: '100% waterproof tail pack with versatile mounting.',
-        rating: 4.9,
-        imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=500&q=80'
+        price: 6200,
+        imageUrl: require('../assets/Shop/Tail bag.webp'),
+        url: 'https://www.amazon.in/Axor-Tail-Bag-40-LTS/dp/B098DYHDXD/'
+    },
+    {
+        id: 'amz_chainlock',
+        name: 'Gadget Deals Chain Lock',
+        category: 'tools',
+        price: 249,
+        imageUrl: require('../assets/Shop/Chain lock.webp'),
+        url: 'https://www.amazon.in/Gadget-Deals-Bicycle-Number-Password/dp/B0FV84WXRJ/'
+    },
+    {
+        id: 'amz_cammount',
+        name: 'CELLMASTER Camera Mount',
+        category: 'tools',
+        price: 270,
+        imageUrl: require('../assets/Shop/helmet camera mount.webp'),
+        url: 'https://www.amazon.in/CELLMASTER-Helmet-Camera-Mobile-Accessories/dp/B0D3Z8H4KS/'
+    },
+    {
+        id: 'amz_tvshelmet',
+        name: 'TVS Lightweight Helmet',
+        category: 'helmets',
+        price: 923,
+        imageUrl: require('../assets/Shop/Tvs helmet.webp'),
+        url: 'https://www.amazon.in/TVS-Motorcycle-Certified-Lightweight-Resistant-Ventilated-Quick-Release/dp/B0F1MMRK8S/'
+    },
+    {
+        id: 'amz_sbh57',
+        name: 'Steelbird SBH-57 Carbon',
+        category: 'helmets',
+        price: 2999,
+        imageUrl: require('../assets/Shop/Steelbird helmet.webp'),
+        url: 'https://www.amazon.in/Steelbird-SBH-57-Carbon-Fighter-Certified/dp/B0DFT5B7PL/'
+    },
+    {
+        id: 'amz_sba21',
+        name: 'Steelbird SBA-21 Genie',
+        category: 'helmets',
+        price: 1793,
+        imageUrl: require('../assets/Shop/Steelbird SBA-21 helmet.webp'),
+        url: 'https://www.amazon.in/Steelbird-SBA-21-Genie-Certified-Graphic/dp/B0D2QMRXNZ/'
+    },
+    {
+        id: 'amz_headfox',
+        name: 'HEADFOX Bluetooth Helmet',
+        category: 'helmets',
+        price: 3300,
+        imageUrl: require('../assets/Shop/Headfox helmet.webp'),
+        url: 'https://www.amazon.in/HEADFOX-Bluetooth-Helmet-Waterproof-Certified/dp/B0F7LVTZF7/'
+    },
+    {
+        id: 'amz_badowl',
+        name: 'BADOWL Riding Gloves',
+        category: 'gloves',
+        price: 499,
+        imageUrl: require('../assets/Shop/Badowl gloves.webp'),
+        url: 'https://www.amazon.in/BADOWL-Motorcycle-Touchscreen-Fingertips-Protection/dp/B0DLGL8JVL/'
+    },
+    {
+        id: 'amz_probiker',
+        name: 'Probiker Synthetic Gloves',
+        category: 'gloves',
+        price: 299,
+        imageUrl: require('../assets/Shop/Probiker gloves.webp'),
+        url: 'https://www.amazon.in/Probiker-Synthetic-Leather-Motorcycle-Gloves/dp/B00QESWIUC/'
+    },
+    {
+        id: 'amz_tvsxplorer',
+        name: 'TVS Racing Xplorer Neon',
+        category: 'gloves',
+        price: 3499,
+        imageUrl: require('../assets/Shop/TVS explore gloves.webp'),
+        url: 'https://www.amazon.in/TVS-Racing-Riding-Gloves-Neon/dp/B0BQ6S88F2/'
+    },
+    {
+        id: 'amz_tvsmesh',
+        name: 'TVS Mesh Riding Gloves',
+        category: 'gloves',
+        price: 1299,
+        imageUrl: require('../assets/Shop/TVS mesh gloves.webp'),
+        url: 'https://www.amazon.in/TVS-Ventilation-Compatible-Fingertips-Knuckles-Premium/dp/B098XSBXZS/'
+    },
+    {
+        id: 'amz_allextreme_jacket',
+        name: 'AllExtreme Riding Jacket',
+        category: 'jackets',
+        price: 2999,
+        imageUrl: require('../assets/Shop/Allextreme jacket.jpg'),
+        url: 'https://www.amazon.in/gp/aw/d/B0C3MJV637/'
+    },
+    {
+        id: 'amz_boldfit_jacket',
+        name: 'Boldfit Windcheater',
+        category: 'jackets',
+        price: 699,
+        imageUrl: require('../assets/Shop/Boldfit jacket.webp'),
+        url: 'https://www.amazon.in/Boldfit-Windcheater-Lightweight-Wind-Resistant-Fit-Stylish/dp/B0GCZY4PPY/'
+    },
+    {
+        id: 'amz_axor_jacket',
+        name: 'Axor Cruise Jacket',
+        category: 'jackets',
+        price: 5200,
+        imageUrl: require('../assets/Shop/Axor jacket.webp'),
+        url: 'https://www.amazon.in/Axor-Cruise-Jacket-Black-Red-XL/dp/B09T3D76GV/'
+    },
+    {
+        id: 'amz_rynox_jacket',
+        name: 'Rynox Air Jacket',
+        category: 'jackets',
+        price: 6450,
+        imageUrl: require('../assets/Shop/Rynox jacket.webp'),
+        url: 'https://www.amazon.in/Rynox-Air-Jacket-Motorcycle-Protection/dp/B0FCXVVZBK/'
+    },
+    {
+        id: 'amz_re_jacket',
+        name: 'Royal Enfield Streetwind V3',
+        category: 'jackets',
+        price: 4570,
+        imageUrl: require('../assets/Shop/Royal enfield jacket.webp'),
+        url: 'https://www.amazon.in/Royal-Enfield-STREETWIND-V3-BLACK/dp/B0CHMDWJHL/'
+    },
+    {
+        id: 'amz_nikavi_jacket',
+        name: 'NIKAVI Riders Jacket',
+        category: 'jackets',
+        price: 3820,
+        imageUrl: require('../assets/Shop/Nikavi jacket.webp'),
+        url: 'https://www.amazon.in/NIKAVI-Protective-Riders-Jacket-Motorcycle/dp/B09KNT1GKY/'
+    },
+    {
+        id: 'amz_clan_boot',
+        name: 'CLAN Waterproof Shoes',
+        category: 'boots',
+        price: 5799,
+        imageUrl: require('../assets/Shop/clan scout boot.webp'),
+        url: 'https://www.amazon.in/CLAN-SHOES-Waterproof-Motorcycle-Footwear/dp/B0DM95GQGR/'
+    },
+    {
+        id: 'amz_tvs_boot',
+        name: 'TVS Racing Ankle Boots',
+        category: 'boots',
+        price: 5999,
+        imageUrl: require('../assets/Shop/TVS boot.webp'),
+        url: 'https://www.amazon.in/TVS-Racing-Ankle-Length-Riding/dp/B0CRYZWBY1/'
+    },
+    {
+        id: 'amz_bacca_boot',
+        name: 'Bacca Bucci 7-Eye Boots',
+        category: 'boots',
+        price: 1820,
+        imageUrl: require('../assets/Shop/Bacca boots.webp'),
+        url: 'https://www.amazon.in/Bacca-Bucci-7-Eye-Boots-Inspired/dp/B0BJ7JP4NJ/'
+    },
+    {
+        id: 'amz_cramster_boot',
+        name: 'Cramster Flux Boots',
+        category: 'boots',
+        price: 5999,
+        imageUrl: require('../assets/Shop/Cramster boot.webp'),
+        url: 'https://www.amazon.in/Cramster-Motorcycle-Protection-Resistance-Lightweight/dp/B0FNN9S22W/'
+    },
+    {
+        id: 'amz_eego_boot',
+        name: 'Eego Italy Rider-1 Boots',
+        category: 'boots',
+        price: 1949,
+        imageUrl: require('../assets/Shop/eego boots.webp'),
+        url: 'https://www.amazon.in/Eego-Italy-Pro-Ridding-Gear-RIDER-1-BLACK-8/dp/B09KM85PY7/'
+    },
+    {
+        id: 'amz_vr1_boot',
+        name: 'VR1 B05 Red Boots',
+        category: 'boots',
+        price: 9499,
+        imageUrl: require('../assets/Shop/VR1 boot.webp'),
+        url: 'https://www.amazon.in/VR1-B05-Red-Boots-Mens/dp/B0CX1KMZ3C/'
+    },
+    {
+        id: 'amz_feya_intercom',
+        name: 'FEYA Helmet Headset',
+        category: 'electronics',
+        price: 1499,
+        imageUrl: require('../assets/Shop/Helmet speakers.webp'),
+        url: 'https://www.amazon.in/FEYA-Motorcycle-Motorbike-Reduction-Accessories/dp/B0F488SZ3M/'
+    },
+    {
+        id: 'amz_ajjas_gps',
+        name: 'Ajjas 4G Lite GPS',
+        category: 'electronics',
+        price: 1429,
+        imageUrl: require('../assets/Shop/Ajjas 4g gps.webp'),
+        url: 'https://www.amazon.in/Ajjas-4G-Lite-Remote-Engine/dp/B0DC6PQMV1/'
+    },
+    {
+        id: 'amz_sheeba_polish',
+        name: 'Sheeba Liquid Polish',
+        category: 'tools',
+        price: 90,
+        imageUrl: require('../assets/Shop/Sheeba polish.webp'),
+        url: 'https://www.amazon.in/Sheeba-SCAIO07-Multipurpose-Liquid-Polish/dp/B00TC5I66Y/'
+    },
+    {
+        id: 'amz_usb_charger',
+        name: 'Thlevel USB-C Fast Charger',
+        category: 'electronics',
+        price: 799,
+        imageUrl: require('../assets/Shop/Usb charger.webp'),
+        url: 'https://www.amazon.in/Thlevel-Motorcycle-Charger-Type-C-Waterproof/dp/B0D12N1VNH/'
+    },
+    {
+        id: 'amz_elbow_guard',
+        name: 'Autofy Knee & Elbow Protector',
+        category: 'guards',
+        price: 499,
+        imageUrl: require('../assets/Shop/elbow gurad.webp'),
+        url: 'https://www.amazon.in/Autofy-Protector-Bikers-Riders-Motorcycle/dp/B08W1VKCLZ/'
+    },
+    {
+        id: 'amz_flash_torch',
+        name: 'Portronics Rechargeable Torch',
+        category: 'lights',
+        price: 383,
+        imageUrl: require('../assets/Shop/flash torch.webp'),
+        url: 'https://www.amazon.in/Portronics-Rechargeable-Flashlight-Adjustable-Emergencies/dp/B0FDWWNT31/'
+    },
+    {
+        id: 'amz_screw_driver',
+        name: 'Portronics Magnetic Screwdriver',
+        category: 'tools',
+        price: 335,
+        imageUrl: require('../assets/Shop/screw driver.webp'),
+        url: 'https://www.amazon.in/Portronics-Screwdriver-Travel-Friendly-Magnetic-Household/dp/B0DWLB93BG/'
+    },
+    {
+        id: 'amz_toolkit',
+        name: 'CLAPONE Professional Toolkit',
+        category: 'tools',
+        price: 249,
+        imageUrl: require('../assets/Shop/toolkit.webp'),
+        url: 'https://www.amazon.in/CLAPONE-Tool-Kit-Screwdriver-Motorcycle/dp/B0G3L97LBT/'
+    },
+    {
+        id: 'amz_uv_torch',
+        name: 'LETION UV Detection Torch',
+        category: 'lights',
+        price: 599,
+        imageUrl: require('../assets/Shop/uv torch.webp'),
+        url: 'https://www.amazon.in/LETION-Flashlight-Highlight-Waterproof-Detection/dp/B07X1H5TJQ/'
     }
 ];
 
@@ -181,30 +404,8 @@ const ShopScreen: React.FC<Props> = () => {
     const fetchProducts = async (): Promise<void> => {
         setLoading(true);
         try {
-            let items = await ShopService.getProducts(activeCategory, searchQuery);
-
-            // Auto-update items with broken URLs
-            let needsUpdate = false;
-            items = items.map(item => {
-                const initial = INITIAL_PRODUCTS.find(p => p.id === item.id);
-                if (initial && item.imageUrl !== initial.imageUrl) {
-                    needsUpdate = true;
-                    return { ...item, imageUrl: initial.imageUrl };
-                }
-                return item;
-            });
-
-            if (needsUpdate) {
-                // Silently update the DB in the background to fix the broken image URLs
-                ShopService.seedProducts(items).catch(console.error);
-            }
-
-            if (items.length === 0 && activeCategory === 'all' && !searchQuery) {
-                await ShopService.seedProducts(INITIAL_PRODUCTS);
-                setProducts(INITIAL_PRODUCTS);
-            } else {
-                setProducts(items);
-            }
+            const items = await ShopService.getProducts(activeCategory, searchQuery);
+            setProducts(items);
         } catch (error) {
             console.error(error);
         } finally {
@@ -212,6 +413,27 @@ const ShopScreen: React.FC<Props> = () => {
             setRefreshing(false);
         }
     };
+
+    // Optimization: Run database sync only ONCE on mount, not on every fetch/category switch
+    useEffect(() => {
+        const syncDatabase = async () => {
+            try {
+                const currentItems = await ShopService.getProducts('all');
+                const initIds = INITIAL_PRODUCTS.map(p => p.id);
+                const hasOldItems = currentItems.some(i => !initIds.includes(i.id));
+                const isMissingItems = currentItems.length !== INITIAL_PRODUCTS.length;
+
+                if (currentItems.length === 0 || hasOldItems || isMissingItems) {
+                    await ShopService.clearOldProducts(initIds);
+                    await ShopService.seedProducts(INITIAL_PRODUCTS);
+                    fetchProducts(); // Refresh list after sync
+                }
+            } catch (error) {
+                console.error("Sync error:", error);
+            }
+        };
+        syncDatabase();
+    }, []);
 
     useEffect(() => {
         fetchProducts();
@@ -253,12 +475,12 @@ const ShopScreen: React.FC<Props> = () => {
                 </View>
                 <TouchableOpacity
                     style={styles.cartBtn}
-                    onPress={() => navigation.navigate('Cart')}
+                    onPress={() => navigation.navigate('Wishlist')}
                 >
-                    <Ionicons name="cart-outline" size={26} color="#FFD700" />
-                    {cartCount > 0 && (
+                    <Ionicons name="heart-outline" size={26} color="#FFD700" />
+                    {wishlist.length > 0 && (
                         <View style={styles.cartBadge}>
-                            <Text style={styles.cartBadgeText}>{cartCount}</Text>
+                            <Text style={styles.cartBadgeText}>{wishlist.length}</Text>
                         </View>
                     )}
                 </TouchableOpacity>
@@ -314,9 +536,18 @@ const ShopScreen: React.FC<Props> = () => {
                 <TouchableOpacity
                     style={styles.productImageWrapper}
                     activeOpacity={0.9}
-                    onPress={() => navigation.navigate('ProductDetails', { product: item })}
+                    onPress={() => {
+                        if (item.url) {
+                            Linking.openURL(item.url as string);
+                        } else {
+                            navigation.navigate('ProductDetails', { product: item });
+                        }
+                    }}
                 >
-                    <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+                    <Image
+                        source={typeof item.imageUrl === 'number' ? item.imageUrl : { uri: item.imageUrl as string }}
+                        style={styles.productImage}
+                    />
                     <TouchableOpacity
                         style={styles.wishlistBtn}
                         onPress={() => handleToggleWishlist(item)}
@@ -345,12 +576,6 @@ const ShopScreen: React.FC<Props> = () => {
 
                     <View style={styles.productBottomRow}>
                         <Text style={styles.productPrice}>₹{item.price.toLocaleString()}</Text>
-                        <TouchableOpacity
-                            style={styles.addToCartSmall}
-                            onPress={() => handleAddToCart(item)}
-                        >
-                            <Ionicons name="add" size={20} color="black" />
-                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
@@ -386,7 +611,7 @@ const ShopScreen: React.FC<Props> = () => {
                     keyExtractor={item => item.id}
                     numColumns={2}
                     columnWrapperStyle={styles.productRow}
-                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 160 }]}
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
                     showsVerticalScrollIndicator={false}
                     refreshing={refreshing}
                     onRefresh={() => {
@@ -403,23 +628,7 @@ const ShopScreen: React.FC<Props> = () => {
                     </View>
                 )}
 
-                <View style={[styles.bottomHub, { bottom: insets.bottom + 85 }]}>
-                    <LinearGradient
-                        colors={['#1F2937CC', '#161925CC']}
-                        style={styles.bottomHubInner}
-                    >
-                        <TouchableOpacity
-                            style={[styles.hubBtn, { flex: 1 }]}
-                            onPress={() => navigation.navigate('Wishlist')}
-                        >
-                            <View style={{ alignItems: 'center' }}>
-                                <Ionicons name="heart-outline" size={24} color="#FFD700" />
-                                {wishlist.length > 0 && <View style={styles.hubBadge} />}
-                                <Text style={styles.hubBtnText}>Wishlist</Text>
-                            </View>
-                        </TouchableOpacity>
-                    </LinearGradient>
-                </View>
+
             </SafeAreaView>
         </View>
     );

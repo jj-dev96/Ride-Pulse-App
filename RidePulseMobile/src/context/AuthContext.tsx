@@ -10,6 +10,7 @@ import {
     GoogleAuthProvider,
     signInWithCredential,
     signInAnonymously,
+    sendPasswordResetEmail,
     ApplicationVerifier,
     User as FirebaseUser
 } from 'firebase/auth';
@@ -259,6 +260,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
+    const resetPassword = async (email: string): Promise<AuthResult> => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            return { success: true };
+        } catch (e: unknown) {
+            const err = e as { code?: string; message?: string };
+            console.error("Password Reset Error:", err.code, err.message);
+            return { success: false, error: err.code || err.message };
+        }
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -270,7 +282,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             loginWithGoogleCredential,
             loginAnonymously: loginAnonymouslyAuth,
             logout,
-            updateProfileStatus
+            updateProfileStatus,
+            resetPassword
         }}>
             {children}
         </AuthContext.Provider>

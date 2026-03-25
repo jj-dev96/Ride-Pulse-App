@@ -165,5 +165,20 @@ export const ShopService = {
         } catch (error) {
             console.error("Error seeding products:", error);
         }
+    },
+
+    clearOldProducts: async (validIds: string[]): Promise<void> => {
+        try {
+            const productsRef = collection(db, 'products');
+            const snapshot = await getDocs(query(productsRef));
+            for (const docSnap of snapshot.docs) {
+                if (!validIds.includes(docSnap.id)) {
+                    await deleteDoc(docSnap.ref);
+                }
+            }
+            console.log("Old products cleared successfully");
+        } catch (error) {
+            console.error("Error clearing old products:", error);
+        }
     }
 };

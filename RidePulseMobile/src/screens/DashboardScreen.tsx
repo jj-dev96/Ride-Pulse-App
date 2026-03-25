@@ -83,6 +83,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
     const [useCurrentLocation, setUseCurrentLocation] = useState<boolean>(true);
     const [manualStartLocation, setManualStartLocation] = useState<LocationCoords | null>(null);
     const [isRideActive, setIsRideActive] = useState<boolean>(false);
+    const isRideActiveRef = useRef<boolean>(false); // Ref to avoid stale closure in GPS callback
     const [hasArrived, setHasArrived] = useState<boolean>(false);
     const [isConnected, setIsConnected] = useState<boolean>(true);
     const [currentLocationName, setCurrentLocationName] = useState<string>("Current Location");
@@ -260,15 +261,46 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
             if (destCoords) {
                 setDestination(destCoords as LocationCoords);
-            }
-            if (geom) {
+
+                // Recalculate route from rider's CURRENT location to destination
+                // so the map shows a route from WHERE THE RIDER IS, not from the leader's position
+                const riderStart = location;
+                if (riderStart && (destCoords as LocationCoords).latitude) {
+                    getRoute(riderStart, destCoords as LocationCoords, 'drive').then((routeResult) => {
+                        if (routeResult?.coordinates) {
+                            setRouteCoords(routeResult.coordinates);
+                            setRouteSteps(routeResult.steps || []);
+                            // Set rideDistance to rider's route distance
+                            const km = routeResult.distance / 1000;
+                            setRideDistance(km);
+                            setEstimatedDistance(`${km.toFixed(1)} km`);
+                            const mins = Math.ceil(routeResult.duration / 60);
+                            setEstimatedDuration(`${mins} min`);
+                        } else if (geom) {
+                            // Fallback: use leader's route geometry if own calc fails
+                            setRouteCoords(geom as LocationCoords[]);
+                        }
+                    }).catch(() => {
+                        // Fallback: use leader's route geometry
+                        if (geom) setRouteCoords(geom as LocationCoords[]);
+                        if (activeGroup.distance) {
+                            setRideDistance(parseFloat(String(activeGroup.distance)) || 0);
+                            setEstimatedDistance(`${activeGroup.distance} km`);
+                        }
+                    });
+                } else if (geom) {
+                    setRouteCoords(geom as LocationCoords[]);
+                    if (activeGroup.distance) {
+                        setRideDistance(parseFloat(String(activeGroup.distance)) || 0);
+                        setEstimatedDistance(`${activeGroup.distance} km`);
+                    }
+                }
+            } else if (geom) {
                 setRouteCoords(geom as LocationCoords[]);
             }
+
             if (activeGroup.destination && activeGroup.destination !== 'TBD') {
                 setSearchQuery(activeGroup.destination);
-            }
-            if (activeGroup.distance) {
-                setEstimatedDistance(`${activeGroup.distance} km`);
             }
             if (activeGroup.eta) {
                 setEstimatedDuration(`${activeGroup.eta} min`);
@@ -276,11 +308,22 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
             // AUTO-START RIDE FOR MEMBERS
             if (activeGroup.status === 'active' && !isRideActive) {
+                // Sync timer from the group's startedAt so leader and rider timers match
+                if ((activeGroup as any).startedAt) {
+                    const elapsedSeconds = Math.floor(
+                        (Date.now() - new Date((activeGroup as any).startedAt).getTime()) / 1000
+                    );
+                    setRideDuration(Math.max(0, elapsedSeconds));
+                }
+                // Set the route distance so riders see the same distance as leader
+                if (activeGroup.distance && rideDistance === 0) {
+                    setRideDistance(parseFloat(String(activeGroup.distance)) || 0);
+                }
                 setIsRideActive(true);
                 AsyncStorage.setItem('SOLO_RIDE_ACTIVE', 'true').catch(() => { });
             }
         }
-    }, [activeGroup?.destinationCoordinates, activeGroup?.destinationCoords, activeGroup?.routeGeometry, activeGroup?.routeCoords, activeGroup?.id, isLeader, activeGroup?.distance, activeGroup?.eta, activeGroup?.status, isRideActive]);
+    }, [activeGroup?.destinationCoordinates, activeGroup?.destinationCoords, activeGroup?.routeGeometry, activeGroup?.routeCoords, activeGroup?.id, isLeader, activeGroup?.distance, activeGroup?.eta, activeGroup?.status, isRideActive, location?.latitude, location?.longitude]);
 
     const handleSendQuickMessage = (msg: string): void => {
         if (activeGroup) {
@@ -479,9 +522,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
     // Ride Timer logic
     useEffect(() => {
+        isRideActiveRef.current = isRideActive; // Keep ref in sync
         let interval: ReturnType<typeof setInterval> | undefined;
         if (isRideActive) {
             setRideStartTime(new Date().toISOString());
+            // NOTE: Do NOT reset rideDuration to 0 here.
+            // For group members, rideDuration may have been pre-seeded from startedAt
+            // so that the rider's timer syncs with the leader's elapsed time.
             interval = setInterval(() => {
                 setRideDuration(prev => prev + 1);
             }, 1000);
@@ -489,6 +536,8 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
             setRideDuration(0);
             setRideSpeed(0);
             setRideDistance(0);
+            setEstimatedDistance('');
+            setEstimatedDuration('');
             setRouteArray([]);
         }
         return () => {
@@ -514,7 +563,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                 const currentSpeedKmh = speed && speed > 0 ? Math.round(speed * 3.6) : 0;
                 setRideSpeed(currentSpeedKmh);
 
-                if (isRideActive) {
+                if (isRideActiveRef.current) { // Use ref to avoid stale closure
                     // Update tracked route and distance
                     setRouteArray(prev => {
                         if (prev.length > 0) {
@@ -729,10 +778,9 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                 };
                 if (user?.id) await RideService.logRide(user.id, rideData);
 
-                // REPLACED Alert.alert with Display Card
                 showFloatingMessage({
-                    senderName: "SYSTEM",
-                    text: `🏁 RIDE COMPLETED!\nDist: ${rideDistance.toFixed(1)} km | Time: ${formatTime(rideDuration)}`,
+                    senderName: "MISSION COMPLETE",
+                    text: `🏁 Dist: ${rideDistance.toFixed(1)} km | Time: ${formatTime(rideDuration)}`,
                     timestamp: new Date().toISOString()
                 });
             } catch (error) {
@@ -1025,7 +1073,6 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                             isDarkTheme={isDarkTheme}
                             locked={!!(activeGroup && (activeGroup.status === 'active' || activeGroup.status === 'waiting') && user?.id && activeGroup.hostId !== user.id)}
                         />
-
                         {/* Theme Toggle Button - Top Right Floating */}
                         <TouchableOpacity
                             style={[styles.themePill, !isDarkTheme && styles.themePillLight]}
@@ -1067,7 +1114,13 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
                         </View>
                         <View style={[styles.statBox, !isDarkTheme && styles.statBoxLight]}>
                             <Text style={[styles.statLabel, !isDarkTheme && styles.statLabelLight]}>DISTANCE</Text>
-                            <Text style={[styles.statValueBig, !isDarkTheme && styles.statValueBigLight]}>{rideDistance.toFixed(1)} km</Text>
+                            <Text style={[styles.statValueBig, !isDarkTheme && styles.statValueBigLight]}>
+                                {/* For group members: show route distance from estimatedDistance.
+                                    For leader/solo: show GPS-tracked distance. */}
+                                {!isLeader && activeGroup && estimatedDistance
+                                    ? estimatedDistance
+                                    : `${rideDistance.toFixed(1)} km`}
+                            </Text>
                         </View>
                     </View>
 
@@ -1324,7 +1377,7 @@ const styles = StyleSheet.create({
     sosTriggeredText: { color: 'white', fontSize: 38, fontWeight: '900', marginTop: 20, letterSpacing: 1 },
     sosTriggeredSub: { color: 'rgba(255,255,255,0.7)', fontSize: 15, textAlign: 'center', marginTop: 12, lineHeight: 22 },
 
-    floatingMessageCard: { position: 'absolute', top: 120, left: 20, right: 20, backgroundColor: 'rgba(31, 41, 55, 0.95)', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FFD70050', elevation: 12, zIndex: 2000 },
+    floatingMessageCard: { position: 'absolute', top: 200, left: 20, right: 20, backgroundColor: 'rgba(31, 41, 55, 0.95)', borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FFD70050', elevation: 12, zIndex: 1 },
     messageIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,215,0,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
     messageSender: { color: '#9CA3AF', fontWeight: 'bold', fontSize: 12, opacity: 0.8, textTransform: 'uppercase' },
     messageText: { color: 'white', fontWeight: '900', fontSize: 16, marginTop: 4 },

@@ -173,7 +173,12 @@ export const GroupService = {
     updateRideStatus: async (groupId: string, status: string): Promise<void> => {
         try {
             const rideRef = doc(db, 'rides', groupId);
-            await updateDoc(rideRef, { status });
+            const updateData: Record<string, any> = { status };
+            // Save a startedAt timestamp when ride goes active so all members can sync timers
+            if (status === 'active') {
+                updateData.startedAt = new Date().toISOString();
+            }
+            await updateDoc(rideRef, updateData);
         } catch (error) {
             console.error("Error updating status:", error);
         }

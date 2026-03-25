@@ -19,7 +19,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.ridepulse",
+      "package": "com.ridebuddy",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -30,7 +30,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ridepulse",
+      "bundleIdentifier": "com.ridebuddy",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Allow RidePulse to access your location for ride tracking and navigation.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow RidePulse to access your location for ride tracking and navigation."

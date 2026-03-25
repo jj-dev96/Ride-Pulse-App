@@ -7,17 +7,16 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
-import * as WebBrowser from 'expo-web-browser';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import GoogleSignInButton from '../components/GoogleSignInButton';
 
-WebBrowser.maybeCompleteAuthSession();
+// SSO removed as per request
+
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 const LoginScreen: React.FC<Props> = () => {
-    const { login, register, loginAnonymously } = useContext(AuthContext);
+    const { login, register, loginAnonymously, resetPassword } = useContext(AuthContext);
     const { colorScheme } = useContext(ThemeContext);
     const [isLogin, setIsLogin] = useState<boolean>(true);
 
@@ -93,23 +92,38 @@ const LoginScreen: React.FC<Props> = () => {
             setLoading(false);
         }
     };
+    
+    const handleForgotPassword = async (): Promise<void> => {
+        if (!email) {
+            Alert.alert('Email Required', 'Please enter your email address to reset your password.');
+            return;
+        }
+        if (!isValidEmail(email)) {
+            Alert.alert('Invalid Email', 'Please enter a valid email address.');
+            return;
+        }
 
-    const handleDevLogin = async (): Promise<void> => {
-        const devEmail = 'dev@ridepulse.com';
-        const devPassword = 'password123';
-        setEmail(devEmail);
-        setPassword(devPassword);
         setLoading(true);
         try {
-            const result = await login(devEmail, devPassword);
-            handleAuthResult(result);
+            const result = await resetPassword(email);
+            if (result.success) {
+                Alert.alert('Success', 'Password reset email sent. Please check your inbox.');
+            } else {
+                if (result.error?.includes('auth/user-not-found')) {
+                    Alert.alert('Not Found', 'No account found with this email.');
+                } else {
+                    Alert.alert('Error', result.error || 'Failed to send reset email.');
+                }
+            }
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Dev login failed. Please try again.');
+            Alert.alert('Error', 'An unexpected error occurred.');
         } finally {
             setLoading(false);
         }
     };
+
+
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -197,8 +211,15 @@ const LoginScreen: React.FC<Props> = () => {
                             </View>
 
                             {isLogin && (
-                                <TouchableOpacity style={styles.forgotPassword}>
-                                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                <TouchableOpacity 
+                                    style={styles.forgotPassword}
+                                    onPress={handleForgotPassword}
+                                    disabled={loading}
+                                >
+                                    <View style={styles.forgotPasswordContent}>
+                                        <MaterialIcons name="help-outline" size={14} color="#FFD700" style={styles.forgotPasswordIcon} />
+                                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                    </View>
                                 </TouchableOpacity>
                             )}
 
@@ -215,29 +236,9 @@ const LoginScreen: React.FC<Props> = () => {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Divider */}
-                        <View style={styles.dividerContainer}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>or continue with</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
+                        {/* SSO Buttons Removed */}
 
-                        {/* SSO Buttons */}
-                        <View style={styles.ssoContainer}>
-                            <GoogleSignInButton
-                                label="Google"
-                                onError={(msg) => Alert.alert('Google Sign-In Error', msg)}
-                            />
-                        </View>
 
-                        {/* Developer Bypass */}
-                        <TouchableOpacity
-                            style={styles.devBypass}
-                            onPress={handleDevLogin}
-                            onLongPress={() => Alert.alert("Dev", "Auto-filling demo credentials")}
-                        >
-                            <Text style={styles.devBypassText}>DEVELOPER LOGIN</Text>
-                        </TouchableOpacity>
                     </View>
 
                     {/* Footer */}
@@ -273,20 +274,16 @@ const styles = StyleSheet.create({
     inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2433', borderWidth: 1, borderColor: '#374151', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 },
     input: { flex: 1, marginLeft: 12, color: '#FFFFFF', fontSize: 16 },
     forgotPassword: { alignItems: 'flex-end', marginTop: 4 },
-    forgotPasswordText: { color: '#FFD700', fontWeight: '600', fontSize: 12 },
+    forgotPasswordContent: { flexDirection: 'row', alignItems: 'center' },
+    forgotPasswordIcon: { marginRight: 4 },
+    forgotPasswordText: { color: '#FFD700', fontWeight: '600', fontSize: 13, textDecorationLine: 'underline' },
     actionButton: { backgroundColor: '#FFD700', borderRadius: 12, paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8, shadowColor: '#FFD700', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
     actionButtonText: { color: '#000000', fontWeight: 'bold', fontSize: 18, letterSpacing: 1, marginRight: 8 },
-    dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24, gap: 10 },
-    dividerLine: { flex: 1, height: 1, backgroundColor: '#374151' },
-    dividerText: { color: '#6B7280', fontSize: 12 },
-    ssoContainer: { flexDirection: 'row', gap: 15 },
-    ssoButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1F2433', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#374151', gap: 8 },
-    ssoText: { color: 'white', fontWeight: '600', fontSize: 14 },
     footer: { marginTop: 32, alignItems: 'center', paddingHorizontal: 16 },
+
     footerText: { color: '#6B7280', fontSize: 12, textAlign: 'center', lineHeight: 20 },
     linkText: { textDecorationLine: 'underline', color: '#9CA3AF' },
-    devBypass: { marginTop: 20, padding: 5, alignItems: 'center', opacity: 0.5 },
-    devBypassText: { color: '#FFD700', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 }
+
 });
 
 export default LoginScreen;
